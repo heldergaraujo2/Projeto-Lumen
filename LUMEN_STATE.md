@@ -17,26 +17,27 @@ hotfixes), 0.6.2 Correção Automática Controlada, 0.6.x UI de Terminal,
 Auditoria, 0.5 Filesystem Tools, 0.4.x Planner+Executor, 0.3 Advanced
 Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
 bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C,
-11D e 11E — ver "ESTADO ATUAL" a seguir)*
+11D, 11E e 11F — ver "ESTADO ATUAL" a seguir)*
 
 ## STATUS
 
-**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11E)** *(atualizado em
-2026-08-31 — **977 passed + 5 skipped, 0 failed** (982 coletados; 5
+**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11F)** *(atualizado em
+2026-08-31 — **980 passed + 5 skipped, 0 failed** (985 coletados; 5
 skips ambientais: SDKs google-genai/groq/together ausentes, keyring
 ausente, Tkinter sem display). Registros anteriores preservados:
-pós-11D (2026-08-31): 973+5/0; pós-11C (2026-08-30): 967+5/0; 0.6.6
+pós-11E (2026-08-31): 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30):
+967+5/0; 0.6.6
 (2026-08-28): 875+5 na dev E na venv limpa — 880 no total)*
 
-## ESTADO ATUAL (2026-08-31 — pós-11E)
+## ESTADO ATUAL (2026-08-31 — pós-11F)
 
-- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11E
+- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11F
   foram entregues SEM bump de versão (engenharia interna).
-- **Suíte completa:** **977 passed / 5 skipped / 0 failed** (982
-  coletados — medida após a 11E: +2 da flag `applied` no executor,
-  +2 integração e2e de verificação real. Registro anterior, pós-11D
-  (2026-08-31): 973 passed / 5 skipped / 0 failed — preservado como
-  histórico).
+- **Suíte completa:** **980 passed / 5 skipped / 0 failed** (985
+  coletados — medida após a 11F: +3 de auto-anexo `run_pytest` após
+  WRITE. Registros anteriores preservados: pós-11E (2026-08-31): 977
+  passed / 5 skipped / 0 failed (982); pós-11D: 973 passed / 5 skipped
+  / 0 failed (978) — histórico).
 - **Fases internas concluídas sobre a 0.6.8:** 9A×2 (auditorias
   read-only), 9B (persistência opt-in do execution state — default
   OFF), 10A (spec Advanced Planning), 10B (MVP: guardrails R5, Stage 2
@@ -46,7 +47,8 @@ pós-11D (2026-08-31): 973+5/0; pós-11C (2026-08-30): 967+5/0; 0.6.6
   `edit_file`: edição cirúrgica com ocorrência exatamente 1; ver
   abaixo), 11D (tool `run_pytest` + checkpoint + catálogo; ver
   abaixo), **11E (verificação real via `run_pytest` + toggle opt-in;
-  ver abaixo)**.
+  ver abaixo)**, **11F (auto-anexo de `run_pytest` após WRITE; ver
+  abaixo)**.
 - **`search_files`:** 7ª tool de filesystem no registry default
   (EXECUÇÃO ✅) e **presente no Planner Catalog**
   (`app/planner/catalog.py` — PLANEJAMENTO AUTOMÁTICO ✅). Nenhuma
@@ -87,14 +89,26 @@ pós-11D (2026-08-31): 973+5/0; pós-11C (2026-08-30): 967+5/0; 0.6.6
   None` (sem marca, sem rejeição); `applied=True` + verde ⇒
   `verified=True`, vermelho ⇒ task `REJECTED` + plano `FAILED`
   (fail-fast). Spec: `docs/SPEC-11E-REAL_VERIFICATION.md`.
+- **Auto-anexo `run_pytest` após WRITE (11F — IMPLEMENTADA + TESTADA,
+  concluída):** `ToolsController.run_plan` anexa automaticamente 1
+  task final `run_pytest` (`path="tests"`, depende de **todas** as
+  tasks anteriores — executa por último) **antes de executar**, quando
+  (a) terminal habilitado, (b) verificação 11E habilitada e (c) o
+  plano contém WRITE (`write_file`/`create_file`/`delete_file`/
+  `edit_file`). Idempotência: não anexa se `run_pytest` já estiver no
+  plano (e sem as condições o plano executa inalterado). Guardrail:
+  plano com 12/12 tasks + anexo necessário ⇒ **falha antes de
+  executar** (FAILED, tudo SKIPPED, nenhuma tool roda — provado em
+  testes). Spec: `docs/SPEC-11F-AUTO_PYTEST_AFTER_WRITE.md`.
 - **Próximos tópicos da trilha Coding Agent (11A): NÃO AUTORIZADOS**
   (reparo via CorrectionEngine, wiring Settings→Planner). Build/test
-  estruturado foi entregue na 11D (`run_pytest`) e a verificação real
-  (opt-in) na 11E.
+  estruturado foi entregue na 11D (`run_pytest`), a verificação real
+  (opt-in) na 11E e o auto-anexo após WRITE na 11F.
 - **Proibições vigentes preservadas:** R4 (replanning automático) e
   Computer Control / vision / Unreal / Blueprint / C++ (F17).
-- **Docs:** README/ROADMAP/SPEC ainda referem números pré-11E (973) em
-  partes (doc sync pendente).
+- **Docs:** LUMEN_STATE sincronizado com a 11F; README/ROADMAP ainda
+  referem números pré-11F (977) em partes (doc sync pendente nos
+  comandos seguintes).
 
 ## OBJECTIVE — 0.6.3 (histórico)
 

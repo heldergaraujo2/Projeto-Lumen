@@ -23,6 +23,7 @@ Garantias:
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -32,10 +33,10 @@ from app.executor.correction import (
     CorrectionStrategy,
 )
 from app.executor.executor import PlanExecutor
-from app.executor.executor import ExecutionReport
+from app.executor.executor import ExecutionEvent, ExecutionReport, TaskRun
 from app.executor.verification import TaskVerifier
 from app.memory.execution_store import ExecutionBundleStore
-from app.planner.models import Plan, PlanStatus
+from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
 from app.security.permissions import PermissionLevel, PermissionManager
 from app.tools.audit_log import JsonlAuditSink, read_audit_tail
 from app.tools.base import ToolRegistry
@@ -91,6 +92,97 @@ OPERATION_LABELS = {
 
 #: Níveis gerenciáveis pela UI (DELETE é opt-in de workspace, não nível).
 MANAGEABLE_LEVELS = (PermissionLevel.CHAT, PermissionLevel.READ, PermissionLevel.WRITE)
+
+#: 11F — tools contadas como WRITE para o auto-anexo de ``run_pytest``.
+_AUTO_PYTEST_WRITE_TOOLS = frozenset({
+    "write_file",
+    "create_file",
+    "delete_file",
+    "edit_file",
+})
+
+#: 11F — espelha ``PlannerLimits.max_tasks`` (``app/planner/planner.py``):
+#: anexo necessário com plano no limite NÃO excede o teto silenciosamente —
+#: falha **antes de executar** (tudo SKIPPED, motivo claro).
+_AUTO_PYTEST_MAX_TASKS = 12
+
+
+def _needs_auto_pytest(
+    plan: Plan, *, terminal_enabled: bool, verification_enabled: bool
+) -> bool:
+    """11F — decisão pura: anexar task final ``run_pytest``?
+
+    Somente quando (a) terminal habilitado, (b) verificação 11E
+    habilitada, (c) o plano tem ao menos 1 WRITE (MVP: as 4 tools de
+    filesystem) e (d) o plano ainda não contém ``run_pytest``
+    (idempotência — 1 por plano).
+    """
+    if not terminal_enabled or not verification_enabled:
+        return False
+    if any(task.tool == "run_pytest" for task in plan.tasks):
+        return False
+    return any(task.tool in _AUTO_PYTEST_WRITE_TOOLS for task in plan.tasks)
+
+
+def _attach_run_pytest(plan: Plan) -> Plan:
+    """11F — pura: devolve novo plano com a task final ``run_pytest``.
+
+    O plano original não é alterado (``Plan`` é frozen — ``replace``).
+    A task anexada depende de **todas** as tasks existentes (executa
+    por último), com id defensivo (``T{n+1}``, incrementado se
+    colidir) e parâmetros estáticos, sem dataflow.
+    """
+    tasks = list(plan.tasks)
+    used_ids = {task.id for task in tasks}
+    order = len(tasks) + 1
+    while f"T{order}" in used_ids:
+        order += 1
+    new_task = PlannedTask(
+        id=f"T{order}",
+        description="11F: run_pytest após WRITE",
+        order=order,
+        dependencies=tuple(task.id for task in tasks),
+        tool="run_pytest",
+        parameters={"path": "tests"},
+    )
+    return replace(plan, tasks=tuple(tasks + [new_task]))
+
+
+def _auto_pytest_limit_report(plan: Plan) -> ExecutionReport:
+    """11F — relatório do guardrail: anexo necessário e plano no limite.
+
+    Coerente com o fail-fast do executor: todas as tasks ``SKIPPED``,
+    plano ``FAILED``, **nada** executado (sem chamadas de tool, sem
+    checkpoints).
+    """
+    reason = (
+        "Auto-verificação (11F) requer 1 task extra (run_pytest), mas "
+        f"o plano já tem {len(plan.tasks)} tasks (máximo "
+        f"{_AUTO_PYTEST_MAX_TASKS}) — nada foi executado."
+    )
+    tasks = tuple(
+        TaskRun(
+            id=task.id,
+            description=task.description,
+            order=task.order,
+            dependencies=task.dependencies,
+            status=PlannedTaskStatus.SKIPPED,
+            error="Pulada: guardrail 11F (plano no limite de tasks).",
+        )
+        for task in plan.tasks
+    )
+    events: list[ExecutionEvent] = [
+        ExecutionEvent("task_skipped", task.id) for task in plan.tasks
+    ]
+    events.append(ExecutionEvent("plan_finished", None, PlanStatus.FAILED.value))
+    return ExecutionReport(
+        plan_id=plan.id,
+        objective=plan.objective,
+        status=PlanStatus.FAILED,
+        tasks=tasks,
+        events=tuple(events),
+        error=reason,
+    )
 
 
 class ToolsControlError(RuntimeError):
@@ -692,6 +784,11 @@ class ToolsController:
         (bloqueio real), sem aprovação decorativa. Comandos de terminal
         viáveis (allowlist + permissão ``TERMINAL`` + cwd) também pausam
         para aprovação quando marcados ``requires_approval``.
+
+        11F: com terminal + verificação 11E habilitados e plano com
+        WRITE, é anexada 1 task final ``run_pytest`` — com plano no
+        limite de tasks, falha **antes de executar** (tudo ``SKIPPED``,
+        motivo claro).
         """
         sandbox = self._sandbox()
         registry = self.build_registry()
@@ -699,6 +796,17 @@ class ToolsController:
         self._registry = registry
         self._executor = None
         self._engine = None
+        # 11F: auto-anexo de run_pytest após WRITE — guardrails **antes**
+        # de qualquer task executar (sem chamadas de tool, sem checkpoint).
+        if _needs_auto_pytest(
+            plan,
+            terminal_enabled=self._terminal_policy is not None,
+            verification_enabled=self.verification_enabled,
+        ):
+            if len(plan.tasks) >= _AUTO_PYTEST_MAX_TASKS:
+                return self._final(_auto_pytest_limit_report(plan))
+            plan = _attach_run_pytest(plan)
+            self._plan = plan  # 9B: bundle persiste o plano ajustado
         policies: list[ToolCheckpoints] = [
             PrevalidatedCheckpoints(self._permissions, registry, sandbox)
         ]

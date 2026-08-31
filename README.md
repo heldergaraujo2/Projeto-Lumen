@@ -128,8 +128,18 @@ O projeto evolui em fases (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
   o resultado estruturado da task `run_pytest`) — e o desfecho reflete
   em `verified=True/False` da task (default continua sem verificação;
   verificação real completa, ex. pós-escrita/correção, permanece em
-  aberto, por spec). Specs: `docs/SPEC-11D-BUILD_TEST.md` +
-  `docs/SPEC-11E-REAL_VERIFICATION.md`.
+  aberto, por spec). Desde a 11F há **auto-anexo de `run_pytest` após
+  WRITE** (também opt-in): quando o terminal está habilitado, a
+  verificação 11E está habilitada e o plano contém uma operação WRITE
+  (`write_file`/`create_file`/`delete_file`/`edit_file`), o
+  `ToolsController.run_plan` anexa 1 task final `run_pytest` (depende
+  de todas as anteriores; idempotente — não anexa se `run_pytest` já
+  estiver no plano) antes de executar; com plano em 12/12 tasks +
+  anexo necessário, **falha antes de executar** (nada roda). Default
+  continua sem verificação e sem auto-anexo (comportamento atual
+  preservado). Specs: `docs/SPEC-11D-BUILD_TEST.md` +
+  `docs/SPEC-11E-REAL_VERIFICATION.md` +
+  `docs/SPEC-11F-AUTO_PYTEST_AFTER_WRITE.md`.
 - **0.6.x (UI de Terminal, Allowlist e Concessão TERMINAL)** ✅ — seção
   **TERMINAL** na tela 🛡: ver/conceder/revogar a permissão `TERMINAL`
   por **ação explícita e auditada** (o caminho genérico de permissões
@@ -443,7 +453,7 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-982 testes, todos offline — **977 passed / 5 skipped / 0 failed**.
+985 testes, todos offline — **980 passed / 5 skipped / 0 failed**.
 Os 5 skips são ambientais: introspecção dos SDKs
 `google-genai`/`groq`/`together` e do `keyring` quando ausentes, e o
 smoke test da UI Tk em ambientes sem display (no Windows ele roda). As chamadas aos provedores (OpenAI, Gemini, Groq,
@@ -580,7 +590,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # 982 testes pytest (977 passed + 5 skipped; todos offline)
+├── tests/                   # 985 testes pytest (980 passed + 5 skipped; todos offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura

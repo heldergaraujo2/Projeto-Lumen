@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from app.planner.models import Plan, PlanStatus, PlannedTask
+from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
 from app.security.permissions import PermissionManager
 from app.tools.control import ToolsControlError, ToolsController
 
@@ -311,3 +311,112 @@ def test_permission_block_is_audited(controller, ws):
                if r["operation"] == "permission_gate"]
     assert records and records[0]["success"] is False
     assert records[0]["tool"] == "create_file"
+
+
+# ------------------------------------------------- 11F (auto-anexo run_pytest após WRITE)
+def _make_controller(tmp_path: Path, tag: str = "") -> ToolsController:
+    return ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / f"workspaces{tag}.json",
+        audit_file=tmp_path / f"audit{tag}" / "audit.jsonl",
+    )
+
+
+def test_11f_appends_run_pytest_after_write_when_terminal_and_verification_enabled(
+    controller, ws
+):
+    """Terminal + verificação 11E ON + plano com WRITE ⇒ 1 task run_pytest
+    anexada no final, dependente das tasks anteriores."""
+    controller.add_workspace(str(ws), writable=True)
+    controller.grant_permission("READ")
+    controller.grant_permission("WRITE")
+    controller.enable_terminal()
+    controller.enable_verification("pytest_result")
+    report = controller.run_plan(ready(
+        "trabalho",
+        armed("T1", "create_file", {"path": "novo.txt", "content": "dados"}),
+    ))
+    # Execução começa com o plano ajustado (pausa no checkpoint do T1).
+    assert report.status is PlanStatus.RUNNING
+    assert controller.has_pending
+    # Task anexada: última, id novo, depende da anterior.
+    assert [t.id for t in controller._plan.tasks] == ["T1", "T2"]
+    attached = controller._plan.tasks[-1]
+    assert attached.tool == "run_pytest"
+    assert attached.parameters == {"path": "tests"}
+    assert attached.order == 2
+    assert attached.dependencies == ("T1",)
+    # O snapshot do relatório também contém a task anexada.
+    assert len(report.tasks) == 2
+    assert report.tasks[-1].id == "T2"
+    assert report.tasks[-1].dependencies == ("T1",)
+
+
+def test_11f_does_not_append_when_verification_disabled(controller, tmp_path, ws):
+    """Não anexa quando a condição não se cumpre: verificação OFF (caso
+    principal), terminal OFF, ou run_pytest já no plano (idempotência)."""
+    # (1) Verificação desabilitada (terminal ON) ⇒ sem anexo.
+    controller.add_workspace(str(ws), writable=True)
+    controller.grant_permission("WRITE")
+    controller.enable_terminal()  # enable_verification NÃO é chamado
+    controller.run_plan(ready("t", armed("T1", "create_file",
+                                         {"path": "a.txt", "content": "x"})))
+    assert [t.id for t in controller._plan.tasks] == ["T1"]
+    assert all(t.tool != "run_pytest" for t in controller._plan.tasks)
+
+    # (2) Terminal desabilitado (verificação ON) ⇒ sem anexo.
+    c2 = _make_controller(tmp_path, "2")
+    c2.add_workspace(str(ws), writable=True)
+    c2.grant_permission("WRITE")
+    c2.enable_verification("pytest_result")
+    c2.run_plan(ready("t", armed("T1", "create_file",
+                                 {"path": "b.txt", "content": "x"})))
+    assert [t.id for t in c2._plan.tasks] == ["T1"]
+    assert all(t.tool != "run_pytest" for t in c2._plan.tasks)
+
+    # (3) run_pytest já no plano ⇒ sem duplicata.
+    c3 = _make_controller(tmp_path, "3")
+    c3.add_workspace(str(ws), writable=True)
+    c3.grant_permission("WRITE")
+    c3.enable_terminal()
+    c3.enable_verification("pytest_result")
+    c3.run_plan(ready(
+        "t",
+        armed("T1", "create_file", {"path": "c.txt", "content": "x"}),
+        armed("T2", "run_pytest", {"path": "tests"}, order=2,
+              dependencies=("T1",)),
+    ))
+    assert [t.id for t in c3._plan.tasks] == ["T1", "T2"]
+    assert sum(1 for t in c3._plan.tasks if t.tool == "run_pytest") == 1
+
+
+def test_11f_limit_12_tasks_fails_without_executing_any_tool(controller, ws):
+    """Plano com 12/12 tasks + anexo necessário ⇒ falha **antes de
+    executar**: FAILED, tudo SKIPPED, sem checkpoint e sem nenhuma
+    execução bem-sucedida de tool na auditoria."""
+    controller.add_workspace(str(ws), writable=True)
+    controller.grant_permission("READ")
+    controller.grant_permission("WRITE")
+    controller.enable_terminal()
+    controller.enable_verification("pytest_result")
+    tasks = [
+        armed(f"T{i}", "read_file", {"path": "leia.txt"}, order=i)
+        for i in range(1, 12)
+    ]
+    tasks.append(armed("T12", "create_file", {"path": "z.txt", "content": "x"},
+                       order=12))
+    report = controller.run_plan(ready("t", *tasks))
+    # Guardrail: falha antes de executar.
+    assert report.status is PlanStatus.FAILED
+    assert [t.status for t in report.tasks] == [PlannedTaskStatus.SKIPPED] * 12
+    assert "run_pytest" in report.error and "12" in report.error
+    # Sem checkpoint e nada pendente.
+    assert not controller.has_pending
+    assert report.pending_checkpoint is None
+    assert report.checkpoints == ()
+    # Auditoria: nenhuma execução de tool do plano (registros com
+    # task_id/plan_id) — os admin (ex.: terminal_enable) são setup,
+    # não execução.
+    execs = [r for r in controller.audit_records() if r.get("task_id")]
+    assert not execs  # nenhuma tool foi tentada, quanto menos executada
+    assert not (ws / "z.txt").exists()  # nem a escrita rodou

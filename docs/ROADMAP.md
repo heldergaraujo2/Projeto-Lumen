@@ -1,7 +1,7 @@
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
-11B, 11C, 11D e 11E concluídas sem bump de versão — ver "Estado real" abaixo.**
+11B, 11C, 11D, 11E e 11F concluídas sem bump de versão — ver "Estado real" abaixo.**
 
 Cada versão entrega um incremento fechado e testado. Regra de ouro do
 projeto: **nenhuma capacidade sensível entra sem que a camada de
@@ -9,7 +9,7 @@ permissões e o fluxo de confirmação do usuário estejam prontos antes**.
 
 ---
 
-## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11E
+## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11F
 
 Concluído sobre a 0.6.8, **sem bump de versão** (engenharia interna;
 detalhes em `LUMEN_STATE.md`):
@@ -53,14 +53,23 @@ detalhes em `LUMEN_STATE.md`):
   (fail-fast); `applied=False` para tasks não aplicáveis mantém
   `verified=None`; +4 testes (flag `applied` + e2e verde/vermelho).
   Spec: `docs/SPEC-11E-REAL_VERIFICATION.md`.
+- **11F** — **auto-anexo de `run_pytest` após WRITE** (opt-in): em
+  `ToolsController.run_plan`, quando terminal habilitado + verificação
+  11E habilitada + plano contém WRITE (`write_file`/`create_file`/
+  `delete_file`/`edit_file`), é anexada 1 task final `run_pytest`
+  (depende de todas as anteriores) antes de executar; idempotente
+  (não anexa se `run_pytest` já estiver no plano; default continua sem
+  auto-anexo); guardrail: plano em 12/12 tasks + anexo necessário ⇒
+  **falha antes de executar** (FAILED, tudo SKIPPED, nada roda); +3
+  testes. Spec: `docs/SPEC-11F-AUTO_PYTEST_AFTER_WRITE.md`.
 
-**Suíte completa: 977 passed / 5 skipped / 0 failed (982 coletados).**
+**Suíte completa: 980 passed / 5 skipped / 0 failed (985 coletados).**
 
 **Próximos tópicos da trilha Coding Agent (0.7) — NÃO AUTORIZADOS /
 NÃO IMPLEMENTADOS:** verificação real completa, repair-loop (reparo
 via CorrectionEngine), wiring Settings→Planner. O runner dedicado de
-build/test estruturado (`run_pytest`) foi entregue na 11D e a
-verificação real (opt-in) na 11E.
+build/test estruturado (`run_pytest`) foi entregue na 11D, a
+verificação real (opt-in) na 11E e o auto-anexo após WRITE na 11F.
 Restrições vigentes preservadas: R4 (sem replanning automático) e F17
 (sem Computer Control / vision / Unreal / Blueprint / C++).
 
@@ -556,8 +565,8 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 ## Lumen 0.7 — Coding Agent
 
 > Status (2026-08-31): 11B (`search_files`), 11C (`edit_file`), 11D
-> (`run_pytest` — runner estruturado de build/test) e 11E (verificação
-> real opt-in) entregues.
+> (`run_pytest` — runner estruturado de build/test), 11E (verificação
+> real opt-in) e 11F (auto-anexo `run_pytest` após WRITE) entregues.
 > Próximos tópicos da trilha (verificação real completa, reparo) —
 > **NÃO AUTORIZADOS / NÃO IMPLEMENTADOS**.
 
