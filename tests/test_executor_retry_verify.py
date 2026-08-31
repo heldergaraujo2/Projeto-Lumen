@@ -202,6 +202,47 @@ def test_without_verifier_there_is_no_verification():
     assert "task_verification_failed" not in kinds
 
 
+# ------------------------------------------- 11E: flag applied (verificação)
+def test_verification_not_applicable_does_not_set_verified():
+    """11E: ``applied=False`` = "não aplicável" — sem ``verified``, sem rejeitar."""
+
+    class NotApplicableVerifier(TaskVerifier):
+        name = "not-applicable"
+
+        def verify(self, task, result):
+            return VerificationResult(True, "not applicable", applied=False)
+
+    handler = SimulatedHandler(results={"T1": "resultado ok"})
+    report = PlanExecutor(make_plan([("a", [])]), handler,
+                          verifier=NotApplicableVerifier()).run_all()
+    assert report.completed
+    run = report.task_run("T1")
+    assert run.status is PlannedTaskStatus.DONE   # NÃO rejeitada
+    assert run.verified is None                   # sem marca de verificação
+    assert run.error is None
+    kinds = [e.kind for e in report.events]
+    assert "task_verification_passed" not in kinds
+    assert "task_verification_failed" not in kinds
+
+
+def test_verification_applied_sets_verified_true():
+    """11E: ``applied=True`` + ``passed=True`` ⇒ ``verified=True`` (como antes)."""
+
+    class AppliedVerifier(TaskVerifier):
+        name = "applied"
+
+        def verify(self, task, result):
+            return VerificationResult(True, "ok", applied=True)
+
+    handler = SimulatedHandler(results={"T1": "resultado ok"})
+    report = PlanExecutor(make_plan([("a", [])]), handler,
+                          verifier=AppliedVerifier()).run_all()
+    assert report.completed
+    run = report.task_run("T1")
+    assert run.status is PlannedTaskStatus.DONE
+    assert run.verified is True
+
+
 def test_broken_verifier_is_controlled_not_crashing():
     class Broken(TaskVerifier):
         name = "broken"

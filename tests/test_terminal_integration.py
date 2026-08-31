@@ -99,6 +99,17 @@ def mini_suite(ws: Path) -> Path:
     return suite
 
 
+def mini_suite_fail(ws: Path) -> Path:
+    """Cria a mini-suite VERMELHA (1 teste que falha) no workspace."""
+    suite = ws / "mini_tests"
+    suite.mkdir()
+    (suite / "test_fail.py").write_text(
+        "def test_fail():\n    assert False, 'falha de propósito'\n",
+        encoding="utf-8",
+    )
+    return suite
+
+
 def armed(controller: ToolsController, ws: Path, *commands) -> ToolsController:
     controller.add_workspace(str(ws))
     controller.enable_terminal(list(commands))
@@ -214,6 +225,37 @@ def test_run_pytest_checkpoint_refused_does_not_run(controller, ws):
     runs = [r for r in controller.audit_records()
             if r["tool"] == "run_pytest" and r["success"]]
     assert runs == []  # nenhuma execução aconteceu
+
+
+# ------------------------------------------------ verificação real 11E (e2e)
+def test_11e_verification_green_marks_verified_true(controller, ws):
+    """11E: verificação habilitada + mini-suite VERDE ⇒ DONE + verified=True."""
+    armed(controller, ws, "mkdir")
+    mini_suite(ws)
+    controller.enable_verification("pytest_result")
+    controller.run_plan(plan(pytask("T1")))
+    assert controller.has_pending  # checkpoint da 11D continua valendo
+    report = controller.approve("pode")  # executa o pytest real
+    assert report.status is PlanStatus.COMPLETED
+    run = report.task_run("T1")
+    assert run.status.value == "DONE"
+    assert run.verified is True  # evidência real conferida pelo verifier
+    assert not controller.has_pending
+
+
+def test_11e_verification_red_rejects_plan(controller, ws):
+    """11E: verificação habilitada + mini-suite VERMELHA ⇒ REJECTED + plano falha."""
+    armed(controller, ws, "mkdir")
+    mini_suite_fail(ws)
+    controller.enable_verification("pytest_result")
+    controller.run_plan(plan(pytask("T1")))
+    assert controller.has_pending  # checkpoint antes de executar
+    report = controller.approve("pode")  # executa; o pytest roda e falha
+    assert report.status is PlanStatus.FAILED  # fail-fast da verificação
+    run = report.task_run("T1")
+    assert run.status.value == "REJECTED"
+    assert run.verified is False
+    assert run.error  # motivo claro (resumo do pytest preservado)
 
 
 def test_command_without_approval_flag_runs_directly(controller, ws):

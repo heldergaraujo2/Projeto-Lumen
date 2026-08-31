@@ -33,6 +33,7 @@ from app.executor.correction import (
 )
 from app.executor.executor import PlanExecutor
 from app.executor.executor import ExecutionReport
+from app.executor.verification import TaskVerifier
 from app.memory.execution_store import ExecutionBundleStore
 from app.planner.models import Plan, PlanStatus
 from app.security.permissions import PermissionLevel, PermissionManager
@@ -217,6 +218,9 @@ class ToolsController:
         )
         self._engine: CorrectionEngine | None = None
         self._corrections: dict | None = None
+        # 11E: verificação real opt-in (default None = sem verificação —
+        # comportamento atual preservado; ver docs/SPEC-11E-REAL_VERIFICATION.md).
+        self._verifier: TaskVerifier | None = None
         # 9B: persistência sanitizada do estado de execução (default OFF).
         self._persist_execution_state = bool(persist_execution_state)
         self._execution_state_dir = (
@@ -494,6 +498,35 @@ class ToolsController:
     def corrections_enabled(self) -> bool:
         return self._corrections is not None
 
+    # -------------------------------------------------- verificação real (11E)
+    def enable_verification(self, verifier_name: str = "pytest_result") -> None:
+        """Habilita verificação real no ``run_plan`` (11E — opt-in).
+
+        ``"pytest_result"`` instala o :class:`PytestResultVerifier` —
+        **interpretador sem execução**: apenas lê o JSON ``ToolResult``
+        da task ``run_pytest`` (que continua sendo uma task normal do
+        plano, com permissão ``TERMINAL`` + checkpoint obrigatório; o
+        verifier jamais dispara subprocesso — spec 11E §3). O default do
+        controller continua sem verificação (``verifier=None``).
+        """
+        if verifier_name == "pytest_result":
+            # import local (padrão do módulo; evita ciclo/estouro de imports)
+            from app.executor.verification import PytestResultVerifier
+
+            self._verifier = PytestResultVerifier()
+            logger.info("Verificação real habilitada (verifier=pytest_result).")
+            return
+        raise ValueError("unknown verifier")
+
+    def disable_verification(self) -> None:
+        """Desliga a verificação real (execução volta ao modo default)."""
+        self._verifier = None
+        logger.info("Verificação real desabilitada.")
+
+    @property
+    def verification_enabled(self) -> bool:
+        return self._verifier is not None
+
     def correction_history(self) -> list[dict]:
         """Ciclos de correção da última execução (auditoria/UI)."""
         if self._engine is None:
@@ -697,6 +730,7 @@ class ToolsController:
         handler = ToolTaskHandler(registry, audit=self._audit, plan_id=plan.id)
         self._executor = PlanExecutor(
             plan, handler, checkpoints=_CombinedCheckpoints(policies),
+            verifier=self._verifier,  # 11E: None (default) ou opt-in
         )
         return self._final(self._drive())
 

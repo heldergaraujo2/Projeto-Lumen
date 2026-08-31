@@ -672,7 +672,7 @@ class PlanExecutor:
                     outcome = VerificationResult(
                         passed=False, detail=f"verificador falhou: {exc}"
                     )
-                if not outcome.passed:
+                if outcome.applied and not outcome.passed:
                     # Falha de verificação NÃO consome retry nesta fundação:
                     # o loop "análise → correção → nova tentativa" é futuro.
                     return replace(
@@ -681,11 +681,15 @@ class PlanExecutor:
                         error=f"Verificação falhou: {outcome.detail}",
                         attempts=attempt, attempt_log=tuple(attempt_log),
                     )
-                return replace(
-                    run, status=PlannedTaskStatus.DONE, result=result,
-                    verified=True, attempts=attempt,
-                    attempt_log=tuple(attempt_log),
-                )
+                if outcome.applied:
+                    return replace(
+                        run, status=PlannedTaskStatus.DONE, result=result,
+                        verified=True, attempts=attempt,
+                        attempt_log=tuple(attempt_log),
+                    )
+            # 11E: ``applied=False`` ("não aplicável") chega aqui —
+            # ``verified`` segue ``None`` e a task NÃO é rejeitada
+            # (mesmo fluxo de "sem verifier").
             return replace(
                 run, status=PlannedTaskStatus.DONE, result=result,
                 attempts=attempt, attempt_log=tuple(attempt_log),

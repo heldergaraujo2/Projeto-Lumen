@@ -122,8 +122,14 @@ O projeto evolui em fases (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
   `run_command`); saída estruturada (`exit_code`, `summary_line`,
   truncamento) **sem vazar output completo na auditoria**. É o
   primeiro runner dedicado de build/test estruturado na trilha Coding
-  Agent (a verificação real completa permanece em aberto, por spec).
-  Spec: `docs/SPEC-11D-BUILD_TEST.md`.
+  Agent. Desde a 11E há **verificação real opt-in**:
+  `enable_verification("pytest_result")` no `ToolsController` instala o
+  `PytestResultVerifier` — que **não executa nada** (apenas interpreta
+  o resultado estruturado da task `run_pytest`) — e o desfecho reflete
+  em `verified=True/False` da task (default continua sem verificação;
+  verificação real completa, ex. pós-escrita/correção, permanece em
+  aberto, por spec). Specs: `docs/SPEC-11D-BUILD_TEST.md` +
+  `docs/SPEC-11E-REAL_VERIFICATION.md`.
 - **0.6.x (UI de Terminal, Allowlist e Concessão TERMINAL)** ✅ — seção
   **TERMINAL** na tela 🛡: ver/conceder/revogar a permissão `TERMINAL`
   por **ação explícita e auditada** (o caminho genérico de permissões
@@ -437,7 +443,7 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-978 testes, todos offline — **973 passed / 5 skipped / 0 failed**.
+982 testes, todos offline — **977 passed / 5 skipped / 0 failed**.
 Os 5 skips são ambientais: introspecção dos SDKs
 `google-genai`/`groq`/`together` e do `keyring` quando ausentes, e o
 smoke test da UI Tk em ambientes sem display (no Windows ele roda). As chamadas aos provedores (OpenAI, Gemini, Groq,
@@ -574,7 +580,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # 978 testes pytest (973 passed + 5 skipped; todos offline)
+├── tests/                   # 982 testes pytest (977 passed + 5 skipped; todos offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura

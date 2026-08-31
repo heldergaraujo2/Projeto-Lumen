@@ -16,27 +16,27 @@ hotfixes), 0.6.2 Correção Automática Controlada, 0.6.x UI de Terminal,
 0.6 Terminal Tools, 0.5.x UI de Workspaces/Permissões/Checkpoints/
 Auditoria, 0.5 Filesystem Tools, 0.4.x Planner+Executor, 0.3 Advanced
 Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
-bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C e
-11D — ver "ESTADO ATUAL" a seguir)*
+bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C,
+11D e 11E — ver "ESTADO ATUAL" a seguir)*
 
 ## STATUS
 
-**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11D)** *(atualizado em
-2026-08-31 — **973 passed + 5 skipped, 0 failed** (978 coletados; 5
+**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11E)** *(atualizado em
+2026-08-31 — **977 passed + 5 skipped, 0 failed** (982 coletados; 5
 skips ambientais: SDKs google-genai/groq/together ausentes, keyring
 ausente, Tkinter sem display). Registros anteriores preservados:
-pós-11C (2026-08-30): 967+5/0; 0.6.6 (2026-08-28): 875+5 na dev E na
-venv limpa — 880 no total)*
+pós-11D (2026-08-31): 973+5/0; pós-11C (2026-08-30): 967+5/0; 0.6.6
+(2026-08-28): 875+5 na dev E na venv limpa — 880 no total)*
 
-## ESTADO ATUAL (2026-08-31 — pós-11D)
+## ESTADO ATUAL (2026-08-31 — pós-11E)
 
-- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11D
+- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11E
   foram entregues SEM bump de versão (engenharia interna).
-- **Suíte completa:** **973 passed / 5 skipped / 0 failed** (978
-  coletados — medida após a 11D: +2 integração de checkpoint
-  `run_pytest`, +4 validação de protocolo/catálogo. Registro anterior,
-  pós-11C (2026-08-30): 967 passed / 5 skipped / 0 failed — preservado
-  como histórico).
+- **Suíte completa:** **977 passed / 5 skipped / 0 failed** (982
+  coletados — medida após a 11E: +2 da flag `applied` no executor,
+  +2 integração e2e de verificação real. Registro anterior, pós-11D
+  (2026-08-31): 973 passed / 5 skipped / 0 failed — preservado como
+  histórico).
 - **Fases internas concluídas sobre a 0.6.8:** 9A×2 (auditorias
   read-only), 9B (persistência opt-in do execution state — default
   OFF), 10A (spec Advanced Planning), 10B (MVP: guardrails R5, Stage 2
@@ -44,8 +44,9 @@ venv limpa — 880 no total)*
   11A (auditoria + spec Coding Agent), 11B (tool `search_files`
   READ-only: 19 testes dedicados; PROBE oficial 22/22), 11C (tool
   `edit_file`: edição cirúrgica com ocorrência exatamente 1; ver
-  abaixo), **11D (tool `run_pytest` + checkpoint + catálogo; ver
-  abaixo)**.
+  abaixo), 11D (tool `run_pytest` + checkpoint + catálogo; ver
+  abaixo), **11E (verificação real via `run_pytest` + toggle opt-in;
+  ver abaixo)**.
 - **`search_files`:** 7ª tool de filesystem no registry default
   (EXECUÇÃO ✅) e **presente no Planner Catalog**
   (`app/planner/catalog.py` — PLANEJAMENTO AUTOMÁTICO ✅). Nenhuma
@@ -74,12 +75,25 @@ venv limpa — 880 no total)*
   estruturada (`exit_code`, `summary_line`, `truncated`, `duration_s`)
   sem vazar output completo no audit. Spec:
   `docs/SPEC-11D-BUILD_TEST.md`.
+- **Verificação real (11E — IMPLEMENTADA + TESTADA, concluída):**
+  opt-in no `ToolsController` (`enable_verification("pytest_result")`
+  / `disable_verification()`; default OFF = sem verificação): o
+  `PytestResultVerifier` (`app/executor/verification.py`) é
+  **interpretativo — NÃO executa nada** (sem subprocess/shell; spec
+  11E §3): a verificação real ocorre via task **`run_pytest`** no
+  plano (TERMINAL + checkpoint, 11D) e o verifier apenas lê o JSON do
+  `ToolResult` (`exit_code`, `summary_line`, `timed_out`).
+  `applied=False` para tasks não aplicáveis mantém `TaskRun.verified=
+  None` (sem marca, sem rejeição); `applied=True` + verde ⇒
+  `verified=True`, vermelho ⇒ task `REJECTED` + plano `FAILED`
+  (fail-fast). Spec: `docs/SPEC-11E-REAL_VERIFICATION.md`.
 - **Próximos tópicos da trilha Coding Agent (11A): NÃO AUTORIZADOS**
   (reparo via CorrectionEngine, wiring Settings→Planner). Build/test
-  estruturado foi entregue na 11D (`run_pytest`).
+  estruturado foi entregue na 11D (`run_pytest`) e a verificação real
+  (opt-in) na 11E.
 - **Proibições vigentes preservadas:** R4 (replanning automático) e
   Computer Control / vision / Unreal / Blueprint / C++ (F17).
-- **Docs:** README/ROADMAP/SPEC ainda referem números pré-11D (967) em
+- **Docs:** README/ROADMAP/SPEC ainda referem números pré-11E (973) em
   partes (doc sync pendente).
 
 ## OBJECTIVE — 0.6.3 (histórico)

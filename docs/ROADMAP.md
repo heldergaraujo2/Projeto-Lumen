@@ -1,7 +1,7 @@
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
-11B, 11C e 11D concluídas sem bump de versão — ver "Estado real" abaixo.**
+11B, 11C, 11D e 11E concluídas sem bump de versão — ver "Estado real" abaixo.**
 
 Cada versão entrega um incremento fechado e testado. Regra de ouro do
 projeto: **nenhuma capacidade sensível entra sem que a camada de
@@ -9,7 +9,7 @@ permissões e o fluxo de confirmação do usuário estejam prontos antes**.
 
 ---
 
-## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11D
+## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11E
 
 Concluído sobre a 0.6.8, **sem bump de versão** (engenharia interna;
 detalhes em `LUMEN_STATE.md`):
@@ -44,13 +44,23 @@ detalhes em `LUMEN_STATE.md`):
   auditoria; +2 testes de integração de checkpoint e +4 de
   validação de protocolo/catálogo. Spec:
   `docs/SPEC-11D-BUILD_TEST.md`.
+- **11E** — **verificação real opt-in**: `enable_verification("pytest_result")`
+  no `ToolsController` (default OFF) instala o
+  `PytestResultVerifier` — **interpretativo, não executa nada** (a
+  execução real é a task `run_pytest` da 11D, com TERMINAL +
+  checkpoint); o verifier lê o JSON do `ToolResult`: verde ⇒
+  `verified=True`, vermelho ⇒ task `REJECTED` e plano falha
+  (fail-fast); `applied=False` para tasks não aplicáveis mantém
+  `verified=None`; +4 testes (flag `applied` + e2e verde/vermelho).
+  Spec: `docs/SPEC-11E-REAL_VERIFICATION.md`.
 
-**Suíte completa: 973 passed / 5 skipped / 0 failed (978 coletados).**
+**Suíte completa: 977 passed / 5 skipped / 0 failed (982 coletados).**
 
 **Próximos tópicos da trilha Coding Agent (0.7) — NÃO AUTORIZADOS /
 NÃO IMPLEMENTADOS:** verificação real completa, repair-loop (reparo
 via CorrectionEngine), wiring Settings→Planner. O runner dedicado de
-build/test estruturado (`run_pytest`) foi entregue na 11D.
+build/test estruturado (`run_pytest`) foi entregue na 11D e a
+verificação real (opt-in) na 11E.
 Restrições vigentes preservadas: R4 (sem replanning automático) e F17
 (sem Computer Control / vision / Unreal / Blueprint / C++).
 
@@ -545,8 +555,9 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 
 ## Lumen 0.7 — Coding Agent
 
-> Status (2026-08-31): 11B (`search_files`), 11C (`edit_file`) e 11D
-> (`run_pytest` — runner estruturado de build/test) entregues.
+> Status (2026-08-31): 11B (`search_files`), 11C (`edit_file`), 11D
+> (`run_pytest` — runner estruturado de build/test) e 11E (verificação
+> real opt-in) entregues.
 > Próximos tópicos da trilha (verificação real completa, reparo) —
 > **NÃO AUTORIZADOS / NÃO IMPLEMENTADOS**.
 
