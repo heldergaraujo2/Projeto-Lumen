@@ -429,12 +429,17 @@ def test_executor_package_still_free_of_tools_and_filesystem():
 
 
 def test_tools_modules_have_no_execution_or_network_code():
-    """Filesystem/controle sem subprocess; desde a 0.6, terminal.py é a
-    ÚNICA exceção autorizada (auditada em test_terminal_integration)."""
+    """Filesystem/controle sem subprocess.
+
+    0.6: ``terminal.py`` é a ÚNICA exceção autorizada; 11D:
+    ``run_pytest.py`` ganha subprocess **controlado** (runner conhecido,
+    sem shell, sandbox e timeout — spec 11D §4). Qualquer outro módulo
+    continua proibido.
+    """
     sources = _sources("tools")
     for name, source in sources.items():
-        if name == "terminal.py":
-            continue  # único módulo autorizado a usar subprocess (0.6)
+        if name in ("terminal.py", "run_pytest.py"):
+            continue  # módulos autorizados a usar subprocess (0.6/11D)
         identifiers, imports = _identifiers_and_imports(source)
         for forbidden in ("subprocess", "shutil", "ctypes", "socket", "urllib",
                           "requests", "pyautogui", "pynput", "selenium"):

@@ -489,7 +489,13 @@ def test_planner_and_core_do_not_import_app_tools():
 
 
 def test_subprocess_remains_only_in_terminal_module():
-    """AST: nenhum módulo fora de app/tools/terminal.py IMPORTA subprocess."""
+    """AST: subprocess só em terminal.py + run_pytest.py.
+
+    11D: ``app/tools/run_pytest.py`` ganha subprocess **controlado** por
+    design (spec 11D §4 — runner conhecido, sem shell, sandbox e
+    timeout); todo o resto continua proibido.
+    """
+    allowed = {"terminal.py", "run_pytest.py"}
     root = Path(__file__).parent.parent / "app"
     offenders = []
     for path in sorted(root.rglob("*.py")):
@@ -501,7 +507,7 @@ def test_subprocess_remains_only_in_terminal_module():
             elif isinstance(node, ast.ImportFrom):
                 names = [node.module or ""]
             if any(n.split(".")[0] == "subprocess" for n in names):
-                if path.name != "terminal.py":
+                if path.name not in allowed:
                     offenders.append(str(path.relative_to(root)))
     assert offenders == []
 

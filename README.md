@@ -110,7 +110,20 @@ O projeto evolui em fases (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
   viáveis pedem aprovação) e **auditoria JSONL** (comando sanitizado,
   cwd, exit code, desfecho — sem conteúdo). Permissão `TERMINAL` por
   concessão programática; UI intacta; **nada habilitado no startup**.
-  Coding agent/vision/mouse/teclado/Unreal continuam inexistentes.
+  Coding agent/vision/mouse/teclado/Unreal continuam inexistentes. A
+  2ª tool do terminal — **`run_pytest`** (Fase 11D; permissão
+  **TERMINAL**) — roda a suíte pytest do workspace de forma
+  **estruturada**: subprocesso controlado (sem shell; `python`/`pytest`
+  seguem na denylist do terminal), `path` relativo confinado ao
+  sandbox, `-k` restrito, `maxfail` 1..10, `timeout_s` 10..600,
+  truncamento marcado; **checkpoint antes de executar** (aprovação
+  roda; recusa ⇒ nada roda); registrada no registry e no **Planner
+  Catalog** **somente com o terminal habilitado** (mesma condição de
+  `run_command`); saída estruturada (`exit_code`, `summary_line`,
+  truncamento) **sem vazar output completo na auditoria**. É o
+  primeiro runner dedicado de build/test estruturado na trilha Coding
+  Agent (a verificação real completa permanece em aberto, por spec).
+  Spec: `docs/SPEC-11D-BUILD_TEST.md`.
 - **0.6.x (UI de Terminal, Allowlist e Concessão TERMINAL)** ✅ — seção
   **TERMINAL** na tela 🛡: ver/conceder/revogar a permissão `TERMINAL`
   por **ação explícita e auditada** (o caminho genérico de permissões
@@ -424,7 +437,7 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-972 testes, todos offline — **967 passed / 5 skipped / 0 failed**.
+978 testes, todos offline — **973 passed / 5 skipped / 0 failed**.
 Os 5 skips são ambientais: introspecção dos SDKs
 `google-genai`/`groq`/`together` e do `keyring` quando ausentes, e o
 smoke test da UI Tk em ambientes sem display (no Windows ele roda). As chamadas aos provedores (OpenAI, Gemini, Groq,
@@ -540,10 +553,13 @@ Lumen/
 │   │   ├── control.py       #   ToolsController (fachada da UI) +
 │   │   │                    #   PrevalidatedCheckpoints + administração
 │   │   │                    #   de terminal (grant/allowlist) (0.6.x)
-│   │   └── terminal.py      #   TERMINAL (0.6): TerminalPolicy
-│   │                        #   (allowlist+denylist+timeout+limites)
-│   │                        #   + run_command — único subprocess +
-│   │                        #   TerminalStore (persistência 0.6.x)
+│   │   ├── terminal.py      #   TERMINAL (0.6): TerminalPolicy
+│   │   │                    #   (allowlist+denylist+timeout+limites)
+│   │   │                    #   + run_command — subprocess controlado +
+│   │   │                    #   TerminalStore (persistência 0.6.x)
+│   │   └── run_pytest.py    #   RUN_PYTEST (11D): runner estruturado do
+│   │                        #   pytest do workspace (sem shell, sandbox,
+│   │                        #   timeout, checkpoint antes de executar)
 │   ├── security/            # PERMISSIONS
 │   │   └── permissions.py   #   PermissionManager, PermissionLevel
 │   └── ui/                  # UI (Tkinter)
@@ -558,7 +574,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # 972 testes pytest (967 passed + 5 skipped; todos offline)
+├── tests/                   # 978 testes pytest (973 passed + 5 skipped; todos offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura
@@ -627,8 +643,9 @@ Roadmap completo: [`docs/ROADMAP.md`](docs/ROADMAP.md).
   denylistada ⇒ terminal desabilitado/entrada descartada).
 - Nenhuma outra ferramenta sensível existe — nem código para mouse,
   teclado, captura de tela, visão, computer control, Unreal ou rede das
-  ferramentas (0.7+; `subprocess` existe exclusivamente em
-  `app/tools/terminal.py`, garantido por testes AST).
+  ferramentas (0.7+; `subprocess` existe somente em
+  `app/tools/terminal.py` e `app/tools/run_pytest.py`, ambos
+  controlados, garantido por testes AST).
 - **Controle humano pela UI (0.5.x)**: workspaces, permissões
   `READ`/`WRITE` e aprovação de operações destrutivas partem **do
   usuário**, na tela 🛡 — a UI **rejeita** conceder níveis futuros

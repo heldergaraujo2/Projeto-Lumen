@@ -314,7 +314,11 @@ def test_ast_arquitetura_preservada():
         path for path in (PROJECT_ROOT / "app").rglob("*.py")
         if "subprocess" in _imports_of(path)
     )
-    assert terminal_users == [PROJECT_ROOT / "app" / "tools" / "terminal.py"]
+    # 11D: run_pytest.py tem subprocess controlado por design (spec §4).
+    assert terminal_users == [
+        PROJECT_ROOT / "app" / "tools" / "run_pytest.py",
+        PROJECT_ROOT / "app" / "tools" / "terminal.py",
+    ]
 
 
 # --------------------------------------------- compatibilidade (14)

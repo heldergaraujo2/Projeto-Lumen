@@ -1,7 +1,7 @@
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
-11B e 11C concluídas sem bump de versão — ver "Estado real" abaixo.**
+11B, 11C e 11D concluídas sem bump de versão — ver "Estado real" abaixo.**
 
 Cada versão entrega um incremento fechado e testado. Regra de ouro do
 projeto: **nenhuma capacidade sensível entra sem que a camada de
@@ -9,7 +9,7 @@ permissões e o fluxo de confirmação do usuário estejam prontos antes**.
 
 ---
 
-## Estado real (2026-08-30) — base 0.6.8 + fases internas 9A–11C
+## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11D
 
 Concluído sobre a 0.6.8, **sem bump de versão** (engenharia interna;
 detalhes em `LUMEN_STATE.md`):
@@ -33,14 +33,26 @@ detalhes em `LUMEN_STATE.md`):
   arquivo intacto); presente no **Planner Catalog** (planejamento
   automático OK); +7 testes dedicados e +2 de integração de
   checkpoint. Spec: `docs/SPEC-11C-EDIT_FILE.md`.
+- **11D** — tool `run_pytest` (**TERMINAL**): runner dedicado que roda
+  a suíte pytest do workspace de forma **estruturada** (subprocesso
+  controlado, sem shell — `python`/`pytest` seguem na denylist do
+  terminal, sem liberar nada no `run_command`); **checkpoint
+  obrigatório antes de executar** (aprovação executa; recusa não
+  executa); registrada no registry e no **Planner Catalog** somente
+  com o terminal habilitado; saída estruturada (`exit_code`,
+  `summary_line`, truncamento) sem vazar output completo na
+  auditoria; +2 testes de integração de checkpoint e +4 de
+  validação de protocolo/catálogo. Spec:
+  `docs/SPEC-11D-BUILD_TEST.md`.
 
-**Suíte completa: 967 passed / 5 skipped / 0 failed.**
+**Suíte completa: 973 passed / 5 skipped / 0 failed (978 coletados).**
 
 **Próximos tópicos da trilha Coding Agent (0.7) — NÃO AUTORIZADOS /
-NÃO IMPLEMENTADOS:** build/test estruturado, reparo via
-CorrectionEngine, wiring Settings→Planner. Restrições vigentes
-preservadas: R4 (sem replanning automático) e F17 (sem Computer
-Control / vision / Unreal / Blueprint / C++).
+NÃO IMPLEMENTADOS:** verificação real completa, repair-loop (reparo
+via CorrectionEngine), wiring Settings→Planner. O runner dedicado de
+build/test estruturado (`run_pytest`) foi entregue na 11D.
+Restrições vigentes preservadas: R4 (sem replanning automático) e F17
+(sem Computer Control / vision / Unreal / Blueprint / C++).
 
 ## Lumen 0.1 — Fundação ✅
 
@@ -337,8 +349,9 @@ apenas apresentação):
 > executado"). Detalhes em `docs/ARCHITECTURE.md` §17 e
 > `LUMEN_STATE.md`.
 
-- **`run_command`** (`app/tools/terminal.py` — único módulo com
-  `subprocess`, garantido por testes AST): executa **argv lista sem
+- **`run_command`** (`app/tools/terminal.py` — `subprocess` controlado
+  (2º módulo autorizado na 11D: `run_pytest.py`), garantido por testes
+  AST): executa **argv lista sem
   shell**, captura `stdout`/`stderr` separadas com teto, `exit_code`,
   `timed_out` e `truncated`, tudo em `ToolResult` estruturado.
 - **Allowlist explícita** (`TerminalPolicy.allow`/
@@ -532,10 +545,10 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 
 ## Lumen 0.7 — Coding Agent
 
-> Status (2026-08-30): 11B (`search_files`) e 11C (`edit_file`)
-> entregues — ambas no Planner Catalog. Próximos tópicos da trilha
-> (build/test estruturado, reparo) — **NÃO AUTORIZADOS /
-> NÃO IMPLEMENTADOS**.
+> Status (2026-08-31): 11B (`search_files`), 11C (`edit_file`) e 11D
+> (`run_pytest` — runner estruturado de build/test) entregues.
+> Próximos tópicos da trilha (verificação real completa, reparo) —
+> **NÃO AUTORIZADOS / NÃO IMPLEMENTADOS**.
 
 - Criar e modificar código; rodar testes; iterar sobre erros.
 - Fluxos para projetos de desenvolvimento (git, ambientes, builds).

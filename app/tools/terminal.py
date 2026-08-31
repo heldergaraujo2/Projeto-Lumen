@@ -907,11 +907,14 @@ class PrevalidatedTerminalCheckpoints(ToolCheckpoints):
     """Checkpoint de terminal **somente para comandos viáveis** (0.6).
 
     Mesma lógica da 0.5.1 (:class:`app.tools.control.PrevalidatedCheckpoints`):
-    pede aprovação apenas quando (1) a ferramenta é ``run_command``,
-    (2) a permissão ``TERMINAL`` está concedida, (3) o comando passa por
-    toda a política (allowlist + argumentos + cwd) e (4) o comando está
-    marcado :attr:`AllowedCommand.requires_approval`. Caso contrário a
-    tarefa roda no handler e falha/bloqueia com o motivo real — nunca
+    pede aprovação apenas quando (1) a ferramenta é ``run_command`` ou
+    ``run_pytest``, (2) a permissão ``TERMINAL`` está concedida e (3) a
+    tarefa é viável — para ``run_command``: o comando passa por toda a
+    política (allowlist + argumentos + cwd) e está marcado
+    :attr:`AllowedCommand.requires_approval`; para ``run_pytest`` (11D):
+    os inputs da tool são válidos e o path está confinado no sandbox
+    (fora da ``TerminalPolicy`` por design). Caso contrário a tarefa
+    roda no handler e falha/bloqueia com o motivo real — nunca
     interrogamos o usuário sobre algo inviável (aprovação decorativa).
     """
 
@@ -922,7 +925,10 @@ class PrevalidatedTerminalCheckpoints(ToolCheckpoints):
         policy: TerminalPolicy,
         sandbox: WorkspaceSandbox,
     ) -> None:
-        super().__init__((TERMINAL_TOOL_NAME,))
+        # 11D: run_pytest também pausa para checkpoint. Literal (e não
+        # RUN_PYTEST_TOOL_NAME) para evitar import em ciclo — run_pytest
+        # importa build_safe_environment deste módulo.
+        super().__init__((TERMINAL_TOOL_NAME, "run_pytest"))
         self._permissions = permissions
         self._registry = registry
         self._policy = policy
@@ -940,6 +946,11 @@ class PrevalidatedTerminalCheckpoints(ToolCheckpoints):
         if not self._permissions.is_granted(tool.required_permission):
             return False  # sem TERMINAL: o porteiro bloqueia de verdade
         parameters = dict(task.parameters or {})
+        if task.tool == "run_pytest":
+            # 11D: fora da TerminalPolicy por design (python/pytest são
+            # FORBIDDEN_COMMANDS); viável ⇒ checkpoint (default
+            # conservador — spec 11D §8.10, ainda em aberto).
+            return self._run_pytest_viable(tool, parameters)
         try:
             validated = self._policy.validate(
                 parameters.get("command"),
@@ -950,3 +961,22 @@ class PrevalidatedTerminalCheckpoints(ToolCheckpoints):
         except TerminalSecurityError:
             return False  # inviável: falha controlada com o motivo real
         return validated.requires_approval
+
+    def _run_pytest_viable(self, tool: Any, parameters: dict[str, Any]) -> bool:
+        """Viabilidade de ``run_pytest`` (11D): inputs válidos + path no sandbox.
+
+        Reaproveita a validação da própria tool (``_validated_input``) —
+        sem duplicar regras aqui — e o confinamento de
+        ``WorkspaceSandbox.resolve``. Qualquer falha ⇒ não viável ⇒ sem
+        checkpoint (nunca aprovação decorativa); a tarefa falha no
+        handler com o motivo real. Viável ⇒ checkpoint (default).
+        """
+        try:
+            params = tool._validated_input(dict(parameters))
+        except (ValueError, TypeError):
+            return False
+        try:
+            self._sandbox.resolve(params["path"])
+        except Exception:  # FilesystemError: fora/traversal/inválido
+            return False
+        return True

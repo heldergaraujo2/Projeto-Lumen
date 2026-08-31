@@ -16,31 +16,35 @@ hotfixes), 0.6.2 Correção Automática Controlada, 0.6.x UI de Terminal,
 0.6 Terminal Tools, 0.5.x UI de Workspaces/Permissões/Checkpoints/
 Auditoria, 0.5 Filesystem Tools, 0.4.x Planner+Executor, 0.3 Advanced
 Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
-bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B e 11C —
-ver "ESTADO ATUAL" a seguir)*
+bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C e
+11D — ver "ESTADO ATUAL" a seguir)*
 
 ## STATUS
 
-**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11C)** *(atualizado em
-2026-08-30 — **967 passed + 5 skipped, 0 failed** (5 skips
-ambientais: SDKs google-genai/groq/together ausentes, keyring ausente,
-Tkinter sem display). Registro anterior (0.6.6, 2026-08-28): 875+5 na
-dev E na venv limpa — 880 no total — preservado como histórico)*
+**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11D)** *(atualizado em
+2026-08-31 — **973 passed + 5 skipped, 0 failed** (978 coletados; 5
+skips ambientais: SDKs google-genai/groq/together ausentes, keyring
+ausente, Tkinter sem display). Registros anteriores preservados:
+pós-11C (2026-08-30): 967+5/0; 0.6.6 (2026-08-28): 875+5 na dev E na
+venv limpa — 880 no total)*
 
-## ESTADO ATUAL (2026-08-30 — pós-11C)
+## ESTADO ATUAL (2026-08-31 — pós-11D)
 
-- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11C
+- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11D
   foram entregues SEM bump de versão (engenharia interna).
-- **Suíte completa:** **967 passed / 5 skipped / 0 failed** (medida
-  após a 11C: +7 testes dedicados de `edit_file`, +2 de integração de
-  checkpoint, +2 contratos de catálogo atualizados).
+- **Suíte completa:** **973 passed / 5 skipped / 0 failed** (978
+  coletados — medida após a 11D: +2 integração de checkpoint
+  `run_pytest`, +4 validação de protocolo/catálogo. Registro anterior,
+  pós-11C (2026-08-30): 967 passed / 5 skipped / 0 failed — preservado
+  como histórico).
 - **Fases internas concluídas sobre a 0.6.8:** 9A×2 (auditorias
   read-only), 9B (persistência opt-in do execution state — default
   OFF), 10A (spec Advanced Planning), 10B (MVP: guardrails R5, Stage 2
   conservador R1, data-flow R3, success_criteria R2; R4 adiado),
   11A (auditoria + spec Coding Agent), 11B (tool `search_files`
-  READ-only: 19 testes dedicados; PROBE oficial 22/22), **11C (tool
+  READ-only: 19 testes dedicados; PROBE oficial 22/22), 11C (tool
   `edit_file`: edição cirúrgica com ocorrência exatamente 1; ver
+  abaixo), **11D (tool `run_pytest` + checkpoint + catálogo; ver
   abaixo)**.
 - **`search_files`:** 7ª tool de filesystem no registry default
   (EXECUÇÃO ✅) e **presente no Planner Catalog**
@@ -56,12 +60,26 @@ dev E na venv limpa — 880 no total — preservado como histórico)*
   mantém o arquivo intacto — provado em testes de integração). Está
   no **Planner Catalog** (PLANEJAMENTO AUTOMÁTICO ✅). Spec:
   `docs/SPEC-11C-EDIT_FILE.md`.
+- **`run_pytest` (11D — IMPLEMENTADA + TESTADA, concluída):** tool
+  dedicada (`app/tools/run_pytest.py`, permissão **TERMINAL**) que roda
+  a suíte pytest do workspace de forma estruturada: subprocesso
+  controlado (sem shell, fora da `TerminalPolicy` por design —
+  python/pytest seguem em `FORBIDDEN_COMMANDS`), `path` relativo
+  confinado no sandbox, `-k` restrito, `maxfail` 1..10, `timeout_s`
+  10..600. **Checkpoint obrigatório antes de executar** (aprovação
+  executa; recusa ⇒ tarefa SKIPPED sem executar — provado em testes de
+  integração). Registrada no registry **somente com terminal
+  habilitado** (mesma condição de `run_command`) e **presente no
+  Planner Catalog** apenas com `include_terminal=True`. Saída
+  estruturada (`exit_code`, `summary_line`, `truncated`, `duration_s`)
+  sem vazar output completo no audit. Spec:
+  `docs/SPEC-11D-BUILD_TEST.md`.
 - **Próximos tópicos da trilha Coding Agent (11A): NÃO AUTORIZADOS**
-  (build/test estruturado, reparo via CorrectionEngine, wiring
-  Settings→Planner).
+  (reparo via CorrectionEngine, wiring Settings→Planner). Build/test
+  estruturado foi entregue na 11D (`run_pytest`).
 - **Proibições vigentes preservadas:** R4 (replanning automático) e
   Computer Control / vision / Unreal / Blueprint / C++ (F17).
-- **Docs:** README/ROADMAP/SPEC ainda referem números pré-11C em
+- **Docs:** README/ROADMAP/SPEC ainda referem números pré-11D (967) em
   partes (doc sync pendente).
 
 ## OBJECTIVE — 0.6.3 (histórico)

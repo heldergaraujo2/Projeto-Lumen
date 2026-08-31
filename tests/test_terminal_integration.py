@@ -9,6 +9,7 @@ inofensivos (printf/mkdir) em diretórios temporários.
 from __future__ import annotations
 
 import ast
+import json
 import sys
 from pathlib import Path
 
@@ -76,6 +77,26 @@ def task(task_id: str, command: str, args: list[str] | None = None,
 def plan(*tasks: PlannedTask) -> Plan:
     return Plan(id="PLN-6006", objective="trabalho de terminal",
                 status=PlanStatus.READY, tasks=tasks)
+
+
+def pytask(task_id: str, path: str = "mini_tests", order: int = 1,
+           dependencies: tuple[str, ...] = ()) -> PlannedTask:
+    """Tarefa da tool ``run_pytest`` (11D) apontando a mini-suite do ws."""
+    return PlannedTask(
+        id=task_id, description=f"rodar mini-suite de {path}", order=order,
+        dependencies=dependencies, tool="run_pytest",
+        parameters={"path": path, "maxfail": 1, "timeout_s": 60},
+    )
+
+
+def mini_suite(ws: Path) -> Path:
+    """Cria a mini-suite (1 teste que passa) dentro do workspace."""
+    suite = ws / "mini_tests"
+    suite.mkdir()
+    (suite / "test_ok.py").write_text(
+        "def test_ok():\n    assert True\n", encoding="utf-8"
+    )
+    return suite
 
 
 def armed(controller: ToolsController, ws: Path, *commands) -> ToolsController:
@@ -154,6 +175,45 @@ def test_refusal_never_executes_the_command(controller, ws):
     runs = [r for r in controller.audit_records()
             if r["tool"] == "run_command" and r["success"]]
     assert runs == []  # nenhuma execução bem-sucedida
+
+
+# -------------------------------------------------- checkpoints de run_pytest
+def test_run_pytest_checkpoint_approved_runs(controller, ws):
+    """11D: run_pytest viável PAUSA em checkpoint; aprovar executa o pytest."""
+    armed(controller, ws, "mkdir")  # habilita o terminal (registra run_pytest)
+    mini_suite(ws)
+    controller.run_plan(plan(pytask("T1")))
+    assert controller.has_pending  # pausa ANTES de executar
+    pending = controller.pending_approval()
+    assert pending["tool"] == "run_pytest"
+    assert pending["operation"] == "run_pytest"
+    assert pending["permission"] == "TERMINAL"
+    assert pending["task_id"] == "T1"
+    assert pending["status"] == "PENDING_APPROVAL"
+    assert pending["requested_path"] == "mini_tests"
+    assert pending["resolved_path"] == str((ws / "mini_tests").resolve())
+    assert pending["workspace"] == str(ws.resolve())
+    report = controller.approve("pode")
+    assert report.status is PlanStatus.COMPLETED
+    assert not controller.has_pending
+    payload = json.loads(report.task_run("T1").result)
+    assert payload["ok"] is True
+    assert payload["data"]["exit_code"] == 0  # mini-suite verde
+
+
+def test_run_pytest_checkpoint_refused_does_not_run(controller, ws):
+    """11D: recusar o checkpoint de run_pytest ⇒ SKIPPED, nada executa."""
+    armed(controller, ws, "mkdir")
+    mini_suite(ws)
+    controller.run_plan(plan(pytask("T1")))
+    assert controller.has_pending  # pausa ANTES de executar
+    report = controller.refuse("não autorizo")
+    assert report.status is PlanStatus.FAILED
+    assert report.task_run("T1").status.value == "SKIPPED"
+    assert report.task_run("T1").result is None  # nunca chegou a rodar
+    runs = [r for r in controller.audit_records()
+            if r["tool"] == "run_pytest" and r["success"]]
+    assert runs == []  # nenhuma execução aconteceu
 
 
 def test_command_without_approval_flag_runs_directly(controller, ws):
@@ -324,10 +384,17 @@ def _imports_of(source: str) -> set[str]:
 
 
 def test_subprocess_exists_only_in_terminal_module():
-    """Execução de processos é exclusiva de app/tools/terminal.py (0.6)."""
+    """Execução de processos é exclusiva de terminal.py + run_pytest.py.
+
+    0.6: só ``app/tools/terminal.py``; 11D: ``app/tools/run_pytest.py``
+    ganha subprocess **controlado** por design (spec 11D §4 — runner
+    conhecido, sem shell, sandbox e timeout). Nenhum outro módulo pode
+    importar subprocess.
+    """
+    allowed = {"app/tools/terminal.py", "app/tools/run_pytest.py"}
     offenders = [
         name for name, source in _module_sources().items()
-        if name != "app/tools/terminal.py" and "subprocess" in _imports_of(source)
+        if name not in allowed and "subprocess" in _imports_of(source)
     ]
     assert offenders == []
 

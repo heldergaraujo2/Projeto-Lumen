@@ -72,8 +72,10 @@ def test_catalog_lists_exactly_the_existing_tools():
 def test_catalog_omits_run_command_unless_terminal_enabled():
     without = build_catalog(include_terminal=False)
     with_terminal = build_catalog(include_terminal=True)
-    assert "run_command" not in without
-    assert "run_command" in with_terminal
+    # 11D: run_pytest segue a mesma regra de terminal que run_command.
+    for name in ("run_command", "run_pytest"):
+        assert name not in without
+        assert name in with_terminal
 
 
 def test_catalog_has_no_generic_or_invented_tool():
@@ -93,6 +95,7 @@ def test_catalog_prompt_lists_names_and_parameters():
 
 def test_spec_for_returns_known_tools_only():
     assert spec_for("create_file") is not None
+    assert spec_for("run_pytest") is not None  # 11D
     assert spec_for("execute_anything") is None
 
 
@@ -105,6 +108,12 @@ def test_spec_for_returns_known_tools_only():
     ("delete_file", {"path": "a.txt"}, False),
     ("file_exists", {"path": "a.txt"}, False),
     ("run_command", {"command": "git", "args": ["status"]}, False),
+    # 11D: run_pytest (tool de terminal — catálogo com terminal habilitado)
+    ("run_pytest", {"path": "tests"}, False),
+    ("run_pytest", {"path": "tests", "k": "smoke", "maxfail": 2,
+                    "timeout_s": 120}, False),
+    ("run_pytest", {}, True),                                    # sem path
+    ("run_pytest", {"path": "tests", "maxfail": "2"}, True),     # não-int
     # tool vazia/ausente/fora da allowlist
     ("", {}, True),
     (None, None, True),
@@ -241,6 +250,7 @@ def test_tool_prompt_contains_allowlist_and_rules():
     assert "Allowlist de ferramentas disponiveis" in prompt
     assert "- create_file" in prompt and "- read_file" in prompt
     assert "run_command" not in prompt  # terminal não habilitado
+    assert "run_pytest" not in prompt  # 11D: também tool de terminal
     assert "nunca invente" in prompt
 
 
@@ -249,3 +259,4 @@ def test_tool_prompt_includes_run_command_only_with_terminal():
                            terminal=True)
     planner.create_tool_plan("leia a.txt")
     assert "- run_command" in planner._provider.calls[0]
+    assert "- run_pytest" in planner._provider.calls[0]  # 11D

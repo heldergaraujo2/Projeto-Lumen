@@ -641,9 +641,12 @@ class ToolsController:
         sandbox = self._sandbox()
         registry = build_filesystem_registry(self._permissions, sandbox, self._audit)
         if self._terminal_policy is not None:
+            from app.tools.run_pytest import RunPytestTool
+
             registry.register(
                 RunCommandTool(self._terminal_policy, sandbox, self._audit)
             )
+            registry.register(RunPytestTool(sandbox, self._audit))
         return registry
 
     # ---------------------------------------------------------------- execução

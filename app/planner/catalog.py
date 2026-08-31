@@ -61,7 +61,7 @@ def _fs(name: str, description: str) -> ToolSpec:
     )
 
 
-#: Allowlist completa (9 ferramentas já existentes — nada novo foi criado).
+#: Allowlist completa (10 ferramentas já existentes — nada novo foi criado).
 TOOL_SPECS: tuple[ToolSpec, ...] = (
     _fs("list_directory", "Lista arquivos e subdiretórios de um diretório."),
     _fs("read_file", "Lê o conteúdo de um arquivo de texto (UTF-8)."),
@@ -150,6 +150,34 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
                 "cwd", "string", False,
                 "Diretório de trabalho relativo ao workspace (default: raiz). "
                 "O timeout vem da allowlist do terminal (não do plano).",
+            ),
+        ),
+        terminal=True,
+    ),
+    ToolSpec(
+        name="run_pytest",
+        description=(
+            "Roda a suíte pytest do workspace de forma estruturada "
+            "(execução controlada, sem shell, saída limitada). Exige "
+            "permissão TERMINAL e aprovação de checkpoint antes de "
+            "executar."
+        ),
+        parameters=(
+            ParameterSpec(
+                "path", "string", True,
+                "Diretório relativo ao workspace (ex.: tests ou mini_tests).",
+            ),
+            ParameterSpec(
+                "k", "string", False,
+                "Filtro -k do pytest (restrito pela tool).",
+            ),
+            ParameterSpec(
+                "maxfail", "integer", False,
+                "Interrompe após N falhas (1..10; default 1).",
+            ),
+            ParameterSpec(
+                "timeout_s", "integer", False,
+                "Timeout em segundos (10..600; default 60).",
             ),
         ),
         terminal=True,
