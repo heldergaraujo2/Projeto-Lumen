@@ -819,6 +819,26 @@ class ToolsController:
         if self._corrections is not None:
             # 0.6.2: ciclo controlado EXECUTAR→VERIFICAR→(ANALISAR→PROPOR→
             # VALIDAR→APROVAR→APLICAR→RETRY→VERIFICAR)* com limites rígidos.
+            # 11G etapa 1: sucessores #C recebem o mesmo auto-anexo de
+            # run_pytest (regra 11F) quando aplicável; exceção do
+            # transform = falha controlada do engine (sucessor não executa).
+            plan_transform = None
+            if self._terminal_policy is not None and self.verification_enabled:
+                def plan_transform(p: Plan) -> Plan:
+                    if not _needs_auto_pytest(
+                        p,
+                        terminal_enabled=self._terminal_policy is not None,
+                        verification_enabled=self.verification_enabled,
+                    ):
+                        return p
+                    if len(p.tasks) >= _AUTO_PYTEST_MAX_TASKS:
+                        raise ValueError(
+                            "auto-anexo 11F: o plano sucessor já tem "
+                            f"{len(p.tasks)} tasks (máximo "
+                            f"{_AUTO_PYTEST_MAX_TASKS}); run_pytest não "
+                            "pode ser anexado — nada executa."
+                        )
+                    return _attach_run_pytest(p)
             engine = CorrectionEngine(
                 plan,
                 lambda plan_id: ToolTaskHandler(
@@ -829,6 +849,10 @@ class ToolsController:
                     registry, self._permissions, sandbox, self._terminal_policy
                 ),
                 checkpoints_factory=lambda: _CombinedCheckpoints(policies),
+                # 11G etapa 0: verificação 11E aplica também em modo
+                # corrections (None quando desabilitada = default atual).
+                verifier_factory=lambda: self._verifier,
+                plan_transform=plan_transform,
                 max_cycles=self._corrections["max_cycles"],
                 max_total_attempts=self._corrections["max_total_attempts"],
                 listener=self._audit_cycle,

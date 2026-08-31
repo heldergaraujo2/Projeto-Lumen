@@ -239,6 +239,11 @@ class CorrectionEngine:
         checkpoints_factory: política de checkpoints por executor (as
             tarefas corrigidas continuam sujeitas a checkpoints).
         verifier_factory: verificador opcional por executor.
+        plan_transform: (11G) transformação opcional por SUCESSOR —
+            aplicada a cada plano #C logo após criado, antes de
+            montar o ``PlanExecutor``; ``None`` (default) preserva o
+            comportamento atual; exceção do transform vira falha
+            controlada e terminal do engine (o sucessor nunca executa).
         retry: política de tentativas por tarefa (default 1).
         max_cycles: teto de correções aplicadas (default 2).
         max_total_attempts: teto de execuções da linhagem (default 8).
@@ -255,6 +260,7 @@ class CorrectionEngine:
         validator: ProposalValidator | None = None,
         checkpoints_factory: CheckpointsFactory | None = None,
         verifier_factory: VerifierFactory | None = None,
+        plan_transform: Callable[[Plan], Plan] | None = None,
         retry: RetryPolicy | None = None,
         max_cycles: int = 2,
         max_total_attempts: int = 8,
@@ -271,6 +277,7 @@ class CorrectionEngine:
         self._validator = validator
         self._checkpoints_factory = checkpoints_factory or (lambda: NeverCheckpoints())
         self._verifier_factory = verifier_factory or (lambda: None)
+        self._plan_transform = plan_transform
         self._retry = retry if retry is not None else RetryPolicy()
         self._max_cycles = int(max_cycles)
         self._max_total_attempts = int(max_total_attempts)
@@ -472,6 +479,27 @@ class CorrectionEngine:
         corrected = proposal.corrected_task
         assert corrected is not None
         successor = self._build_successor(failed.id, corrected)
+        if self._plan_transform is not None:
+            # 11G etapa 1: o transform só atua sobre sucessores #C
+            # (o plano raiz é executado sem transformação).
+            try:
+                successor = self._plan_transform(successor)
+            except Exception as exc:
+                # Falha do transform = falha controlada do engine:
+                # o sucessor NUNCA executa (nenhuma tool é montada).
+                logger.exception(
+                    "plan_transform falhou para o sucessor %s: %s",
+                    successor.id, exc,
+                )
+                self._emit(self._last_cycle(
+                    status=CorrectionStatus.EXHAUSTED,
+                    decision_note=(
+                        f"falha ao transformar o plano sucessor "
+                        f"(nenhuma execução): {exc}"
+                    ),
+                ))
+                self._finished = True
+                return
         self._emit(self._last_cycle(
             status=CorrectionStatus.APPROVED, decision_note=note,
         ))

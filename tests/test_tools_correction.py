@@ -378,3 +378,161 @@ def test_dialog_refused_correction_keeps_file(tmp_path, ws):
         assert "NÃO foi executada" in dialog.status_label.cget("text")
     finally:
         tools_dialog_module.tk = original_tk
+
+
+# ------------------------------------------------- 11G etapa 0 (verifier no modo corrections)
+def mini_suite_fail(ws: Path) -> None:
+    """Cria a mini-suite VERMELHA (1 teste que falha) no workspace."""
+    suite = ws / "mini_tests"
+    suite.mkdir()
+    (suite / "test_fail.py").write_text(
+        "def test_fail():\n    assert False, 'falha de propósito'\n",
+        encoding="utf-8",
+    )
+
+
+def pytask(task_id: str, order: int = 2,
+           dependencies: tuple[str, ...] = ()) -> PlannedTask:
+    """Task run_pytest sobre a mini-suite do workspace."""
+    return PlannedTask(
+        id=task_id,
+        description="rodar pytest (mini_tests)",
+        order=order,
+        dependencies=dependencies,
+        tool="run_pytest",
+        parameters={"path": "mini_tests", "maxfail": 1, "timeout_s": 60},
+    )
+
+
+def green_suite(ws: Path, name: str) -> None:
+    """Cria uma mini-suite VERDE (1 teste que passa) em ``ws/<name>``."""
+    suite = ws / name
+    suite.mkdir()
+    (suite / "test_ok.py").write_text(
+        "def test_ok():\n    assert True\n", encoding="utf-8",
+    )
+
+
+def test_11g_corrections_branch_respects_verifier_for_run_pytest_red(tmp_path, ws):
+    """11G etapa 0: corrections ON + verificação ON + pytest VERMELHO ⇒
+    task REJECTED (verified=False), não DONE — o verifier 11E aplica em
+    modo corrections (bypass corrigido no branch de corrections)."""
+    permissions = PermissionManager()
+    permissions.grant("TERMINAL")  # concessão programática (padrão 11E)
+    controller = ToolsController(
+        permissions,
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        terminal_file=tmp_path / "terminal.json",
+    )
+    armed(controller, ws)
+    controller.enable_terminal()
+    controller.enable_verification("pytest_result")
+    controller.enable_corrections()
+    mini_suite_fail(ws)
+    plan = Plan(
+        id="PLN-11G", objective="11G: pytest vermelho em modo corrections",
+        status=PlanStatus.READY,
+        tasks=(
+            PlannedTask(id="T1", description="criar x.txt", order=1,
+                        tool="create_file",
+                        parameters={"path": "x.txt", "content": "ok"}),
+            pytask("T2", order=2, dependencies=("T1",)),
+        ),
+    )
+    controller.run_plan(plan)
+    assert controller.has_pending  # checkpoint do T1 (destrutiva)
+    controller.approve("T1 ok")
+    assert controller.has_pending  # checkpoint do T2 (TERMINAL, 11D)
+    report = controller.approve("rodar pytest")  # pytest roda e FALHA
+    # Verifier aplicado no modo corrections (etapa 0): vermelho ⇒ REJECTED.
+    assert report.status is PlanStatus.FAILED
+    assert not controller.has_pending  # sem proposta p/ run_pytest (falha honesta)
+    run = report.task_run("T2")
+    assert run.status.value == "REJECTED"
+    assert run.verified is False
+    assert run.error  # motivo claro (resumo do pytest preservado)
+    assert report.task_run("T1").status.value == "DONE"  # rodou antes da evidência
+
+
+def test_11g_successor_c_appends_run_pytest_when_root_had_pytest_earlier(tmp_path, ws):
+    """11G etapa 1: root com run_pytest NÃO último (11F não anexa no root);
+    o sucessor #C — com WRITE e sem run_pytest herdado — recebe 1 task
+    final run_pytest via plan_transform, executada por último e verificada."""
+    from app.executor.correction import CorrectionProposal
+
+    permissions = PermissionManager()
+    permissions.grant("TERMINAL")  # concessão programática (padrão 11E/11G)
+    controller = ToolsController(
+        permissions,
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        terminal_file=tmp_path / "terminal.json",
+    )
+
+    class RewriteExistingStrategy(ToolCorrectionStrategy):
+        def propose_correction(self, task, run):
+            if task.tool == "create_file":
+                return CorrectionProposal(
+                    suggestion="gravar por cima (write_file)",
+                    corrected_task=replace(task, tool="write_file"),
+                    requires_approval=True,
+                )
+            return None
+
+    armed(controller, ws)
+    controller.enable_terminal()
+    controller.enable_verification("pytest_result")
+    controller.enable_corrections(RewriteExistingStrategy())
+    green_suite(ws, "mini_tests")  # alvo do T1
+    green_suite(ws, "tests")       # alvo do anexo 11F (path="tests")
+    (ws / "x.txt").write_text("original", encoding="utf-8")  # T2 falha
+
+    plan = Plan(
+        id="PLN-11G2", objective="11G: anexar run_pytest ao sucessor #C",
+        status=PlanStatus.READY,
+        tasks=(
+            pytask("T1", order=1),  # run_pytest mini_tests — NÃO é último
+            PlannedTask(id="T2", description="criar x.txt", order=2,
+                        dependencies=("T1",), tool="create_file",
+                        parameters={"path": "x.txt", "content": "novo"}),
+        ),
+    )
+    controller.run_plan(plan)
+    # 11F NÃO anexa no root (run_pytest já está no plano — idempotência)
+    assert [t.id for t in controller._plan.tasks] == ["T1", "T2"]
+
+    assert controller.has_pending  # checkpoint T1 (run_pytest, TERMINAL)
+    controller.approve("T1 ok")    # verde ⇒ DONE + verified=True
+    assert controller.has_pending  # checkpoint T2 (create_file, destrutiva)
+    controller.approve("T2 rodar") # roda e FALHA (arquivo já existe)
+    assert controller.has_pending  # correção pendente
+    assert controller.pending_approval()["kind"] == "correction"
+
+    controller.approve("corrigir")  # aplica o #C1 (com plan_transform)
+    # Sucessor #C1: T2 corrigida (write_file) + run_pytest ANEXADA ao final.
+    successor = controller._engine.current_plan
+    assert successor.id.endswith("#C1")
+    attached = successor.tasks[-1]
+    assert attached.tool == "run_pytest"
+    assert attached.id not in ("T1", "T2")
+    assert attached.parameters == {"path": "tests"}
+    assert attached.dependencies == ("T2",)
+    assert controller.has_pending  # checkpoint T2' (write_file)
+
+    controller.approve("escrita ok")         # T2' roda ⇒ DONE
+    assert controller.has_pending            # checkpoint T3 (run_pytest anexada)
+    report = controller.approve("pytest ok")  # verde ⇒ DONE + verified=True
+
+    # Asserts finais
+    assert report.status is PlanStatus.COMPLETED
+    assert not controller.has_pending
+    assert [t.id for t in report.tasks] == ["T2", "T3"]
+    assert report.task_run("T2").status.value == "DONE"
+    assert (ws / "x.txt").read_text(encoding="utf-8") == "novo"
+    final = report.task_run("T3")
+    assert final.status.value == "DONE"
+    assert final.verified is True  # evidência verde real no sucessor
+    assert final.dependencies == ("T2",)
+    statuses = [c["status"] for c in controller.correction_history()]
+    assert statuses[-1] == "SUCCEEDED"

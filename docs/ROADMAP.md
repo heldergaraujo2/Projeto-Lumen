@@ -1,7 +1,7 @@
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
-11B, 11C, 11D, 11E e 11F concluídas sem bump de versão — ver "Estado real" abaixo.**
+11B, 11C, 11D, 11E, 11F e 11G concluídas sem bump de versão — ver "Estado real" abaixo.**
 
 Cada versão entrega um incremento fechado e testado. Regra de ouro do
 projeto: **nenhuma capacidade sensível entra sem que a camada de
@@ -9,7 +9,7 @@ permissões e o fluxo de confirmação do usuário estejam prontos antes**.
 
 ---
 
-## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11F
+## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11G
 
 Concluído sobre a 0.6.8, **sem bump de versão** (engenharia interna;
 detalhes em `LUMEN_STATE.md`):
@@ -62,14 +62,25 @@ detalhes em `LUMEN_STATE.md`):
   auto-anexo); guardrail: plano em 12/12 tasks + anexo necessário ⇒
   **falha antes de executar** (FAILED, tudo SKIPPED, nada roda); +3
   testes. Spec: `docs/SPEC-11F-AUTO_PYTEST_AFTER_WRITE.md`.
+- **11G** — **evidência real em modo corrections** (sem bypass): em
+  modo corrections o verifier 11E agora se aplica
+  (`verifier_factory` no `CorrectionEngine`) — pytest vermelho ⇒ task
+  `REJECTED` (não `DONE`); cada sucessor `#C` passa por hook
+  `plan_transform` que reutiliza a regra 11F para manter a evidência
+  `run_pytest` ao final quando aplicável (idempotente; respeita o teto
+  de 12 tasks — falha controlada se não puder anexar, sem executar o
+  sucessor). Sem bypass (pytest sempre via task com checkpoint) e sem
+  repair-loop automático/auto-replanning; +2 testes. Spec:
+  `docs/SPEC-11G-CORRECTIONS_EVIDENCE.md`.
 
-**Suíte completa: 980 passed / 5 skipped / 0 failed (985 coletados).**
+**Suíte completa: 982 passed / 5 skipped / 0 failed (987 coletados).**
 
 **Próximos tópicos da trilha Coding Agent (0.7) — NÃO AUTORIZADOS /
 NÃO IMPLEMENTADOS:** verificação real completa, repair-loop (reparo
 via CorrectionEngine), wiring Settings→Planner. O runner dedicado de
 build/test estruturado (`run_pytest`) foi entregue na 11D, a
-verificação real (opt-in) na 11E e o auto-anexo após WRITE na 11F.
+verificação real (opt-in) na 11E, o auto-anexo após WRITE na 11F e a
+evidência em modo corrections na 11G.
 Restrições vigentes preservadas: R4 (sem replanning automático) e F17
 (sem Computer Control / vision / Unreal / Blueprint / C++).
 
@@ -566,7 +577,8 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 
 > Status (2026-08-31): 11B (`search_files`), 11C (`edit_file`), 11D
 > (`run_pytest` — runner estruturado de build/test), 11E (verificação
-> real opt-in) e 11F (auto-anexo `run_pytest` após WRITE) entregues.
+> real opt-in), 11F (auto-anexo `run_pytest` após WRITE) e 11G
+> (evidência real em modo corrections) entregues.
 > Próximos tópicos da trilha (verificação real completa, reparo) —
 > **NÃO AUTORIZADOS / NÃO IMPLEMENTADOS**.
 

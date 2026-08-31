@@ -137,9 +137,16 @@ O projeto evolui em fases (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
   estiver no plano) antes de executar; com plano em 12/12 tasks +
   anexo necessário, **falha antes de executar** (nada roda). Default
   continua sem verificação e sem auto-anexo (comportamento atual
-  preservado). Specs: `docs/SPEC-11D-BUILD_TEST.md` +
+  preservado). Desde a 11G, em modo **corrections** o mesmo vale: o
+  verifier 11E se aplica (pytest vermelho **rejeita** a task em vez de
+  passá-la como `DONE`) e os sucessores `#C` mantêm a evidência
+  `run_pytest` no final quando aplicável (regra 11F reutilizada — sem
+  duplicar, respeitando o teto de 12 tasks; sem repair-loop
+  automático nem auto-replanning). Default continua sem verificação e
+  sem auto-anexo. Specs: `docs/SPEC-11D-BUILD_TEST.md` +
   `docs/SPEC-11E-REAL_VERIFICATION.md` +
-  `docs/SPEC-11F-AUTO_PYTEST_AFTER_WRITE.md`.
+  `docs/SPEC-11F-AUTO_PYTEST_AFTER_WRITE.md` +
+  `docs/SPEC-11G-CORRECTIONS_EVIDENCE.md`.
 - **0.6.x (UI de Terminal, Allowlist e Concessão TERMINAL)** ✅ — seção
   **TERMINAL** na tela 🛡: ver/conceder/revogar a permissão `TERMINAL`
   por **ação explícita e auditada** (o caminho genérico de permissões
@@ -453,7 +460,7 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-985 testes, todos offline — **980 passed / 5 skipped / 0 failed**.
+987 testes, todos offline — **982 passed / 5 skipped / 0 failed**.
 Os 5 skips são ambientais: introspecção dos SDKs
 `google-genai`/`groq`/`together` e do `keyring` quando ausentes, e o
 smoke test da UI Tk em ambientes sem display (no Windows ele roda). As chamadas aos provedores (OpenAI, Gemini, Groq,
@@ -590,7 +597,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # 985 testes pytest (980 passed + 5 skipped; todos offline)
+├── tests/                   # 987 testes pytest (982 passed + 5 skipped; todos offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura

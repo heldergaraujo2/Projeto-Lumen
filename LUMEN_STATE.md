@@ -17,27 +17,28 @@ hotfixes), 0.6.2 Correção Automática Controlada, 0.6.x UI de Terminal,
 Auditoria, 0.5 Filesystem Tools, 0.4.x Planner+Executor, 0.3 Advanced
 Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
 bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C,
-11D, 11E e 11F — ver "ESTADO ATUAL" a seguir)*
+11D, 11E, 11F e 11G — ver "ESTADO ATUAL" a seguir)*
 
 ## STATUS
 
-**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11F)** *(atualizado em
-2026-08-31 — **980 passed + 5 skipped, 0 failed** (985 coletados; 5
+**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11G)** *(atualizado em
+2026-08-31 — **982 passed + 5 skipped, 0 failed** (987 coletados; 5
 skips ambientais: SDKs google-genai/groq/together ausentes, keyring
 ausente, Tkinter sem display). Registros anteriores preservados:
-pós-11E (2026-08-31): 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30):
-967+5/0; 0.6.6
+pós-11F (2026-08-31): 980+5/0; pós-11E: 977+5/0; pós-11D: 973+5/0;
+pós-11C (2026-08-30): 967+5/0; 0.6.6
 (2026-08-28): 875+5 na dev E na venv limpa — 880 no total)*
 
-## ESTADO ATUAL (2026-08-31 — pós-11F)
+## ESTADO ATUAL (2026-08-31 — pós-11G)
 
-- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11F
+- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11G
   foram entregues SEM bump de versão (engenharia interna).
-- **Suíte completa:** **980 passed / 5 skipped / 0 failed** (985
-  coletados — medida após a 11F: +3 de auto-anexo `run_pytest` após
-  WRITE. Registros anteriores preservados: pós-11E (2026-08-31): 977
-  passed / 5 skipped / 0 failed (982); pós-11D: 973 passed / 5 skipped
-  / 0 failed (978) — histórico).
+- **Suíte completa:** **982 passed / 5 skipped / 0 failed** (987
+  coletados — medida após a 11G: +2 de evidência em modo corrections.
+  Registros anteriores preservados: pós-11F (2026-08-31): 980 passed /
+  5 skipped / 0 failed (985); pós-11E: 977 passed / 5 skipped / 0
+  failed (982); pós-11D: 973 passed / 5 skipped / 0 failed (978) —
+  histórico).
 - **Fases internas concluídas sobre a 0.6.8:** 9A×2 (auditorias
   read-only), 9B (persistência opt-in do execution state — default
   OFF), 10A (spec Advanced Planning), 10B (MVP: guardrails R5, Stage 2
@@ -48,7 +49,7 @@ pós-11E (2026-08-31): 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30):
   abaixo), 11D (tool `run_pytest` + checkpoint + catálogo; ver
   abaixo), **11E (verificação real via `run_pytest` + toggle opt-in;
   ver abaixo)**, **11F (auto-anexo de `run_pytest` após WRITE; ver
-  abaixo)**.
+  abaixo)**, **11G (evidência real em modo corrections; ver abaixo)**.
 - **`search_files`:** 7ª tool de filesystem no registry default
   (EXECUÇÃO ✅) e **presente no Planner Catalog**
   (`app/planner/catalog.py` — PLANEJAMENTO AUTOMÁTICO ✅). Nenhuma
@@ -100,14 +101,26 @@ pós-11E (2026-08-31): 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30):
   plano com 12/12 tasks + anexo necessário ⇒ **falha antes de
   executar** (FAILED, tudo SKIPPED, nenhuma tool roda — provado em
   testes). Spec: `docs/SPEC-11F-AUTO_PYTEST_AFTER_WRITE.md`.
+- **Evidência em modo corrections (11G — IMPLEMENTADA + TESTADA,
+  concluída):** em modo corrections o verifier 11E agora se aplica —
+  o branch de `run_plan` passa `verifier_factory` ao
+  `CorrectionEngine`, de modo que pytest vermelho vira task
+  `REJECTED` (não `DONE`), e cada sucessor `#C` passa por um hook
+  `plan_transform` que reutiliza a regra 11F para manter a evidência
+  `run_pytest` no final quando aplicável (idempotente — sem
+  duplicar; respeita o guardrail de 12 tasks — falha controlada,
+  sem executar o sucessor, se não puder anexar). Sem bypass: pytest
+  segue somente via task `run_pytest` com checkpoint. Spec:
+  `docs/SPEC-11G-CORRECTIONS_EVIDENCE.md`.
 - **Próximos tópicos da trilha Coding Agent (11A): NÃO AUTORIZADOS**
   (reparo via CorrectionEngine, wiring Settings→Planner). Build/test
   estruturado foi entregue na 11D (`run_pytest`), a verificação real
-  (opt-in) na 11E e o auto-anexo após WRITE na 11F.
+  (opt-in) na 11E, o auto-anexo após WRITE na 11F e a evidência em
+  modo corrections na 11G.
 - **Proibições vigentes preservadas:** R4 (replanning automático) e
   Computer Control / vision / Unreal / Blueprint / C++ (F17).
-- **Docs:** LUMEN_STATE sincronizado com a 11F; README/ROADMAP ainda
-  referem números pré-11F (977) em partes (doc sync pendente nos
+- **Docs:** LUMEN_STATE sincronizado com a 11G; README/ROADMAP ainda
+  referem números pré-11G (980) em partes (doc sync pendente nos
   comandos seguintes).
 
 ## OBJECTIVE — 0.6.3 (histórico)
