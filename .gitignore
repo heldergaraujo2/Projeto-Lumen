@@ -1,0 +1,18 @@
+# Segredos — nunca versionar
+.env
+data/.credentials.json
+data/settings.json
+
+# Dados gerados em runtime
+data/logs/*
+!data/logs/.gitkeep
+data/memory/*
+!data/memory/.gitkeep
+data/tasks.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/

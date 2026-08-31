@@ -1,0 +1,25 @@
+# Lumen 0.2 — dependências
+# O modo mock (LUMEN_PROVIDER=mock) usa apenas a biblioteca padrão.
+
+# SDK oficial da OpenAI — usado somente quando LUMEN_PROVIDER=openai.
+openai>=1.54,<2.0
+
+# SDK oficial do Google Gemini (Google GenAI SDK; o legado google-generativeai
+# está deprecated) — usado somente quando LUMEN_PROVIDER=gemini.
+google-genai>=2.0,<3.0
+
+# SDK oficial da Groq (GroqCloud) — usado somente quando LUMEN_PROVIDER=groq.
+groq>=1.7,<2.0
+
+# SDK oficial da Together AI (hospeda os modelos Llama 4) — usado somente
+# quando LUMEN_PROVIDER=together. Escolhida após a Meta encerrar a Llama API
+# em 06/07/2026 (ver docs/ARCHITECTURE.md §3.7).
+together>=2.32,<3.0
+
+# Cofre de credenciais do sistema operacional (Windows Credential Manager
+# no Windows) para a API Key salva pela tela de configurações. Se ausente,
+# a Lumen usa o fallback em arquivo restrito (documentado no README).
+keyring>=25.0,<26.0
+
+# Desenvolvimento, para executar os testes:
+pytest>=8.0
