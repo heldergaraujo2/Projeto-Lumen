@@ -158,13 +158,23 @@ O projeto evolui em fases (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
   `data_dir/reports/<plan_id_sanitizado>.json` contendo `plan` +
   `execution_report` + `correction_history` + auditoria **filtrada por
   `plan_id`** (best-effort — falha não quebra a execução; **default OFF**
-  = bit-a-bit atual; sem execução, sem permissões). Specs:
+  = bit-a-bit atual; sem execução, sem permissões). Desde a 11J, a
+  estratégia **default** de correções (`EvidenceCorrectionStrategy`
+  sobre a conservadora) enriquece falhas de `run_pytest` com a
+  **evidência real** (`exit_code`/`summary_line`/`timed_out`/
+  `truncated`) extraída do JSON do resultado (somente parse — **sem
+  execução escondida**): o desfecho é um **conselho advice-only**
+  (`corrected_task=None`) — nada é aplicado automaticamente nem pausa a
+  execução; o conselho é registrado no ciclo de correção (JSONL) e no
+  relatório 11I; sem auto-replanning, e a aprovação continua obrigatória
+  para correções com tarefa. Specs:
   `docs/SPEC-11D-BUILD_TEST.md` +
   `docs/SPEC-11E-REAL_VERIFICATION.md` +
   `docs/SPEC-11F-AUTO_PYTEST_AFTER_WRITE.md` +
   `docs/SPEC-11G-CORRECTIONS_EVIDENCE.md` +
   `docs/SPEC-11H-SETTINGS_UI_TOGGLES.md` +
-  `docs/SPEC-11I-REPORT_EXPORT.md`.
+  `docs/SPEC-11I-REPORT_EXPORT.md` +
+  `docs/SPEC-11J-EVIDENCE_CORRECTIONS.md`.
 - **0.6.x (UI de Terminal, Allowlist e Concessão TERMINAL)** ✅ — seção
   **TERMINAL** na tela 🛡: ver/conceder/revogar a permissão `TERMINAL`
   por **ação explícita e auditada** (o caminho genérico de permissões
@@ -478,7 +488,7 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-994 testes, todos offline — **989 passed / 5 skipped / 0 failed**.
+995 testes, todos offline — **990 passed / 5 skipped / 0 failed**.
 Os 5 skips são ambientais: introspecção dos SDKs
 `google-genai`/`groq`/`together` e do `keyring` quando ausentes, e o
 smoke test da UI Tk em ambientes sem display (no Windows ele roda). As chamadas aos provedores (OpenAI, Gemini, Groq,
@@ -615,7 +625,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # 994 testes pytest (989 passed + 5 skipped; todos offline)
+├── tests/                   # 995 testes pytest (990 passed + 5 skipped; todos offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura

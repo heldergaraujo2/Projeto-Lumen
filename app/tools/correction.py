@@ -20,6 +20,7 @@ terminal) **antes** de qualquer aplicação — correção inválida nunca roda
 """
 from __future__ import annotations
 
+import json
 import logging
 from typing import Callable
 
@@ -102,6 +103,68 @@ class ToolCorrectionStrategy(CorrectionStrategy):
                 requires_approval=True,
             )
         return None
+
+
+class EvidenceCorrectionStrategy(CorrectionStrategy):
+    """11J (MVP): conselho com evidência real para ``run_pytest`` (advice-only).
+
+    Quando a task ``run_pytest`` falha (REJECTED/FAILED), parseia o JSON
+    ``ToolResult`` de ``run.result`` e enriquece o conselho do ciclo com a
+    evidência executada (``exit_code``, ``summary_line``, ``timed_out``,
+    ``truncated``) — **sem** propor tarefa corrigida
+    (``corrected_task=None``): a engine registra o conselho e encerra o
+    ciclo (nada é aplicado, sem pausa, sem card). Demais casos delegam à
+    estratégia base (comportamento conservador 0.6.2; erros de
+    segurança/política continuam sem proposta).
+    """
+
+    def __init__(self, base: CorrectionStrategy) -> None:
+        self._base = base
+
+    def propose_correction(
+        self, task: PlannedTask, run: TaskRun
+    ) -> CorrectionProposal | None:
+        if task.tool is None:
+            return None
+        # Erro de segurança/política: delega à base (conservadora → None).
+        if _is_security_error(run.error):
+            return self._base.propose_correction(task, run)
+        if task.tool == "run_pytest":
+            return self._pytest_advice(run)
+        return self._base.propose_correction(task, run)
+
+    def _pytest_advice(self, run: TaskRun) -> CorrectionProposal:
+        """Evidência do ``run.result`` (JSON ToolResult) → conselho 11J."""
+        try:
+            payload = json.loads(run.result)
+            if not isinstance(payload, dict):
+                raise ValueError("resultado não é um objeto JSON")
+            data = payload.get("data")
+            if not isinstance(data, dict):
+                raise ValueError("resultado sem objeto 'data'")
+            exit_code = data.get("exit_code")
+            summary = str(data.get("summary_line") or "").strip()
+            timed_out = bool(data.get("timed_out"))
+            truncated = bool(data.get("truncated"))
+            headline = summary or f"exit_code={exit_code}"
+            return CorrectionProposal(
+                suggestion=f"pytest falhou: {headline}",
+                detail=(
+                    f"exit_code={exit_code} timed_out={timed_out} "
+                    f"truncated={truncated}. Próximo passo: inspecionar a "
+                    "saída dos testes que falharam (resumo acima) e "
+                    "ajustar a suíte antes de re-executar o pytest."
+                ),
+                corrected_task=None,
+                requires_approval=False,
+            )
+        except (TypeError, ValueError) as exc:
+            return CorrectionProposal(
+                suggestion="pytest falhou (resultado inválido)",
+                detail=f"Não foi possível extrair evidência do run.result: {exc}",
+                corrected_task=None,
+                requires_approval=False,
+            )
 
 
 def build_proposal_validator(

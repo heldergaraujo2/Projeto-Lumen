@@ -17,30 +17,32 @@ hotfixes), 0.6.2 Correção Automática Controlada, 0.6.x UI de Terminal,
 Auditoria, 0.5 Filesystem Tools, 0.4.x Planner+Executor, 0.3 Advanced
 Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
 bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C,
-11D, 11E, 11F, 11G, 11H e 11I — ver "ESTADO ATUAL" a seguir)*
+11D, 11E, 11F, 11G, 11H, 11I e 11J — ver "ESTADO ATUAL" a seguir)*
 
 ## STATUS
 
-**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11I)** *(atualizado em
-2026-08-31 — **989 passed + 5 skipped, 0 failed** (994 coletados; 5
+**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11J)** *(atualizado em
+2026-08-31 — **990 passed + 5 skipped, 0 failed** (995 coletados; 5
 skips ambientais: SDKs google-genai/groq/together ausentes, keyring
 ausente, Tkinter sem display). Registros anteriores preservados:
-pós-11H (2026-08-31): 987+5/0; pós-11G (2026-08-31): 982+5/0;
-pós-11F (2026-08-31): 980+5/0; pós-11E: 977+5/0; pós-11D: 973+5/0;
-pós-11C (2026-08-30): 967+5/0; 0.6.6 (2026-08-28): 875+5 na dev E na
-venv limpa — 880 no total)*
+pós-11I (2026-08-31): 989+5/0; pós-11H (2026-08-31): 987+5/0;
+pós-11G (2026-08-31): 982+5/0; pós-11F (2026-08-31): 980+5/0;
+pós-11E: 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30): 967+5/0;
+0.6.6 (2026-08-28): 875+5 na dev E na venv limpa — 880 no total)*
 
-## ESTADO ATUAL (2026-08-31 — pós-11I)
+## ESTADO ATUAL (2026-08-31 — pós-11J)
 
-- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11I
+- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11J
   foram entregues SEM bump de versão (engenharia interna).
-- **Suíte completa:** **989 passed / 5 skipped / 0 failed** (994
-  coletados — medida após a 11I: +2 de export de relatório (ON/OFF +
-  sanitização). Registros anteriores preservados: pós-11H (2026-08-31):
-  987 passed / 5 skipped / 0 failed (992); pós-11G (2026-08-31): 982
-  passed / 5 skipped / 0 failed (987); pós-11F (2026-08-31): 980
-  passed / 5 skipped / 0 failed (985); pós-11E: 977 passed / 5 skipped
-  / 0 failed (982); pós-11D: 973 passed / 5 skipped / 0 failed (978) —
+- **Suíte completa:** **990 passed / 5 skipped / 0 failed** (995
+  coletados — medida após a 11J: +1 de correção com evidência
+  (advice-only). Registros anteriores preservados: pós-11I (2026-08-31):
+  989 passed / 5 skipped / 0 failed (994 — +2 de export de relatório
+  (ON/OFF + sanitização)); pós-11H (2026-08-31): 987 passed / 5
+  skipped / 0 failed (992); pós-11G (2026-08-31): 982 passed / 5
+  skipped / 0 failed (987); pós-11F (2026-08-31): 980 passed / 5
+  skipped / 0 failed (985); pós-11E: 977 passed / 5 skipped / 0 failed
+  (982); pós-11D: 973 passed / 5 skipped / 0 failed (978) —
   histórico).
 - **Fases internas concluídas sobre a 0.6.8:** 9A×2 (auditorias
   read-only), 9B (persistência opt-in do execution state — default
@@ -54,7 +56,8 @@ venv limpa — 880 no total)*
   ver abaixo)**, **11F (auto-anexo de `run_pytest` após WRITE; ver
   abaixo)**, **11G (evidência real em modo corrections; ver
   abaixo)**, **11H (toggles persistentes de automação + UI; ver
-  abaixo)**, **11I (export de relatório de evidências; ver abaixo)**.
+  abaixo)**, **11I (export de relatório de evidências; ver abaixo)**,
+  **11J (correções com evidência — advice-only; ver abaixo)**.
 - **`search_files`:** 7ª tool de filesystem no registry default
   (EXECUÇÃO ✅) e **presente no Planner Catalog**
   (`app/planner/catalog.py` — PLANEJAMENTO AUTOMÁTICO ✅). Nenhuma
@@ -142,17 +145,32 @@ venv limpa — 880 no total)*
   sanitização do 9B — segredos redigidos, strings truncadas, sem
   stdout). Sem execução, sem permissões. Spec:
   `docs/SPEC-11I-REPORT_EXPORT.md`.
+- **Correções com evidência (11J — IMPLEMENTADA + TESTADA,
+  concluída):** a estratégia **default** de `enable_corrections` agora
+  é `EvidenceCorrectionStrategy` **sobre** `ToolCorrectionStrategy`
+  (`app/tools/correction.py`; strategy custom fornecida nunca é
+  sobrescrita). Para falhas em `run_pytest` (REJECTED/FAILED), ela
+  extrai a evidência real (`exit_code`/`summary_line`/`timed_out`/
+  `truncated`) do JSON do `ToolResult` em `run.result` (somente
+  parse — **sem execução extra**) e produz **conselho**
+  (`corrected_task=None`) registrado no ciclo de correção (JSONL via
+  `_audit_cycle`; relatório 11I via `correction_history`) — o ciclo
+  encerra **sem pausa** (nada é aplicado, sem card). Sem auto-replanning
+  (R4 continua proíbido); correções **com tarefa** continuam exigindo
+  aprovação explícita. +1 teste (`test_tools_correction.py`); spec:
+  `docs/SPEC-11J-EVIDENCE_CORRECTIONS.md`.
 - **Próximos tópicos da trilha Coding Agent (11A): NÃO AUTORIZADOS**
   (reparo via CorrectionEngine, wiring Settings→Planner). Build/test
   estruturado foi entregue na 11D (`run_pytest`), a verificação real
   (opt-in) na 11E, o auto-anexo após WRITE na 11F, a evidência em
   modo corrections na 11G, os toggles persistentes (Settings/UI) na
-  11H e o export de relatório de evidências (opt-in) na 11I.
+  11H, o export de relatório de evidências (opt-in) na 11I e o
+  conselho com evidência nas correções (advice-only) na 11J.
 - **Proibições vigentes preservadas:** R4 (replanning automático) e
   Computer Control / vision / Unreal / Blueprint / C++ (F17).
-- **Docs:** LUMEN_STATE sincronizado com a 11I; README/ROADMAP
-  sincronizados com a 11H (987/992) — doc sync pós-11I pendente nos
-  comandos seguintes.
+- **Docs:** LUMEN_STATE sincronizado com a 11J; README/ROADMAP
+  sincronizados com a 11H (987/992) — doc sync de README/ROADMAP
+  pós-11I/11J pendente nos comandos seguintes.
 
 ## OBJECTIVE — 0.6.3 (histórico)
 

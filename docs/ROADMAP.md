@@ -1,7 +1,8 @@
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
-11B, 11C, 11D, 11E, 11F, 11G, 11H e 11I concluídas sem bump de versão — ver "Estado real" abaixo.**
+11B, 11C, 11D, 11E, 11F, 11G, 11H, 11I e 11J concluídas sem bump de
+versão — ver "Estado real" abaixo.**
 
 Cada versão entrega um incremento fechado e testado. Regra de ouro do
 projeto: **nenhuma capacidade sensível entra sem que a camada de
@@ -9,7 +10,7 @@ permissões e o fluxo de confirmação do usuário estejam prontos antes**.
 
 ---
 
-## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11I
+## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11J
 
 Concluído sobre a 0.6.8, **sem bump de versão** (engenharia interna;
 detalhes em `LUMEN_STATE.md`):
@@ -97,8 +98,21 @@ detalhes em `LUMEN_STATE.md`):
   segredos redigidos, strings truncadas, sem stdout). **Sem execução,
   sem permissões**; +2 testes (export ON sanitizado / OFF bit-a-bit).
   Spec: `docs/SPEC-11I-REPORT_EXPORT.md`.
+- **11J** — **correções com evidência (advice-only)**: a estratégia
+  **default** de `enable_corrections` agora é
+  `EvidenceCorrectionStrategy` sobre a conservadora
+  `ToolCorrectionStrategy` (strategy custom nunca é sobrescrita); para
+  falhas de `run_pytest` (REJECTED/FAILED), ela extrai a evidência real
+  (`exit_code`/`summary_line`/`timed_out`/`truncated`) do JSON do
+  `ToolResult` em `run.result` (somente parse — **sem execução
+  escondida**) e produz **conselho** (`corrected_task=None`) registrado
+  no ciclo de correção (JSONL) e no relatório 11I — o ciclo encerra
+  **sem pausa** (nada é aplicado, sem card; não aplica task
+  automaticamente). Sem auto-replanning (R4 continua proíbido);
+  correções **com tarefa** continuam exigindo aprovação explícita; +1
+  teste. Spec: `docs/SPEC-11J-EVIDENCE_CORRECTIONS.md`.
 
-**Suíte completa: 989 passed / 5 skipped / 0 failed (994 coletados).**
+**Suíte completa: 990 passed / 5 skipped / 0 failed (995 coletados).**
 
 **Próximos tópicos da trilha Coding Agent (0.7) — NÃO AUTORIZADOS /
 NÃO IMPLEMENTADOS:** verificação real completa, repair-loop (reparo
@@ -106,8 +120,8 @@ via CorrectionEngine), wiring Settings→Planner. O runner dedicado de
 build/test estruturado (`run_pytest`) foi entregue na 11D, a
 verificação real (opt-in) na 11E, o auto-anexo após WRITE na 11F, a
 evidência em modo corrections na 11G, os toggles persistentes
-(Settings/UI) na 11H e o export de relatório de evidências (opt-in) na
-11I.
+(Settings/UI) na 11H, o export de relatório de evidências (opt-in) na
+11I e o conselho com evidência nas correções (advice-only) na 11J.
 Restrições vigentes preservadas: R4 (sem replanning automático) e F17
 (sem Computer Control / vision / Unreal / Blueprint / C++).
 
@@ -606,7 +620,8 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 > (`run_pytest` — runner estruturado de build/test), 11E (verificação
 > real opt-in), 11F (auto-anexo `run_pytest` após WRITE), 11G
 > (evidência real em modo corrections), 11H (toggles persistentes de
-> automação + UI) e 11I (export de relatório de evidências) entregues.
+> automação + UI), 11I (export de relatório de evidências) e 11J
+> (conselho com evidência nas correções — advice-only) entregues.
 > Próximos tópicos da trilha (verificação real completa, reparo) —
 > **NÃO AUTORIZADOS / NÃO IMPLEMENTADOS**.
 

@@ -64,6 +64,7 @@ from app.tools.report_export import (
 )
 from app.tools.toggles_store import ToggleStore, ToggleStoreError
 from app.tools.correction import (
+    EvidenceCorrectionStrategy,
     ToolCorrectionStrategy,
     build_proposal_validator,
 )
@@ -600,8 +601,10 @@ class ToolsController:
         APROVAR → APLICAR → RETRY → VERIFICAR``. Opt-in do integrador
         (nada no startup); limites rígidos (``max_cycles`` ≥ 0,
         ``max_total_attempts`` ≥ 1 — nunca retry infinito); estratégia
-        default: :class:`ToolCorrectionStrategy` (conservadora; sem
-        bypass de permissões/política; toda proposta exige aprovação).
+        default: :class:`EvidenceCorrectionStrategy` sobre
+        :class:`ToolCorrectionStrategy` (11J: conselho com evidência real
+        para ``run_pytest``, advice-only; conservadora; sem bypass; toda
+        proposta com tarefa corrigida exige aprovação).
         """
         if max_cycles < 0:
             raise ToolsControlError("max_cycles deve ser >= 0.")
@@ -610,7 +613,11 @@ class ToolsController:
                 "max_total_attempts deve ser >= 1 (sem retry infinito)."
             )
         self._corrections = {
-            "strategy": strategy or ToolCorrectionStrategy(),
+            # 11J: default = evidência real (advice-only) sobre a base
+            # conservadora; strategy custom fornecida NUNCA é sobrescrita.
+            "strategy": strategy or EvidenceCorrectionStrategy(
+                ToolCorrectionStrategy()
+            ),
             "max_cycles": int(max_cycles),
             "max_total_attempts": int(max_total_attempts),
         }

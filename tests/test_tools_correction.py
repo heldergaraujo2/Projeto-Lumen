@@ -18,7 +18,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from app.planner.models import Plan, PlanStatus, PlannedTask
 from app.security.permissions import PermissionManager
 from app.tools.control import ToolsControlError, ToolsController
-from app.tools.correction import ToolCorrectionStrategy
+from app.tools.correction import (
+    EvidenceCorrectionStrategy,
+    ToolCorrectionStrategy,
+)
 
 # --------------------------------------------------------- estratégia (unit)
 
@@ -536,3 +539,58 @@ def test_11g_successor_c_appends_run_pytest_when_root_had_pytest_earlier(tmp_pat
     assert final.dependencies == ("T2",)
     statuses = [c["status"] for c in controller.correction_history()]
     assert statuses[-1] == "SUCCEEDED"
+
+
+# ------------------------------------------------- 11J (advice-only com evidência)
+def test_11j_pytest_failure_records_evidence_advice_in_cycle(tmp_path, ws):
+    """11J MVP: pytest VERMELHO + corrections (strategy default) ⇒ o ciclo
+    registra conselho com evidência (NO_PROPOSAL) e encerra **sem pausa**
+    (advice-only: corrected_task=None → nada aplicado, sem pending)."""
+    permissions = PermissionManager()
+    permissions.grant("TERMINAL")  # concessão programática (padrão 11E/11G)
+    controller = ToolsController(
+        permissions,
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        terminal_file=tmp_path / "terminal.json",
+    )
+    armed(controller, ws)
+    controller.enable_terminal()
+    controller.enable_verification("pytest_result")
+    controller.enable_corrections()  # default: EvidenceCorrectionStrategy
+    assert isinstance(
+        controller._corrections["strategy"], EvidenceCorrectionStrategy
+    )
+    mini_suite_fail(ws)
+    plan = Plan(
+        id="PLN-11J", objective="11J: conselho com evidência no pytest vermelho",
+        status=PlanStatus.READY,
+        tasks=(
+            PlannedTask(id="T1", description="criar x.txt", order=1,
+                        tool="create_file",
+                        parameters={"path": "x.txt", "content": "ok"}),
+            pytask("T2", order=2, dependencies=("T1",)),
+        ),
+    )
+    controller.run_plan(plan)
+    assert controller.has_pending  # checkpoint do T1 (destrutiva)
+    controller.approve("T1 ok")
+    assert controller.has_pending  # checkpoint do T2 (TERMINAL, 11D)
+    report = controller.approve("rodar pytest")  # vermelho ⇒ REJECTED
+
+    # advice-only: loop encerra sem pausa / sem pending correction.
+    assert report.status is PlanStatus.FAILED
+    assert not controller.has_pending
+    run = report.task_run("T2")
+    assert run.status.value == "REJECTED"
+    assert run.verified is False
+
+    # Ciclo com conselho enriquecido (evidência) — sem tarefa corrigida.
+    cycles = controller.correction_history()
+    assert len(cycles) == 1
+    cycle = cycles[0]
+    assert cycle["task_id"] == "T2"
+    assert cycle["status"] in ("NO_PROPOSAL", "FAILED")
+    assert "pytest" in (cycle.get("suggestion") or "")
+    assert "somente conselho" in (cycle.get("decision_note") or "")
+    assert cycle.get("replacement_tool") is None  # corrected_task=None (MVP)
