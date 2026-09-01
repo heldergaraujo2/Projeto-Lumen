@@ -324,3 +324,48 @@ def test_dialog_uses_only_controller_facade():
                       "subprocess", "TerminalPolicy", "RunCommandTool"):
         assert forbidden not in source, forbidden
     assert "app.tools.control" in source
+
+
+# ------------------------------------------------------------- automação (11H)
+def make_toggles_controller(tmp_path: Path, tag: str = "") -> ToolsController:
+    """Controller com ``toggles_file`` compartilhado (outros arquivos por
+    instância, para isolar a persistência de toggles)."""
+    return ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / f"workspaces_t{tag}.json",
+        audit_file=tmp_path / f"audit_t{tag}" / "audit.jsonl",
+        toggles_file=tmp_path / "agent_toggles.json",
+    )
+
+
+def test_tools_dialog_toggle_corrections_persists(tmp_path):
+    """Seção Automação: clicar em Correções reflete o controller, persiste
+    via ToggleStore, restaura em novo controller e NÃO concede TERMINAL."""
+    controller = make_toggles_controller(tmp_path, "1")
+    assert controller.corrections_enabled is False  # default OFF
+    dialog = tools_dialog_module.ToolsDialog(FakeRoot(), controller)
+    # Reflexo do estado ao abrir (regra 1 da UI 11H).
+    assert dialog.corrections_toggle.cget("text") == "Correções automáticas: OFF"
+    dialog.corrections_toggle.invoke()
+    assert controller.corrections_enabled is True
+    assert dialog.corrections_toggle.cget("text") == "Correções automáticas: ON"
+    # Persistência restaurada por um novo controller (mesmo toggles_file).
+    controller2 = make_toggles_controller(tmp_path, "2")
+    assert controller2.corrections_enabled is True
+    # Nenhum grant automático: TERMINAL segue não-concedido.
+    assert controller2.terminal_status()["permission_granted"] is False
+
+
+def test_tools_dialog_toggle_verification_persists(tmp_path):
+    """Seção Automação: clicar em Verificação reflete o controller,
+    persiste via ToggleStore e NÃO concede TERMINAL."""
+    controller = make_toggles_controller(tmp_path, "1")
+    assert controller.verification_enabled is False  # default OFF
+    dialog = tools_dialog_module.ToolsDialog(FakeRoot(), controller)
+    assert dialog.verification_toggle.cget("text") == "Verificação real (pytest): OFF"
+    dialog.verification_toggle.invoke()
+    assert controller.verification_enabled is True
+    assert dialog.verification_toggle.cget("text") == "Verificação real (pytest): ON"
+    controller2 = make_toggles_controller(tmp_path, "2")
+    assert controller2.verification_enabled is True
+    assert controller2.terminal_status()["permission_granted"] is False

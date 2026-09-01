@@ -50,7 +50,7 @@ class ToolsDialog:
 
         self.top = tk.Toplevel(parent)
         self.top.title("Ferramentas e Segurança")
-        self.top.geometry("640x620")
+        self.top.geometry("640x680")  # +60: seção Automação (11H)
         self.top.configure(bg=_PANEL)
         self.top.transient(parent)
 
@@ -75,6 +75,7 @@ class ToolsDialog:
         self._build_workspaces_section()
         self._build_permissions_section()
         self._build_terminal_section()
+        self._build_automation_section()  # 11H: toggles persistentes
         self._build_audit_section()
 
         self.close_button = tk.Button(
@@ -600,6 +601,81 @@ class ToolsDialog:
         self._set_status(True, "🟢 Terminal desabilitado.")
         self.refresh()
 
+    # -------------------------------------------------------- automação (11H)
+    def _build_automation_section(self) -> None:
+        tk.Label(self.top, text="AUTOMAÇÃO (11H)",
+                 font=("Segoe UI", 10, "bold"), fg=_TEXT, bg=_PANEL,
+                 ).pack(anchor=tk.W, padx=18, pady=(6, 2))
+        tk.Label(
+            self.top,
+            text="Toggles de CAPACIDADE persistentes: sobrevivem ao "
+                 "reinício. Não concedem permissões — TERMINAL e aprovações "
+                 "continuam exigidos (concessão vale só nesta sessão).",
+            fg=_MUTED, bg=_PANEL, font=("Segoe UI", 8), justify=tk.LEFT,
+            wraplength=590,
+        ).pack(anchor=tk.W, padx=18)
+        self.corrections_toggle = tk.Button(
+            self.top, text="Correções automáticas: OFF", relief=tk.FLAT,
+            cursor="hand2", bg=_PANEL, fg=_MUTED, font=("Segoe UI", 9),
+            anchor="w", command=self._toggle_corrections,
+        )
+        self.corrections_toggle.pack(fill=tk.X, padx=18, pady=(4, 1))
+        self.verification_toggle = tk.Button(
+            self.top, text="Verificação real (pytest): OFF", relief=tk.FLAT,
+            cursor="hand2", bg=_PANEL, fg=_MUTED, font=("Segoe UI", 9),
+            anchor="w", command=self._toggle_verification,
+        )
+        self.verification_toggle.pack(fill=tk.X, padx=18, pady=(1, 2))
+
+    def _toggle_corrections(self) -> None:
+        try:
+            self._controller.set_corrections_enabled(
+                not self._controller.corrections_enabled
+            )
+        except Exception as exc:
+            self._set_status(False, f"🔴 {exc}")
+            return
+        self._set_status(
+            True,
+            "🟢 Correção automática "
+            + ("habilitada" if self._controller.corrections_enabled
+               else "desabilitada")
+            + " (persistida; permissões inalteradas).",
+        )
+        self.refresh()
+
+    def _toggle_verification(self) -> None:
+        try:
+            self._controller.set_verification_enabled(
+                not self._controller.verification_enabled
+            )
+        except Exception as exc:
+            self._set_status(False, f"🔴 {exc}")
+            return
+        self._set_status(
+            True,
+            "🟢 Verificação real "
+            + ("habilitada (pytest_result)" if self._controller.verification_enabled
+               else "desabilitada")
+            + " (persistida; permissões inalteradas).",
+        )
+        self.refresh()
+
+    def _refresh_automation(self) -> None:
+        """11H: reflete o estado do controller nos toggles (fonte única)."""
+        for widget, on, name in (
+            (self.corrections_toggle,
+             self._controller.corrections_enabled,
+             "Correções automáticas"),
+            (self.verification_toggle,
+             self._controller.verification_enabled,
+             "Verificação real (pytest)"),
+        ):
+            widget.configure(
+                text=f"{name}: {'ON' if on else 'OFF'}",
+                fg=_OK_GREEN if on else _MUTED,
+            )
+
     # ------------------------------------------------------------- auditoria
     def _build_audit_section(self) -> None:
         header = tk.Frame(self.top, bg=_PANEL)
@@ -649,6 +725,7 @@ class ToolsDialog:
         self._refresh_workspaces()
         self._refresh_permissions()
         self._refresh_terminal()
+        self._refresh_automation()  # 11H
         self._refresh_audit()
 
     def _set_status(self, ok: bool | None, message: str) -> None:

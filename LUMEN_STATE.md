@@ -17,28 +17,29 @@ hotfixes), 0.6.2 Correção Automática Controlada, 0.6.x UI de Terminal,
 Auditoria, 0.5 Filesystem Tools, 0.4.x Planner+Executor, 0.3 Advanced
 Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
 bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C,
-11D, 11E, 11F e 11G — ver "ESTADO ATUAL" a seguir)*
+11D, 11E, 11F, 11G e 11H — ver "ESTADO ATUAL" a seguir)*
 
 ## STATUS
 
-**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11G)** *(atualizado em
-2026-08-31 — **982 passed + 5 skipped, 0 failed** (987 coletados; 5
+**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11H)** *(atualizado em
+2026-08-31 — **987 passed + 5 skipped, 0 failed** (992 coletados; 5
 skips ambientais: SDKs google-genai/groq/together ausentes, keyring
 ausente, Tkinter sem display). Registros anteriores preservados:
-pós-11F (2026-08-31): 980+5/0; pós-11E: 977+5/0; pós-11D: 973+5/0;
-pós-11C (2026-08-30): 967+5/0; 0.6.6
-(2026-08-28): 875+5 na dev E na venv limpa — 880 no total)*
+pós-11G (2026-08-31): 982+5/0; pós-11F (2026-08-31): 980+5/0;
+pós-11E: 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30): 967+5/0;
+0.6.6 (2026-08-28): 875+5 na dev E na venv limpa — 880 no total)*
 
-## ESTADO ATUAL (2026-08-31 — pós-11G)
+## ESTADO ATUAL (2026-08-31 — pós-11H)
 
-- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11G
+- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11H
   foram entregues SEM bump de versão (engenharia interna).
-- **Suíte completa:** **982 passed / 5 skipped / 0 failed** (987
-  coletados — medida após a 11G: +2 de evidência em modo corrections.
-  Registros anteriores preservados: pós-11F (2026-08-31): 980 passed /
-  5 skipped / 0 failed (985); pós-11E: 977 passed / 5 skipped / 0
-  failed (982); pós-11D: 973 passed / 5 skipped / 0 failed (978) —
-  histórico).
+- **Suíte completa:** **987 passed / 5 skipped / 0 failed** (992
+  coletados — medida após a 11H: +5 de toggles persistentes (3
+  persistência no controller + 2 UI headless). Registros anteriores
+  preservados: pós-11G (2026-08-31): 982 passed / 5 skipped / 0
+  failed (987); pós-11F (2026-08-31): 980 passed / 5 skipped / 0
+  failed (985); pós-11E: 977 passed / 5 skipped / 0 failed (982);
+  pós-11D: 973 passed / 5 skipped / 0 failed (978) — histórico).
 - **Fases internas concluídas sobre a 0.6.8:** 9A×2 (auditorias
   read-only), 9B (persistência opt-in do execution state — default
   OFF), 10A (spec Advanced Planning), 10B (MVP: guardrails R5, Stage 2
@@ -49,7 +50,9 @@ pós-11C (2026-08-30): 967+5/0; 0.6.6
   abaixo), 11D (tool `run_pytest` + checkpoint + catálogo; ver
   abaixo), **11E (verificação real via `run_pytest` + toggle opt-in;
   ver abaixo)**, **11F (auto-anexo de `run_pytest` após WRITE; ver
-  abaixo)**, **11G (evidência real em modo corrections; ver abaixo)**.
+  abaixo)**, **11G (evidência real em modo corrections; ver
+  abaixo)**, **11H (toggles persistentes de automação + UI; ver
+  abaixo)**.
 - **`search_files`:** 7ª tool de filesystem no registry default
   (EXECUÇÃO ✅) e **presente no Planner Catalog**
   (`app/planner/catalog.py` — PLANEJAMENTO AUTOMÁTICO ✅). Nenhuma
@@ -112,16 +115,31 @@ pós-11C (2026-08-30): 967+5/0; 0.6.6
   sem executar o sucessor, se não puder anexar). Sem bypass: pytest
   segue somente via task `run_pytest` com checkpoint. Spec:
   `docs/SPEC-11G-CORRECTIONS_EVIDENCE.md`.
+- **Toggles persistentes de automação (11H — IMPLEMENTADA + TESTADA,
+  concluída):** `ToggleStore` (`app/tools/toggles_store.py`) persiste
+  em `data/agent_toggles.json` (escrita atômica, schema `version: 1`,
+  **fail-closed**: arquivo ausente/corrompido ⇒ tudo OFF, sem
+  exceção) as flags `corrections_enabled`/`verification_enabled` —
+  **SÓ capacidade: nunca concede permissão** (TERMINAL segue
+  explícito por sessão, regra 0.6.x). O `ToolsController` carrega e
+  aplica os toggles no `__init__` (parâmetro `toggles_file`;
+  `set_corrections_enabled`/`set_verification_enabled` aplicam na
+  hora + persistem + auditam `tool="toggles"`) e a UI 🛡 ganhou a
+  seção **AUTOMAÇÃO (11H)** — toggles que refletem o controller ao
+  abrir e persistem ao clicar (permissões inalteradas). `main.py`
+  passa `toggles_file=settings.data_dir / "agent_toggles.json"`.
+  Spec: `docs/SPEC-11H-SETTINGS_UI_TOGGLES.md`.
 - **Próximos tópicos da trilha Coding Agent (11A): NÃO AUTORIZADOS**
   (reparo via CorrectionEngine, wiring Settings→Planner). Build/test
   estruturado foi entregue na 11D (`run_pytest`), a verificação real
-  (opt-in) na 11E, o auto-anexo após WRITE na 11F e a evidência em
-  modo corrections na 11G.
+  (opt-in) na 11E, o auto-anexo após WRITE na 11F, a evidência em
+  modo corrections na 11G e os toggles persistentes (Settings/UI) na
+  11H.
 - **Proibições vigentes preservadas:** R4 (replanning automático) e
   Computer Control / vision / Unreal / Blueprint / C++ (F17).
-- **Docs:** LUMEN_STATE sincronizado com a 11G; README/ROADMAP ainda
-  referem números pré-11G (980) em partes (doc sync pendente nos
-  comandos seguintes).
+- **Docs:** LUMEN_STATE sincronizado com a 11H; README/ROADMAP
+  sincronizados com a 11G (982/987) — doc sync pós-11H pendente nos
+  comandos seguintes.
 
 ## OBJECTIVE — 0.6.3 (histórico)
 

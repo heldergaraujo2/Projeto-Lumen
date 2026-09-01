@@ -420,3 +420,74 @@ def test_11f_limit_12_tasks_fails_without_executing_any_tool(controller, ws):
     execs = [r for r in controller.audit_records() if r.get("task_id")]
     assert not execs  # nenhuma tool foi tentada, quanto menos executada
     assert not (ws / "z.txt").exists()  # nem a escrita rodou
+
+
+# ------------------------------------------------------------- toggles (11H)
+def _toggles_controller(tmp_path: Path, tag: str = "") -> ToolsController:
+    """Controller com ``toggles_file`` compartilhado (workspaces/audit por
+    instância, para isolar o que se está testando: o arquivo de toggles)."""
+    return ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / f"workspaces{tag}.json",
+        audit_file=tmp_path / f"audit{tag}" / "audit.jsonl",
+        toggles_file=tmp_path / "agent_toggles.json",
+    )
+
+
+def test_toggles_persist_and_restore_corrections(tmp_path):
+    """``set_corrections_enabled(True)`` persiste em agent_toggles.json e
+    é restaurado em um novo ToolsController — SEM conceder permissão."""
+    toggles_file = tmp_path / "agent_toggles.json"
+    c1 = _toggles_controller(tmp_path, "1")
+    assert c1.corrections_enabled is False  # default OFF
+    c1.set_corrections_enabled(True)
+    assert c1.corrections_enabled is True
+    # Persistência: schema versionado, somente as flags bool.
+    assert json.loads(toggles_file.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "toggles": {"corrections_enabled": True, "verification_enabled": False},
+    }
+    # Restauração: novo controller (permissões/workspaces distintos) no
+    # mesmo arquivo.
+    c2 = _toggles_controller(tmp_path, "2")
+    assert c2.corrections_enabled is True
+    # Persistência NUNCA concede permissões: TERMINAL segue não-granted.
+    assert c2.terminal_status()["permission_granted"] is False
+
+
+def test_toggles_persist_and_restore_verification(tmp_path):
+    """``set_verification_enabled(True)`` persiste e é restaurado (verifier
+    ``pytest_result``) — SEM conceder permissão TERMINAL."""
+    toggles_file = tmp_path / "agent_toggles.json"
+    c1 = _toggles_controller(tmp_path, "1")
+    assert c1.verification_enabled is False  # default OFF
+    c1.set_verification_enabled(True)
+    assert c1.verification_enabled is True
+    payload = json.loads(toggles_file.read_text(encoding="utf-8"))
+    assert payload["toggles"] == {
+        "corrections_enabled": False, "verification_enabled": True,
+    }
+    c2 = _toggles_controller(tmp_path, "2")
+    assert c2.verification_enabled is True
+    # A verificação real é interpretador sem execução: nada de permissão.
+    assert c2.terminal_status()["permission_granted"] is False
+    # Toggle OFF também persiste (restaura estado desligado).
+    c2.set_verification_enabled(False)
+    c3 = _toggles_controller(tmp_path, "3")
+    assert c3.verification_enabled is False
+
+
+def test_toggles_fail_closed_on_corrupt_file(tmp_path):
+    """Arquivo corrompido ⇒ tudo OFF, sem crash (fail-closed)."""
+    (tmp_path / "agent_toggles.json").write_text(
+        "isso não é JSON {{{", encoding="utf-8",
+    )
+    c = _toggles_controller(tmp_path, "1")  # não pode levantar
+    assert c.corrections_enabled is False
+    assert c.verification_enabled is False
+    assert c.corrections_persisted is False
+    assert c.verification_persisted is False
+    # Fail-closed não impede uso: ligar depois reescreve o arquivo válido.
+    c.set_corrections_enabled(True)
+    c2 = _toggles_controller(tmp_path, "2")
+    assert c2.corrections_enabled is True

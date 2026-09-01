@@ -136,6 +136,10 @@ def main() -> int:
             # LIDA no startup — sem arquivo, terminal segue desabilitado;
             # a permissão TERMINAL nunca é restaurada (explícita/sessão).
             terminal_file=settings.data_dir / "terminal.json",
+            # 11H: toggles persistentes de automação (corrections/
+            # verification) — fail-closed; SÓ capacidade, nunca concede
+            # permissão (ver docs/SPEC-11H-SETTINGS_UI_TOGGLES.md).
+            toggles_file=settings.data_dir / "agent_toggles.json",
         )
         # 0.6.3: liga o chat à fachada de ferramentas (tool calling via
         # Planner com allowlist). Sem concessões: a autoridade segue no

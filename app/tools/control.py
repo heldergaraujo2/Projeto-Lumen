@@ -57,6 +57,7 @@ from app.tools.terminal import (
     TerminalStore,
     TerminalStoreError,
 )
+from app.tools.toggles_store import ToggleStore, ToggleStoreError
 from app.tools.correction import (
     ToolCorrectionStrategy,
     build_proposal_validator,
@@ -291,6 +292,7 @@ class ToolsController:
         terminal_file: Path | None = None,
         persist_execution_state: bool = False,
         execution_state_dir: Path | str | None = None,
+        toggles_file: Path | None = None,
     ) -> None:
         if not isinstance(permissions, PermissionManager):
             raise ToolsControlError(
@@ -313,12 +315,21 @@ class ToolsController:
         # 11E: verificação real opt-in (default None = sem verificação —
         # comportamento atual preservado; ver docs/SPEC-11E-REAL_VERIFICATION.md).
         self._verifier: TaskVerifier | None = None
+        # 11H: toggles persistentes (SÓ capacidade — nunca concede
+        # permissão; fail-closed; ver docs/SPEC-11H-SETTINGS_UI_TOGGLES.md).
+        self._toggles_store = ToggleStore(
+            toggles_file
+            if toggles_file is not None
+            else Path("data/agent_toggles.json")
+        )
+        self._toggles = self._toggles_store.load()  # fail-closed: não levanta
         # 9B: persistência sanitizada do estado de execução (default OFF).
         self._persist_execution_state = bool(persist_execution_state)
         self._execution_state_dir = (
             Path(execution_state_dir) if execution_state_dir is not None else None
         )
         self._load_terminal()  # fail-closed; não cria arquivo nem concede nada
+        self._apply_persisted_toggles()  # 11H: só capacidade, sem permissões
 
     def _load_terminal(self) -> None:
         """Carrega a allowlist persistida (se houver) — **fail closed**.
@@ -386,6 +397,18 @@ class ToolsController:
                 "allow_operators": self._terminal_policy.allow_operators,
             },
         )
+
+    def _apply_persisted_toggles(self) -> None:
+        """11H: aplica os toggles persistidos no startup — SÓ capacidade.
+
+        Liga apenas as capacidades (corrections/verification); **jamais
+        concede permissão** — a concessão TERMINAL continua explícita por
+        sessão (regra 0.6.x, ver ``_load_terminal``).
+        """
+        if self._toggles.corrections_enabled:
+            self.enable_corrections()
+        if self._toggles.verification_enabled:
+            self.enable_verification("pytest_result")
 
     def _audit_admin(self, operation: str, *, success: bool = True,
                      error: str | None = None, **detail: Any) -> None:
@@ -618,6 +641,67 @@ class ToolsController:
     @property
     def verification_enabled(self) -> bool:
         return self._verifier is not None
+
+    # ------------------------------------------- toggles persistentes (11H)
+    @property
+    def corrections_persisted(self) -> bool:
+        """11H: valor persistido do toggle de correções (arquivo)."""
+        return self._toggles.corrections_enabled
+
+    @property
+    def verification_persisted(self) -> bool:
+        """11H: valor persistido do toggle de verificação (arquivo)."""
+        return self._toggles.verification_enabled
+
+    def _persist_toggles(self, operation: str, **detail: Any) -> None:
+        """11H: grava o estado dos toggles (somente flags bool) + audita.
+
+        Falha de escrita: audita ``success=False`` e re-levanta
+        :class:`ToggleStoreError` (o chamador decide — padrão das ações
+        administrativas de terminal).
+        """
+        try:
+            self._toggles_store.save(self._toggles)
+        except ToggleStoreError as exc:
+            self._audit.record(
+                tool="toggles", operation=operation,
+                requested_path=None, success=False, error=str(exc), **detail,
+            )
+            raise
+        self._audit.record(
+            tool="toggles", operation=operation,
+            requested_path=None, success=True, **detail,
+        )
+
+    def set_corrections_enabled(self, enabled: bool) -> None:
+        """11H: liga/desliga a correção automática e persiste o toggle.
+
+        Aplica na hora (``enable_corrections``/``disable_corrections``) e
+        salva a flag booleana no store de toggles. **Nunca concede
+        permissão** — autoridade de execução segue inalterada.
+        """
+        if bool(enabled):
+            self.enable_corrections()
+        else:
+            self.disable_corrections()
+        self._toggles.corrections_enabled = bool(enabled)
+        self._persist_toggles("corrections_toggle",
+                              corrections_enabled=self._toggles.corrections_enabled)
+
+    def set_verification_enabled(self, enabled: bool) -> None:
+        """11H: liga/desliga a verificação real e persiste o toggle.
+
+        Quando ON, instala o verifier ``"pytest_result"`` (11E). Aplica na
+        hora e salva a flag booleana no store de toggles. **Nunca concede
+        permissão** — o verifier é um interpretador sem execução.
+        """
+        if bool(enabled):
+            self.enable_verification("pytest_result")
+        else:
+            self.disable_verification()
+        self._toggles.verification_enabled = bool(enabled)
+        self._persist_toggles("verification_toggle",
+                              verification_enabled=self._toggles.verification_enabled)
 
     def correction_history(self) -> list[dict]:
         """Ciclos de correção da última execução (auditoria/UI)."""

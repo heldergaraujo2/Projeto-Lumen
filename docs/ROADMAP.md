@@ -1,7 +1,7 @@
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
-11B, 11C, 11D, 11E, 11F e 11G concluídas sem bump de versão — ver "Estado real" abaixo.**
+11B, 11C, 11D, 11E, 11F, 11G e 11H concluídas sem bump de versão — ver "Estado real" abaixo.**
 
 Cada versão entrega um incremento fechado e testado. Regra de ouro do
 projeto: **nenhuma capacidade sensível entra sem que a camada de
@@ -9,7 +9,7 @@ permissões e o fluxo de confirmação do usuário estejam prontos antes**.
 
 ---
 
-## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11G
+## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11H
 
 Concluído sobre a 0.6.8, **sem bump de versão** (engenharia interna;
 detalhes em `LUMEN_STATE.md`):
@@ -72,15 +72,30 @@ detalhes em `LUMEN_STATE.md`):
   sucessor). Sem bypass (pytest sempre via task com checkpoint) e sem
   repair-loop automático/auto-replanning; +2 testes. Spec:
   `docs/SPEC-11G-CORRECTIONS_EVIDENCE.md`.
+- **11H** — **toggles persistentes de automação (Settings/UI)**:
+  `ToggleStore` (`app/tools/toggles_store.py`) persiste
+  `data/agent_toggles.json` (escrita atômica, schema `version: 1`,
+  **fail-closed** — arquivo ausente/corrompido ⇒ tudo OFF, sem
+  exceção) com `corrections_enabled`/`verification_enabled`; o
+  `ToolsController` restaura/aplica no startup via `toggles_file`
+  (`main.py` passa `settings.data_dir / "agent_toggles.json"`) e os
+  setters persistem na hora (auditados); `ToolsDialog` ganhou a seção
+  **AUTOMAÇÃO (11H)** (ligar/desligar Correções e Verificação real —
+  reflete o controller ao abrir; persiste ao clicar). **Os toggles
+  nunca concedem permissão** — TERMINAL continua concessão explícita
+  por sessão (regra 0.6.x); +5 testes (3 persistência no controller +
+  2 UI headless). Spec:
+  `docs/SPEC-11H-SETTINGS_UI_TOGGLES.md`.
 
-**Suíte completa: 982 passed / 5 skipped / 0 failed (987 coletados).**
+**Suíte completa: 987 passed / 5 skipped / 0 failed (992 coletados).**
 
 **Próximos tópicos da trilha Coding Agent (0.7) — NÃO AUTORIZADOS /
 NÃO IMPLEMENTADOS:** verificação real completa, repair-loop (reparo
 via CorrectionEngine), wiring Settings→Planner. O runner dedicado de
 build/test estruturado (`run_pytest`) foi entregue na 11D, a
-verificação real (opt-in) na 11E, o auto-anexo após WRITE na 11F e a
-evidência em modo corrections na 11G.
+verificação real (opt-in) na 11E, o auto-anexo após WRITE na 11F, a
+evidência em modo corrections na 11G e os toggles persistentes
+(Settings/UI) na 11H.
 Restrições vigentes preservadas: R4 (sem replanning automático) e F17
 (sem Computer Control / vision / Unreal / Blueprint / C++).
 
@@ -577,8 +592,9 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 
 > Status (2026-08-31): 11B (`search_files`), 11C (`edit_file`), 11D
 > (`run_pytest` — runner estruturado de build/test), 11E (verificação
-> real opt-in), 11F (auto-anexo `run_pytest` após WRITE) e 11G
-> (evidência real em modo corrections) entregues.
+> real opt-in), 11F (auto-anexo `run_pytest` após WRITE), 11G
+> (evidência real em modo corrections) e 11H (toggles persistentes de
+> automação + UI) entregues.
 > Próximos tópicos da trilha (verificação real completa, reparo) —
 > **NÃO AUTORIZADOS / NÃO IMPLEMENTADOS**.
 
