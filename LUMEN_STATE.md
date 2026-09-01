@@ -17,27 +17,31 @@ hotfixes), 0.6.2 Correção Automática Controlada, 0.6.x UI de Terminal,
 Auditoria, 0.5 Filesystem Tools, 0.4.x Planner+Executor, 0.3 Advanced
 Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
 bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C,
-11D, 11E, 11F, 11G, 11H, 11I e 11J — ver "ESTADO ATUAL" a seguir)*
+11D, 11E, 11F, 11G, 11H, 11I, 11J e 11K — ver "ESTADO ATUAL" a seguir)*
 
 ## STATUS
 
-**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11J)** *(atualizado em
-2026-08-31 — **990 passed + 5 skipped, 0 failed** (995 coletados; 5
+**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11K)** *(atualizado em
+2026-09-01 — **995 passed + 5 skipped, 0 failed** (1000 coletados; 5
 skips ambientais: SDKs google-genai/groq/together ausentes, keyring
 ausente, Tkinter sem display). Registros anteriores preservados:
-pós-11I (2026-08-31): 989+5/0; pós-11H (2026-08-31): 987+5/0;
+pós-11J (2026-08-31): 990+5/0; pós-11I (2026-08-31): 989+5/0;
+pós-11H (2026-08-31): 987+5/0;
 pós-11G (2026-08-31): 982+5/0; pós-11F (2026-08-31): 980+5/0;
 pós-11E: 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30): 967+5/0;
 0.6.6 (2026-08-28): 875+5 na dev E na venv limpa — 880 no total)*
 
-## ESTADO ATUAL (2026-08-31 — pós-11J)
+## ESTADO ATUAL (2026-09-01 — pós-11K)
 
 - **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11J
   foram entregues SEM bump de versão (engenharia interna).
-- **Suíte completa:** **990 passed / 5 skipped / 0 failed** (995
-  coletados — medida após a 11J: +1 de correção com evidência
-  (advice-only). Registros anteriores preservados: pós-11I (2026-08-31):
-  989 passed / 5 skipped / 0 failed (994 — +2 de export de relatório
+- **Suíte completa:** **995 passed / 5 skipped / 0 failed** (1000
+  coletados — medida após a 11K: +5 de snapshot-before +
+  restore_snapshot, testes focados 084/087). Registros anteriores
+  preservados: pós-11J (2026-08-31): 990 passed / 5 skipped / 0 failed
+  (995 — +1 de correção com evidência (advice-only)); pós-11I
+  (2026-08-31): 989 passed / 5 skipped / 0 failed (994 — +2 de export
+  de relatório
   (ON/OFF + sanitização)); pós-11H (2026-08-31): 987 passed / 5
   skipped / 0 failed (992); pós-11G (2026-08-31): 982 passed / 5
   skipped / 0 failed (987); pós-11F (2026-08-31): 980 passed / 5
@@ -57,7 +61,8 @@ pós-11E: 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30): 967+5/0;
   abaixo)**, **11G (evidência real em modo corrections; ver
   abaixo)**, **11H (toggles persistentes de automação + UI; ver
   abaixo)**, **11I (export de relatório de evidências; ver abaixo)**,
-  **11J (correções com evidência — advice-only; ver abaixo)**.
+  **11J (correções com evidência — advice-only; ver abaixo)**,
+  **11K (snapshot "before" + restore; ver abaixo)**.
 - **`search_files`:** 7ª tool de filesystem no registry default
   (EXECUÇÃO ✅) e **presente no Planner Catalog**
   (`app/planner/catalog.py` — PLANEJAMENTO AUTOMÁTICO ✅). Nenhuma
@@ -159,18 +164,47 @@ pós-11E: 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30): 967+5/0;
   (R4 continua proíbido); correções **com tarefa** continuam exigindo
   aprovação explícita. +1 teste (`test_tools_correction.py`); spec:
   `docs/SPEC-11J-EVIDENCE_CORRECTIONS.md`.
+- **Snapshot "before" + restore (11K — IMPLEMENTADA + TESTADA,
+  concluída):** feature **opt-in (default OFF — bit-a-bit)** no
+  `ToolsController` (`enable_snapshots`/`snapshots_dir`/
+  `snapshot_max_bytes`; o `SnapshotStore` tem efeitos colaterais zero no
+  construtor — nada nasce em disco no startup). Com ON, para as tools
+  **destrutivas** de filesystem (`FILESYSTEM_DESTRUCTIVE_TOOLS`), o
+  handler faz snapshot **before** do alvo — **depois do checkpoint
+  aprovado** (a pausa é anterior ao handler) e **antes** da tool —
+  **best-effort** (falha nunca interrompe a execução), guardado em
+  `data_dir/snapshots/<safe_plan_id>/<task_id>/` (`manifest.json` +
+  `before.bin`; alvo inexistente ⇒ `existed_before=False`; acima do
+  teto ⇒ manifest sem cópia, `skipped_reason`). Auditoria registra
+  **somente metadados** (`operation="snapshot_before"` — nunca
+  conteúdo). Tool `restore_snapshot` (permissão **WRITE**;
+  `app/tools/restore_snapshot.py`) para rollback **manual**:
+  `existed_before=True` → restaura os bytes do `before.bin`
+  (`bytes_restored` no resultado); `existed_before=False` → desfaz o
+  create (delete idempotente — `already_gone` se o arquivo já não
+  existe); manifest ausente/inválido ⇒ falha honesta (sem restore
+  especulativo). **Checkpoint pré-validado**: pausa somente quando o
+  restore é viável (WRITE concedida + parâmetros + manifest existe +
+  sandbox/policy permitem a operação no alvo); inviável ⇒ a task falha
+  direto com o motivo (sem aprovação decorativa). Registrada no
+  registry **independentemente do terminal** (tool não-terminal).
+  +5 testes focados (084/087: `test_tools_control.py`/
+  `test_tools_correction.py`) + lista de tools em
+  `test_terminal_integration.py` atualizada; regressão completa verde
+  (1000 coletados). Spec: `docs/SPEC-11K-SNAPSHOT_ROLLBACK.md`.
 - **Próximos tópicos da trilha Coding Agent (11A): NÃO AUTORIZADOS**
   (reparo via CorrectionEngine, wiring Settings→Planner). Build/test
   estruturado foi entregue na 11D (`run_pytest`), a verificação real
   (opt-in) na 11E, o auto-anexo após WRITE na 11F, a evidência em
   modo corrections na 11G, os toggles persistentes (Settings/UI) na
-  11H, o export de relatório de evidências (opt-in) na 11I e o
-  conselho com evidência nas correções (advice-only) na 11J.
+  11H, o export de relatório de evidências (opt-in) na 11I, o conselho
+  com evidência nas correções (advice-only) na 11J e o snapshot
+  "before" + restore (opt-in) na 11K.
 - **Proibições vigentes preservadas:** R4 (replanning automático) e
   Computer Control / vision / Unreal / Blueprint / C++ (F17).
-- **Docs:** LUMEN_STATE sincronizado com a 11J; README/ROADMAP
+- **Docs:** LUMEN_STATE sincronizado com a 11K; README/ROADMAP
   sincronizados com a 11H (987/992) — doc sync de README/ROADMAP
-  pós-11I/11J pendente nos comandos seguintes.
+  pós-11I a 11K pendente nos comandos seguintes.
 
 ## OBJECTIVE — 0.6.3 (histórico)
 

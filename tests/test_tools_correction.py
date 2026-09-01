@@ -594,3 +594,51 @@ def test_11j_pytest_failure_records_evidence_advice_in_cycle(tmp_path, ws):
     assert "pytest" in (cycle.get("suggestion") or "")
     assert "somente conselho" in (cycle.get("decision_note") or "")
     assert cycle.get("replacement_tool") is None  # corrected_task=None (MVP)
+
+
+# ------------------------------------------------- 11K (snapshots no corrections)
+def test_11k_snapshots_created_for_root_and_successor_in_corrections(tmp_path, ws):
+    """11K + corrections: snapshot "before" no plano raiz (create_file)
+    E no sucessor #C1 (write_file corrigida) — ambos com backup do
+    "antes" (safe_name preserva "#" no id do plano sucessor)."""
+    permissions = PermissionManager()
+    controller = ToolsController(
+        permissions,
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        terminal_file=tmp_path / "terminal.json",
+        enable_snapshots=True,
+        snapshots_dir=tmp_path / "snapshots",
+    )
+    armed(controller, ws)
+    controller.enable_corrections()  # default: Evidence(Tool)CorrectionStrategy
+    (ws / "x.txt").write_text("original", encoding="utf-8")  # T1 falha
+    plan = Plan(
+        id="PLN-CORR", objective="11K: snapshots na raiz e no sucessor",
+        status=PlanStatus.READY,
+        tasks=(
+            PlannedTask(id="T1", description="criar x.txt", order=1,
+                        tool="create_file",
+                        parameters={"path": "x.txt", "content": "novo"}),
+        ),
+    )
+    controller.run_plan(plan)
+    assert controller.has_pending  # checkpoint T1 (destrutiva)
+    controller.approve("rodar original")  # falha "já existe" → correção
+    assert controller.pending_approval()["kind"] == "correction"
+    controller.approve("corrigir")        # aplica #C1 → checkpoint write_file
+    assert controller.has_pending
+    report = controller.approve("executar")
+    assert report.status is PlanStatus.COMPLETED
+    assert (ws / "x.txt").read_text(encoding="utf-8") == "novo"
+
+    m_root = tmp_path / "snapshots" / "PLN-CORR" / "T1" / "manifest.json"
+    m_succ = tmp_path / "snapshots" / "PLN-CORR#C1" / "T1" / "manifest.json"
+    assert m_root.exists(), "snapshot ausente no plano raiz"
+    assert m_succ.exists(), "snapshot ausente no sucessor #C1"
+    root = json.loads(m_root.read_text(encoding="utf-8"))
+    succ = json.loads(m_succ.read_text(encoding="utf-8"))
+    assert root["tool"] == "create_file" and root["existed_before"] is True
+    assert succ["tool"] == "write_file" and succ["existed_before"] is True
+    assert (m_root.parent / "before.bin").read_bytes() == b"original"
+    assert (m_succ.parent / "before.bin").read_bytes() == b"original"

@@ -43,11 +43,14 @@ from app.tools.audit_log import JsonlAuditSink, read_audit_tail
 from app.tools.base import ToolRegistry
 from app.tools.filesystem import (
     FILESYSTEM_DESTRUCTIVE_TOOLS,
+    OPERATION_DELETE,
+    OPERATION_WRITE,
     FilesystemAudit,
     FilesystemError,
     build_filesystem_registry,
 )
 from app.tools.handler import ToolCheckpoints, ToolTaskHandler
+from app.tools.snapshot_store import SnapshotStore
 from app.tools.terminal import (
     TERMINAL_TOOL_NAME,
     AllowedCommand,
@@ -209,13 +212,25 @@ class PrevalidatedCheckpoints(ToolCheckpoints):
     """
 
     def __init__(self, permissions: PermissionManager, registry: ToolRegistry,
-                 sandbox: MultiWorkspaceSandbox) -> None:
+                 sandbox: MultiWorkspaceSandbox,
+                 snapshots_dir: Path | None = None) -> None:
         super().__init__(FILESYSTEM_DESTRUCTIVE_TOOLS)
         self._permissions = permissions
         self._registry = registry
         self._sandbox = sandbox
+        # 11K: raiz de snapshots para pré-validar restore_snapshot
+        # (evitar aprovação decorativa).
+        self._snapshots_dir = snapshots_dir
+        self._snapshot_store = (
+            SnapshotStore(snapshots_dir) if snapshots_dir is not None else None
+        )
 
     def requires_checkpoint(self, task) -> bool:  # type: ignore[override]
+        if task.tool == "restore_snapshot":
+            # 11K: destrutiva, mas o parâmetro não é "path" — a viabilidade
+            # vem do manifest do snapshot (pré-validada; sem aprovação
+            # decorativa para algo que falharia de qualquer forma).
+            return self._restore_snapshot_viable(task)
         if not super().requires_checkpoint(task):
             return False
         if not task.tool:
@@ -233,6 +248,42 @@ class PrevalidatedCheckpoints(ToolCheckpoints):
         try:
             resolved = self._sandbox.resolve(requested)
             self._sandbox.check_operation(tool.operation, resolved)
+        except FilesystemError:
+            return False  # fora do workspace/política: falha controlada
+        return True
+
+    def _restore_snapshot_viable(self, task) -> bool:
+        """11K: ``restore_snapshot`` é **viável**? (sem aprovação decorativa).
+
+        Pausa apenas quando o restore de fato executaria: (1) ``WRITE``
+        concedida (gate da tool), (2) parâmetros
+        ``snapshot_plan_id``/``snapshot_task_id`` presentes, (3) manifest
+        existe, (4) alvo confinado pelo sandbox
+        (``manifest.requested_path`` — nunca ``resolved_path``) e (5) a
+        operação passa na política (``write`` ao restaurar conteúdo,
+        ``delete`` ao desfazer criação). Senão a task falha direto na
+        tool com o motivo real (bloqueio honesto).
+        """
+        if self._snapshot_store is None:
+            return False
+        if not self._permissions.is_granted(PermissionLevel.WRITE):
+            return False  # sem permissão: o handler bloqueia de verdade
+        parameters = dict(task.parameters or {})
+        plan_id = parameters.get("snapshot_plan_id")
+        task_id = parameters.get("snapshot_task_id")
+        if not isinstance(plan_id, str) or not plan_id.strip():
+            return False
+        if not isinstance(task_id, str) or not task_id.strip():
+            return False
+        try:
+            manifest = self._snapshot_store.load_manifest(plan_id, task_id)
+            if manifest is None:
+                return False  # sem snapshot: a tool falha honestamente
+            resolved = self._sandbox.resolve(manifest.requested_path)
+            operation = (
+                OPERATION_WRITE if manifest.existed_before else OPERATION_DELETE
+            )
+            self._sandbox.check_operation(operation, resolved)
         except FilesystemError:
             return False  # fora do workspace/política: falha controlada
         return True
@@ -301,6 +352,9 @@ class ToolsController:
         toggles_file: Path | None = None,
         export_execution_reports: bool = False,
         reports_dir: Path | None = None,
+        enable_snapshots: bool = False,
+        snapshots_dir: Path | None = None,
+        snapshot_max_bytes: int = 1_000_000,
     ) -> None:
         if not isinstance(permissions, PermissionManager):
             raise ToolsControlError(
@@ -343,6 +397,18 @@ class ToolsController:
         self._persist_execution_state = bool(persist_execution_state)
         self._execution_state_dir = (
             Path(execution_state_dir) if execution_state_dir is not None else None
+        )
+        # 11K: snapshot "before" de operações destrutivas (opt-in,
+        # default OFF — bit-a-bit; best-effort; somente metadados no
+        # audit; ver docs/SPEC-11K-SNAPSHOT_ROLLBACK.md). O store não
+        # tem efeitos colaterais no construtor (nada é criado em disco).
+        self._enable_snapshots = bool(enable_snapshots)
+        self._snapshots_dir = (
+            Path(snapshots_dir) if snapshots_dir is not None
+            else Path("data") / "snapshots"
+        )
+        self._snapshot_store = SnapshotStore(
+            self._snapshots_dir, max_snapshot_bytes=snapshot_max_bytes
         )
         self._load_terminal()  # fail-closed; não cria arquivo nem concede nada
         self._apply_persisted_toggles()  # 11H: só capacidade, sem permissões
@@ -867,10 +933,19 @@ class ToolsController:
         Filesystem (7 ferramentas, incluindo ``search_files``) sempre;
         ``run_command`` **somente** quando o terminal foi habilitado via
         :meth:`enable_terminal` (allowlist explícita — registro nunca é
-        automático).
+        automático); 11K: ``restore_snapshot`` (rollback manual) também
+        sempre — porteio pela permissão ``WRITE`` + checkpoint
+        pré-validado (manifest + confinamento + política).
         """
         sandbox = self._sandbox()
         registry = build_filesystem_registry(self._permissions, sandbox, self._audit)
+        # 11K: rollback manual — SEMPRE registrada (não depende do
+        # terminal); nada é concedido (gate WRITE + checkpoint).
+        from app.tools.restore_snapshot import RestoreSnapshotTool
+
+        registry.register(
+            RestoreSnapshotTool(sandbox, self._snapshots_dir, self._audit)
+        )
         if self._terminal_policy is not None:
             from app.tools.run_pytest import RunPytestTool
 
@@ -894,7 +969,9 @@ class ToolsController:
         11F: com terminal + verificação 11E habilitados e plano com
         WRITE, é anexada 1 task final ``run_pytest`` — com plano no
         limite de tasks, falha **antes de executar** (tudo ``SKIPPED``,
-        motivo claro).
+        motivo claro). 11K: com ``enable_snapshots`` (default OFF),
+        operações destrutivas ganham snapshot "before" best-effort
+        (somente metadados na auditoria; sem conteúdo).
         """
         sandbox = self._sandbox()
         registry = self.build_registry()
@@ -914,7 +991,11 @@ class ToolsController:
             plan = _attach_run_pytest(plan)
             self._plan = plan  # 9B: bundle persiste o plano ajustado
         policies: list[ToolCheckpoints] = [
-            PrevalidatedCheckpoints(self._permissions, registry, sandbox)
+            PrevalidatedCheckpoints(
+                self._permissions, registry, sandbox,
+                # 11K: pré-validação de restore_snapshot (viável ou não).
+                snapshots_dir=self._snapshots_dir,
+            )
         ]
         if self._terminal_policy is not None:
             policies.append(
@@ -948,7 +1029,11 @@ class ToolsController:
             engine = CorrectionEngine(
                 plan,
                 lambda plan_id: ToolTaskHandler(
-                    registry, audit=self._audit, plan_id=plan_id
+                    registry, audit=self._audit, plan_id=plan_id,
+                    # 11K: snapshot "before" (default OFF — bit-a-bit).
+                    sandbox=sandbox,
+                    snapshot_store=self._snapshot_store,
+                    enable_snapshots=self._enable_snapshots,
                 ),
                 strategy=self._corrections["strategy"],
                 validator=build_proposal_validator(
@@ -965,7 +1050,13 @@ class ToolsController:
             )
             self._engine = engine
             return self._final(engine.run().execution)
-        handler = ToolTaskHandler(registry, audit=self._audit, plan_id=plan.id)
+        handler = ToolTaskHandler(
+            registry, audit=self._audit, plan_id=plan.id,
+            # 11K: snapshot "before" (default OFF — bit-a-bit).
+            sandbox=sandbox,
+            snapshot_store=self._snapshot_store,
+            enable_snapshots=self._enable_snapshots,
+        )
         self._executor = PlanExecutor(
             plan, handler, checkpoints=_CombinedCheckpoints(policies),
             verifier=self._verifier,  # 11E: None (default) ou opt-in

@@ -557,3 +557,191 @@ def test_11i_does_not_export_when_disabled(tmp_path):
     assert report.status is PlanStatus.COMPLETED
     reports_dir = tmp_path / "reports"
     assert not reports_dir.exists() or not any(reports_dir.iterdir())
+
+
+# ------------------------------------------------------- 11K (snapshot before)
+def test_11k_snapshot_off_creates_nothing(tmp_path):
+    """11K OFF (default): operação destrutiva executada NÃO cria
+    snapshots nem registra ``snapshot_before`` (bit-a-bit atual)."""
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        enable_snapshots=False,
+        snapshots_dir=tmp_path / "snapshots",
+    )
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "a.txt").write_text("ANTES", encoding="utf-8")
+    controller.add_workspace(str(ws), writable=True)
+    controller.grant_permission("WRITE")
+    plan = Plan(
+        id="PLN-11K-OFF", objective="sobrescrever a.txt",
+        status=PlanStatus.READY,
+        tasks=[armed("T1", "write_file",
+                     {"path": "a.txt", "content": "DEPOIS"}, order=1)],
+    )
+    controller.run_plan(plan)
+    assert controller.has_pending  # checkpoint (destrutiva viável)
+    report = controller.approve("ok")
+    assert report.status is PlanStatus.COMPLETED
+    assert (ws / "a.txt").read_text(encoding="utf-8") == "DEPOIS"
+    # Nenhum snapshot criado (nem diretório, nem registro).
+    snaps = tmp_path / "snapshots"
+    assert not snaps.exists() or not any(snaps.iterdir())
+    assert not [r for r in controller.audit_records()
+                if r.get("operation") == "snapshot_before"]
+
+
+def test_11k_snapshot_on_write_file_overwrite_creates_manifest_backup_and_audit(
+    tmp_path,
+):
+    """11K ON: write_file sobre existente ⇒ manifest + before.bin com o
+    "antes" + auditoria ``snapshot_before`` (somente metadados — o
+    conteúdo do arquivo NUNCA vai para o audit)."""
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        enable_snapshots=True,
+        snapshots_dir=tmp_path / "snapshots",
+    )
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "a.txt").write_text("ANTES", encoding="utf-8")
+    controller.add_workspace(str(ws), writable=True)
+    controller.grant_permission("WRITE")
+    plan = Plan(
+        id="PLN:11K/ON#1", objective="sobrescrever a.txt com snapshot",
+        status=PlanStatus.READY,
+        tasks=[armed("T1", "write_file",
+                     {"path": "a.txt", "content": "DEPOIS"}, order=1)],
+    )
+    controller.run_plan(plan)
+    assert controller.has_pending  # checkpoint ANTES da operação
+    report = controller.approve("ok")
+    assert report.status is PlanStatus.COMPLETED
+    assert (ws / "a.txt").read_text(encoding="utf-8") == "DEPOIS"
+
+    # Snapshot: safe_name (":" e "/" → "_"; "#" preservado) + manifest.
+    tdir = tmp_path / "snapshots" / "PLN_11K_ON#1" / "T1"
+    manifest = json.loads((tdir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["existed_before"] is True
+    assert manifest["bytes_before"] == len("ANTES")
+    assert manifest["backup_relpath"] == "PLN_11K_ON#1/T1/before.bin"
+    assert manifest["skipped_reason"] is None
+    assert manifest["tool"] == "write_file"
+    assert manifest["plan_id"] == "PLN:11K/ON#1" and manifest["task_id"] == "T1"
+    assert (tdir / "before.bin").read_bytes() == "ANTES".encode("utf-8")
+
+    # Auditoria: snapshot_before com metadados (manifest + dir relativo).
+    snaps = [r for r in controller.audit_records()
+             if r.get("operation") == "snapshot_before"]
+    assert len(snaps) == 1
+    snap = snaps[0]
+    assert snap["success"] is True and snap["task_id"] == "T1"
+    assert snap["detail"]["snapshot_manifest"]["backup_relpath"] == \
+        manifest["backup_relpath"]
+    assert snap["detail"]["snapshot_dir"] == "PLN_11K_ON#1/T1"
+    # Sem vazamento de conteúdo (antes ou depois) em NENHUM registro.
+    blob = json.dumps(controller.audit_records(), ensure_ascii=False)
+    assert "ANTES" not in blob and "DEPOIS" not in blob
+
+
+def test_11k_restore_snapshot_restores_before_bytes(tmp_path):
+    """11K: rollback real (ANTES → DEPOIS → ANTES) sob checkpoint:
+    write_file cria snapshot "before" e restore_snapshot (prevalidada —
+    viável) restaura os bytes anteriores após aprovação."""
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        terminal_file=tmp_path / "terminal.json",
+        toggles_file=tmp_path / "agent_toggles.json",
+        enable_snapshots=True,
+        snapshots_dir=tmp_path / "snapshots",
+    )
+    controller.grant_permission("READ")
+    controller.grant_permission("WRITE")
+    # TERMINAL NÃO concedido (restore não depende de terminal).
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "a.txt").write_text("ANTES", encoding="utf-8")
+    controller.add_workspace(str(ws), writable=True)
+
+    # Plano 1: write_file (destrutiva) ⇒ snapshot "before" + escrita.
+    plan1 = Plan(
+        id="PLN:11K/RESTORE#1", objective="sobrescrever a.txt",
+        status=PlanStatus.READY,
+        tasks=[armed("T1", "write_file",
+                     {"path": "a.txt", "content": "DEPOIS"}, order=1)],
+    )
+    controller.run_plan(plan1)
+    assert controller.has_pending  # checkpoint (destrutiva viável)
+    assert controller.approve("ok").status is PlanStatus.COMPLETED
+    assert (ws / "a.txt").read_text(encoding="utf-8") == "DEPOIS"
+    manifest = json.loads(
+        (tmp_path / "snapshots" / "PLN_11K_RESTORE#1" / "T1" / "manifest.json")
+        .read_text(encoding="utf-8")
+    )
+    assert manifest["existed_before"] is True
+    assert manifest["bytes_before"] == len("ANTES")
+
+    # Plano 2: restore_snapshot ⇒ PAUSA (prevalidada/viável) ⇒ restaura.
+    plan2 = Plan(
+        id="PLN:11K/RESTORE#2", objective="rollback manual de a.txt",
+        status=PlanStatus.READY,
+        tasks=[armed("T1", "restore_snapshot",
+                     {"snapshot_plan_id": "PLN:11K/RESTORE#1",
+                      "snapshot_task_id": "T1"}, order=1)],
+    )
+    controller.run_plan(plan2)
+    assert controller.has_pending  # checkpoint pré-validado (viável)
+    assert controller.pending_approval()["tool"] == "restore_snapshot"
+    assert controller.approve("rollback").status is PlanStatus.COMPLETED
+    assert (ws / "a.txt").read_text(encoding="utf-8") == "ANTES"  # restaurado
+
+    # Auditoria: snapshot_before + restore presentes, SEM conteúdo.
+    records = [json.loads(line) for line in
+               (tmp_path / "audit" / "audit.jsonl")
+               .read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert any(r.get("operation") == "snapshot_before" and r.get("success")
+               for r in records)
+    assert any(r.get("tool") == "restore_snapshot" and r.get("success")
+               for r in records)
+    blob = json.dumps(records, ensure_ascii=False)
+    assert "ANTES" not in blob and "DEPOIS" not in blob
+
+
+def test_11k_restore_snapshot_missing_manifest_fails_without_checkpoint(
+    tmp_path,
+):
+    """11K: checkpoint PREVALIDADO — snapshot inexistente NÃO pausa (sem
+    aprovação decorativa): a task falha direto com snapshot_not_found
+    (bloqueio honesto)."""
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        terminal_file=tmp_path / "terminal.json",
+        toggles_file=tmp_path / "agent_toggles.json",
+        enable_snapshots=True,
+        snapshots_dir=tmp_path / "snapshots",
+    )
+    controller.grant_permission("READ")
+    controller.grant_permission("WRITE")
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    controller.add_workspace(str(ws), writable=True)
+    report = controller.run_plan(
+        Plan(
+            id="PLN-11K-NOEXIST", objective="restaurar snapshot inexistente",
+            status=PlanStatus.READY,
+            tasks=[armed("T1", "restore_snapshot",
+                         {"snapshot_plan_id": "NOPE", "snapshot_task_id": "T1"},
+                         order=1)],
+        )
+    )
+    assert not controller.has_pending  # inviável: NENHUM checkpoint
+    assert report.status is PlanStatus.FAILED
+    assert "snapshot_not_found" in (report.task_run("T1").error or "")

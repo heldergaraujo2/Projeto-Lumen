@@ -29,7 +29,9 @@ consentimento da 0.4.x aplicada às tools reais, **sem UI obrigatória**.
 from __future__ import annotations
 
 import json
+import logging
 from contextlib import nullcontext
+from pathlib import Path
 from typing import Any, Iterable
 
 from app.executor.checkpoints import CheckpointPolicy
@@ -37,7 +39,14 @@ from app.executor.handlers import HandlerError, TaskHandler
 from app.planner.models import PlannedTask
 from app.security.permissions import PermissionDeniedError
 from app.tools.base import ToolError, ToolNotFoundError, ToolRegistry
-from app.tools.filesystem import FilesystemAudit
+from app.tools.filesystem import (
+    FILESYSTEM_DESTRUCTIVE_TOOLS,
+    FilesystemAudit,
+    WorkspaceSandbox,
+)
+from app.tools.snapshot_store import SnapshotManifest, SnapshotStore, _safe_name
+
+logger = logging.getLogger("lumen.tools.handler")
 
 
 class ToolTaskHandler(TaskHandler):
@@ -49,6 +58,12 @@ class ToolTaskHandler(TaskHandler):
         audit: trilha de auditoria opcional (registra também os
             bloqueios de permissão e anexa contexto tarefa/plano).
         plan_id: id do plano de origem (apenas para auditoria).
+        sandbox: sandbox do workspace (11K: confinamento do caminho do
+            snapshot).
+        snapshot_store: store 11K de snapshots "before" (opt-in).
+        enable_snapshots: 11K — snapshot "before" das tools destrutivas
+            (default **OFF** — bit-a-bit; best-effort, nunca interrompe
+            a execução).
     """
 
     name = "tools"
@@ -59,10 +74,18 @@ class ToolTaskHandler(TaskHandler):
         *,
         audit: FilesystemAudit | None = None,
         plan_id: str | None = None,
+        sandbox: WorkspaceSandbox | None = None,
+        snapshot_store: SnapshotStore | None = None,
+        enable_snapshots: bool = False,
     ) -> None:
         self._registry = registry
         self._audit = audit
         self._plan_id = plan_id
+        # 11K: snapshot "before" de operações destrutivas (opt-in,
+        # default OFF — bit-a-bit; best-effort; sem conteúdo no audit).
+        self._sandbox = sandbox
+        self._snapshot_store = snapshot_store
+        self._enable_snapshots = enable_snapshots
 
     def execute(self, task: PlannedTask) -> str:
         if not task.tool:
@@ -79,6 +102,10 @@ class ToolTaskHandler(TaskHandler):
         )
         try:
             with context:
+                # 11K: snapshot "before" (best-effort; NUNCA interrompe a
+                # execução) para tools destrutivas — depois do checkpoint
+                # aprovado (pausa é anterior ao handler) e antes da tool.
+                self._maybe_snapshot_before(task, parameters)
                 raw = self._registry.execute(task.tool, **parameters)
         except PermissionDeniedError as exc:
             if self._audit is not None:
@@ -107,6 +134,95 @@ class ToolTaskHandler(TaskHandler):
             error = payload.get("error") or f"a ferramenta {task.tool!r} falhou"
             raise HandlerError(f"Ferramenta {task.tool!r}: {error}")
         return raw
+
+    # -------------------------------------------------------- 11K (snapshot)
+    def _maybe_snapshot_before(self, task: PlannedTask,
+                               parameters: dict[str, Any]) -> None:
+        """11K: snapshot "before" de tool destrutiva (best-effort).
+
+        Só roda com a feature ON (``enable_snapshots`` + store + sandbox
+        fornecidos) e a task usando ``FILESYSTEM_DESTRUCTIVE_TOOLS``.
+        **Nunca levanta**: qualquer falha é logada + auditada
+        (``operation="snapshot_before"``, ``success=False``) e a
+        execução continua — o snapshot jamais altera o desfecho da
+        operação. A auditoria carrega **somente metadados** (sem
+        conteúdo).
+        """
+        if not self._enable_snapshots:
+            return
+        if self._snapshot_store is None or self._sandbox is None:
+            return
+        if task.tool not in FILESYSTEM_DESTRUCTIVE_TOOLS:
+            return
+        requested_path = parameters.get("path")
+        if not isinstance(requested_path, str) or not requested_path.strip():
+            return  # sem caminho utilizável: sem snapshot (falha honesta)
+        try:
+            resolved = self._sandbox.resolve(requested_path)
+        except Exception as exc:  # fora do workspace etc.: auditor + segue
+            logger.warning(
+                "11K: snapshot_before falhou no resolve (não fatal): %s", exc,
+            )
+            self._audit_snapshot(
+                task, requested_path, None, success=False,
+                error=f"resolve falhou: {exc}",
+            )
+            return
+        try:
+            manifest = self._snapshot_store.create_snapshot(
+                self._plan_id or "", task.id, task.tool,
+                requested_path, resolved,
+            )
+        except Exception as exc:  # defensivo: o store é best-effort
+            logger.warning("11K: snapshot_before falhou (não fatal): %s", exc)
+            self._audit_snapshot(
+                task, requested_path, resolved, success=False,
+                error=f"snapshot falhou: {exc}",
+            )
+            return
+        self._audit_snapshot(
+            task, requested_path, resolved, success=True, manifest=manifest,
+            snapshot_dir=(
+                f"{_safe_name(self._plan_id or '')}/{_safe_name(task.id)}"
+            ),
+        )
+
+    def _audit_snapshot(
+        self,
+        task: PlannedTask,
+        requested_path: str,
+        resolved: Path | None,
+        *,
+        success: bool,
+        error: str | None = None,
+        manifest: SnapshotManifest | None = None,
+        snapshot_dir: str | None = None,
+    ) -> None:
+        """Registra ``snapshot_before`` na auditoria (somente metadados).
+
+        O próprio registro é best-effort: falha ao auditar não quebra a
+        execução (apenas loga).
+        """
+        if self._audit is None:
+            return
+        try:
+            self._audit.record(
+                tool=task.tool,
+                operation="snapshot_before",
+                requested_path=requested_path,
+                resolved_path=str(resolved) if resolved is not None else None,
+                success=success,
+                error=error,
+                snapshot_manifest=(
+                    manifest.to_dict() if manifest is not None else None
+                ),
+                snapshot_dir=snapshot_dir,
+            )
+        except Exception:
+            logger.exception(
+                "11K: falha ao registrar auditoria snapshot_before "
+                "(não fatal).",
+            )
 
 
 class ToolCheckpoints(CheckpointPolicy):

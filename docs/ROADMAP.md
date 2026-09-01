@@ -1,7 +1,7 @@
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
-11B, 11C, 11D, 11E, 11F, 11G, 11H, 11I e 11J concluídas sem bump de
+11B, 11C, 11D, 11E, 11F, 11G, 11H, 11I, 11J e 11K concluídas sem bump de
 versão — ver "Estado real" abaixo.**
 
 Cada versão entrega um incremento fechado e testado. Regra de ouro do
@@ -10,7 +10,7 @@ permissões e o fluxo de confirmação do usuário estejam prontos antes**.
 
 ---
 
-## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11J
+## Estado real (2026-09-01) — base 0.6.8 + fases internas 9A–11K
 
 Concluído sobre a 0.6.8, **sem bump de versão** (engenharia interna;
 detalhes em `LUMEN_STATE.md`):
@@ -111,17 +111,37 @@ detalhes em `LUMEN_STATE.md`):
   automaticamente). Sem auto-replanning (R4 continua proíbido);
   correções **com tarefa** continuam exigindo aprovação explícita; +1
   teste. Spec: `docs/SPEC-11J-EVIDENCE_CORRECTIONS.md`.
+- **11K** — **snapshot "before" + restore (opt-in)**: com
+  `enable_snapshots` (**default OFF** — bit-a-bit; store sem efeitos
+  colaterais no startup), cada tool destrutiva de filesystem guarda uma
+  cópia do alvo **antes** de executar (depois do checkpoint aprovado;
+  best-effort — falha nunca interrompe) em
+  `data_dir/snapshots/<safe_plan_id>/<task_id>/{manifest.json,before.bin}`
+  (alvo inexistente ⇒ `existed_before=False`; acima do teto ⇒ manifest
+  sem cópia); auditoria registra **somente metadados** (nunca
+  conteúdo). Tool `restore_snapshot` (WRITE) para **rollback manual
+  mínimo**: restaura os bytes originais (`existed_before=True`) ou
+  desfaz o create (`existed_before=False` — delete idempotente);
+  manifest ausente/inválido ⇒ falha honesta (sem restore especulativo).
+  **Checkpoint pré-validado**: só pausa quando o restore é viável
+  (WRITE + parâmetros + manifest + sandbox/policy); inviável ⇒ a task
+  falha direto com o motivo (sem aprovação decorativa). Registrada no
+  registry independentemente do terminal. +5 testes focados (084/087).
+  Spec: `docs/SPEC-11K-SNAPSHOT_ROLLBACK.md`.
 
-**Suíte completa: 990 passed / 5 skipped / 0 failed (995 coletados).**
+**Suíte completa: 995 passed / 5 skipped / 0 failed (1000 coletados).**
 
 **Próximos tópicos da trilha Coding Agent (0.7) — NÃO AUTORIZADOS /
 NÃO IMPLEMENTADOS:** verificação real completa, repair-loop (reparo
-via CorrectionEngine), wiring Settings→Planner. O runner dedicado de
-build/test estruturado (`run_pytest`) foi entregue na 11D, a
-verificação real (opt-in) na 11E, o auto-anexo após WRITE na 11F, a
-evidência em modo corrections na 11G, os toggles persistentes
-(Settings/UI) na 11H, o export de relatório de evidências (opt-in) na
-11I e o conselho com evidência nas correções (advice-only) na 11J.
+via CorrectionEngine), wiring Settings→Planner, rollback robusto
+automático/contínuo (a 11K entrega apenas snapshot "before" + restore
+manual mínimo). O runner dedicado de build/test estruturado
+(`run_pytest`) foi entregue na 11D, a verificação real (opt-in) na
+11E, o auto-anexo após WRITE na 11F, a evidência em modo corrections
+na 11G, os toggles persistentes (Settings/UI) na 11H, o export de
+relatório de evidências (opt-in) na 11I, o conselho com evidência nas
+correções (advice-only) na 11J e o snapshot "before" + restore manual
+(opt-in) na 11K.
 Restrições vigentes preservadas: R4 (sem replanning automático) e F17
 (sem Computer Control / vision / Unreal / Blueprint / C++).
 
@@ -616,12 +636,13 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 
 ## Lumen 0.7 — Coding Agent
 
-> Status (2026-08-31): 11B (`search_files`), 11C (`edit_file`), 11D
+> Status (2026-09-01): 11B (`search_files`), 11C (`edit_file`), 11D
 > (`run_pytest` — runner estruturado de build/test), 11E (verificação
 > real opt-in), 11F (auto-anexo `run_pytest` após WRITE), 11G
 > (evidência real em modo corrections), 11H (toggles persistentes de
-> automação + UI), 11I (export de relatório de evidências) e 11J
-> (conselho com evidência nas correções — advice-only) entregues.
+> automação + UI), 11I (export de relatório de evidências), 11J
+> (conselho com evidência nas correções — advice-only) e 11K (snapshot
+> "before" + restore manual) entregues.
 > Próximos tópicos da trilha (verificação real completa, reparo) —
 > **NÃO AUTORIZADOS / NÃO IMPLEMENTADOS**.
 
