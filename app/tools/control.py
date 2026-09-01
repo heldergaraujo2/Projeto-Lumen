@@ -23,6 +23,7 @@ Garantias:
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -56,6 +57,10 @@ from app.tools.terminal import (
     TerminalSecurityError,
     TerminalStore,
     TerminalStoreError,
+)
+from app.tools.report_export import (
+    build_export_payload,
+    export_execution_report,
 )
 from app.tools.toggles_store import ToggleStore, ToggleStoreError
 from app.tools.correction import (
@@ -293,6 +298,8 @@ class ToolsController:
         persist_execution_state: bool = False,
         execution_state_dir: Path | str | None = None,
         toggles_file: Path | None = None,
+        export_execution_reports: bool = False,
+        reports_dir: Path | None = None,
     ) -> None:
         if not isinstance(permissions, PermissionManager):
             raise ToolsControlError(
@@ -323,6 +330,14 @@ class ToolsController:
             else Path("data/agent_toggles.json")
         )
         self._toggles = self._toggles_store.load()  # fail-closed: não levanta
+        # 11I: export do relatório de evidências pós-execução (opt-in;
+        # best-effort — só escreve <reports_dir>/<plan_id>.json sanitizado;
+        # sem execução, sem permissões; ver docs/SPEC-11I-REPORT_EXPORT.md).
+        self._export_execution_reports = bool(export_execution_reports)
+        self._reports_dir = (
+            Path(reports_dir) if reports_dir is not None
+            else Path("data") / "reports"
+        )
         # 9B: persistência sanitizada do estado de execução (default OFF).
         self._persist_execution_state = bool(persist_execution_state)
         self._execution_state_dir = (
@@ -962,7 +977,12 @@ class ToolsController:
         RUNNING (pausado por checkpoint) não persiste nada — o bundle é
         gravado uma única vez, no desfecho (COMPLETED/FAILED), a partir
         dos 8 retornos terminais (run_plan ×2, approve ×3, refuse ×3).
+
+        11I: exporta o relatório de evidências no mesmo funil (opt-in
+        independente do 9B; best-effort — falha nunca quebra o fluxo).
         """
+        if self._export_execution_reports:
+            self._maybe_export_report(report)
         if not self._persist_execution_state:
             return report
         if report.status not in (PlanStatus.COMPLETED, PlanStatus.FAILED):
@@ -980,6 +1000,45 @@ class ToolsController:
             correction=self.correction_history() or None,
         )
         return report
+
+    def _maybe_export_report(self, report: ExecutionReport) -> None:
+        """11I: exporta o relatório de evidências (best-effort, opt-in).
+
+        Somente em estado TERMINAL (COMPLETED/FAILED) com plano ativo;
+        grava ``<reports_dir>/<safe_plan_id>.json`` sanitizado (auditoria
+        filtrada por ``plan_id``). **Sem execução, sem permissões**;
+        qualquer falha é logada — o relatório/fluxo seguem inalterados
+        (spec 11I §4).
+        """
+        if report.status not in (PlanStatus.COMPLETED, PlanStatus.FAILED):
+            return
+        if self._plan is None:  # pragma: no cover - defensivo
+            return
+        try:
+            from app import __version__
+
+            plan_id = str(report.plan_id)
+            safe_name = re.sub(r"[^A-Za-z0-9._#-]", "_", plan_id) or "plano"
+            filtered_audit = [
+                record for record in self.audit_records(limit=500)
+                if record.get("plan_id") == plan_id
+            ]
+            payload = build_export_payload(
+                plan=self._plan,
+                report=report,
+                correction_history=self.correction_history(),
+                audit_records=filtered_audit,
+                lumen_version=__version__,
+            )
+            export_execution_report(
+                self._reports_dir / f"{safe_name}.json", payload,
+            )
+        except Exception:
+            logger.exception(
+                "Falha (não fatal) ao exportar o relatório de execução "
+                "do plano %s.",
+                report.plan_id,
+            )
 
     @property
     def has_pending(self) -> bool:

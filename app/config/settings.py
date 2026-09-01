@@ -102,6 +102,9 @@ class Settings:
     planner_refine_enabled: bool = False
     #: 9B: persistência do Execution State (observabilidade) — OFF por padrão.
     persist_execution_state: bool = False
+    #: 11I: export do relatório de evidências pós-execução
+    #: (observabilidade) — OFF por padrão.
+    export_execution_reports: bool = False
 
     def __post_init__(self) -> None:
         if self.log_level not in VALID_LOG_LEVELS:
@@ -228,6 +231,10 @@ class Settings:
             ),
             planner_refine_enabled=(
                 pick("LUMEN_PLANNER_REFINE", "0").strip().lower()
+                in ("1", "true", "yes", "sim", "on")
+            ),
+            export_execution_reports=(
+                pick("LUMEN_EXPORT_EXECUTION_REPORTS", "0").strip().lower()
                 in ("1", "true", "yes", "sim", "on")
             ),
         )

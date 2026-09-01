@@ -140,6 +140,11 @@ def main() -> int:
             # verification) — fail-closed; SÓ capacidade, nunca concede
             # permissão (ver docs/SPEC-11H-SETTINGS_UI_TOGGLES.md).
             toggles_file=settings.data_dir / "agent_toggles.json",
+            # 11I: export do relatório de evidências pós-execução —
+            # opt-in (LUMEN_EXPORT_EXECUTION_REPORTS), best-effort,
+            # sanitizado; nunca concede permissão (spec 11I).
+            export_execution_reports=settings.export_execution_reports,
+            reports_dir=settings.data_dir / "reports",
         )
         # 0.6.3: liga o chat à fachada de ferramentas (tool calling via
         # Planner com allowlist). Sem concessões: a autoridade segue no

@@ -491,3 +491,69 @@ def test_toggles_fail_closed_on_corrupt_file(tmp_path):
     c.set_corrections_enabled(True)
     c2 = _toggles_controller(tmp_path, "2")
     assert c2.corrections_enabled is True
+
+
+# ------------------------------------------------------------- export (11I)
+def _read_plan_controller(tmp_path: Path, export: bool) -> ToolsController:
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "a.txt").write_text("conteúdo", encoding="utf-8")
+    permissions = PermissionManager()
+    permissions.grant("READ")
+    controller = ToolsController(
+        permissions,
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        terminal_file=tmp_path / "terminal.json",
+        toggles_file=tmp_path / "agent_toggles.json",
+        export_execution_reports=export,
+        reports_dir=tmp_path / "reports",
+    )
+    controller.add_workspace(str(ws), writable=True)
+    return controller
+
+
+def test_11i_exports_report_when_enabled_and_sanitizes(tmp_path):
+    """11I ON: run_plan terminal exporta JSON sanitizado em
+    <reports_dir>/<safe_plan_id>.json — segredo NUNCA no arquivo."""
+    controller = _read_plan_controller(tmp_path, export=True)
+    plan = Plan(
+        id="PLN:11I/TEST#1",  # ":" e "/" inválidos p/ nome de arquivo
+        objective="ler a.txt (sk-TESTSECRET no objetivo)",
+        status=PlanStatus.READY,
+        tasks=[armed("T1", "file_exists", {"path": "a.txt"}, order=1)],
+    )
+    report = controller.run_plan(plan)
+    assert report.status is PlanStatus.COMPLETED
+    # Nome sanitizado: ":" e "/" → "_"; "#" preservado.
+    target = tmp_path / "reports" / "PLN_11I_TEST#1.json"
+    assert target.exists()
+    content = target.read_text(encoding="utf-8")
+    payload = json.loads(content)
+    assert set(payload) == {
+        "version", "lumen_version", "exported_at", "plan",
+        "execution_report", "correction_history", "audit",
+    }
+    assert payload["version"] == 1
+    assert payload["plan"]["id"] == "PLN:11I/TEST#1"
+    assert payload["execution_report"]["plan_id"] == "PLN:11I/TEST#1"
+    assert payload["correction_history"] == []
+    # Sanitização: o segredo não aparece EM NENHUMA parte do arquivo.
+    assert "sk-TESTSECRET" not in content
+    # Auditoria no payload: somente registros vinculados a ESTE plano.
+    for record in payload["audit"]:
+        assert record.get("plan_id") == report.plan_id
+
+
+def test_11i_does_not_export_when_disabled(tmp_path):
+    """11I OFF (default): run_plan termina normalmente e NENHUM arquivo
+    de relatório nasce (bit-a-bit atual)."""
+    controller = _read_plan_controller(tmp_path, export=False)
+    plan = Plan(
+        id="PLN-11I-OFF", objective="ler a.txt", status=PlanStatus.READY,
+        tasks=[armed("T1", "file_exists", {"path": "a.txt"}, order=1)],
+    )
+    report = controller.run_plan(plan)
+    assert report.status is PlanStatus.COMPLETED
+    reports_dir = tmp_path / "reports"
+    assert not reports_dir.exists() or not any(reports_dir.iterdir())

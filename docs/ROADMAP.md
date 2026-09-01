@@ -1,7 +1,7 @@
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
-11B, 11C, 11D, 11E, 11F, 11G e 11H concluídas sem bump de versão — ver "Estado real" abaixo.**
+11B, 11C, 11D, 11E, 11F, 11G, 11H e 11I concluídas sem bump de versão — ver "Estado real" abaixo.**
 
 Cada versão entrega um incremento fechado e testado. Regra de ouro do
 projeto: **nenhuma capacidade sensível entra sem que a camada de
@@ -9,7 +9,7 @@ permissões e o fluxo de confirmação do usuário estejam prontos antes**.
 
 ---
 
-## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11H
+## Estado real (2026-08-31) — base 0.6.8 + fases internas 9A–11I
 
 Concluído sobre a 0.6.8, **sem bump de versão** (engenharia interna;
 detalhes em `LUMEN_STATE.md`):
@@ -86,16 +86,28 @@ detalhes em `LUMEN_STATE.md`):
   por sessão (regra 0.6.x); +5 testes (3 persistência no controller +
   2 UI headless). Spec:
   `docs/SPEC-11H-SETTINGS_UI_TOGGLES.md`.
+- **11I** — **export de relatório de evidências (opt-in)**: flag
+  `LUMEN_EXPORT_EXECUTION_REPORTS` (Settings, **default OFF** — bit-a-bit
+  atual); em estado terminal (COMPLETED/FAILED), o funil `_final`
+  exporta (best-effort — **falha não quebra a execução**) um JSON
+  **sanitizado** em `data_dir/reports/<plan_id_sanitizado>.json`
+  contendo `plan` + `execution_report` + `correction_history` +
+  auditoria **filtrada por `plan_id`** (módulo puro
+  `app/tools/report_export.py`; sanitização reutilizada do 9B —
+  segredos redigidos, strings truncadas, sem stdout). **Sem execução,
+  sem permissões**; +2 testes (export ON sanitizado / OFF bit-a-bit).
+  Spec: `docs/SPEC-11I-REPORT_EXPORT.md`.
 
-**Suíte completa: 987 passed / 5 skipped / 0 failed (992 coletados).**
+**Suíte completa: 989 passed / 5 skipped / 0 failed (994 coletados).**
 
 **Próximos tópicos da trilha Coding Agent (0.7) — NÃO AUTORIZADOS /
 NÃO IMPLEMENTADOS:** verificação real completa, repair-loop (reparo
 via CorrectionEngine), wiring Settings→Planner. O runner dedicado de
 build/test estruturado (`run_pytest`) foi entregue na 11D, a
 verificação real (opt-in) na 11E, o auto-anexo após WRITE na 11F, a
-evidência em modo corrections na 11G e os toggles persistentes
-(Settings/UI) na 11H.
+evidência em modo corrections na 11G, os toggles persistentes
+(Settings/UI) na 11H e o export de relatório de evidências (opt-in) na
+11I.
 Restrições vigentes preservadas: R4 (sem replanning automático) e F17
 (sem Computer Control / vision / Unreal / Blueprint / C++).
 
@@ -593,8 +605,8 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 > Status (2026-08-31): 11B (`search_files`), 11C (`edit_file`), 11D
 > (`run_pytest` — runner estruturado de build/test), 11E (verificação
 > real opt-in), 11F (auto-anexo `run_pytest` após WRITE), 11G
-> (evidência real em modo corrections) e 11H (toggles persistentes de
-> automação + UI) entregues.
+> (evidência real em modo corrections), 11H (toggles persistentes de
+> automação + UI) e 11I (export de relatório de evidências) entregues.
 > Próximos tópicos da trilha (verificação real completa, reparo) —
 > **NÃO AUTORIZADOS / NÃO IMPLEMENTADOS**.
 

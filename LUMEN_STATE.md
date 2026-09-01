@@ -17,29 +17,31 @@ hotfixes), 0.6.2 Correção Automática Controlada, 0.6.x UI de Terminal,
 Auditoria, 0.5 Filesystem Tools, 0.4.x Planner+Executor, 0.3 Advanced
 Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
 bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C,
-11D, 11E, 11F, 11G e 11H — ver "ESTADO ATUAL" a seguir)*
+11D, 11E, 11F, 11G, 11H e 11I — ver "ESTADO ATUAL" a seguir)*
 
 ## STATUS
 
-**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11H)** *(atualizado em
-2026-08-31 — **987 passed + 5 skipped, 0 failed** (992 coletados; 5
+**CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11I)** *(atualizado em
+2026-08-31 — **989 passed + 5 skipped, 0 failed** (994 coletados; 5
 skips ambientais: SDKs google-genai/groq/together ausentes, keyring
 ausente, Tkinter sem display). Registros anteriores preservados:
-pós-11G (2026-08-31): 982+5/0; pós-11F (2026-08-31): 980+5/0;
-pós-11E: 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30): 967+5/0;
-0.6.6 (2026-08-28): 875+5 na dev E na venv limpa — 880 no total)*
+pós-11H (2026-08-31): 987+5/0; pós-11G (2026-08-31): 982+5/0;
+pós-11F (2026-08-31): 980+5/0; pós-11E: 977+5/0; pós-11D: 973+5/0;
+pós-11C (2026-08-30): 967+5/0; 0.6.6 (2026-08-28): 875+5 na dev E na
+venv limpa — 880 no total)*
 
-## ESTADO ATUAL (2026-08-31 — pós-11H)
+## ESTADO ATUAL (2026-08-31 — pós-11I)
 
-- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11H
+- **Versão do código:** `0.6.8` (`app/__init__.py`). As fases 9A–11I
   foram entregues SEM bump de versão (engenharia interna).
-- **Suíte completa:** **987 passed / 5 skipped / 0 failed** (992
-  coletados — medida após a 11H: +5 de toggles persistentes (3
-  persistência no controller + 2 UI headless). Registros anteriores
-  preservados: pós-11G (2026-08-31): 982 passed / 5 skipped / 0
-  failed (987); pós-11F (2026-08-31): 980 passed / 5 skipped / 0
-  failed (985); pós-11E: 977 passed / 5 skipped / 0 failed (982);
-  pós-11D: 973 passed / 5 skipped / 0 failed (978) — histórico).
+- **Suíte completa:** **989 passed / 5 skipped / 0 failed** (994
+  coletados — medida após a 11I: +2 de export de relatório (ON/OFF +
+  sanitização). Registros anteriores preservados: pós-11H (2026-08-31):
+  987 passed / 5 skipped / 0 failed (992); pós-11G (2026-08-31): 982
+  passed / 5 skipped / 0 failed (987); pós-11F (2026-08-31): 980
+  passed / 5 skipped / 0 failed (985); pós-11E: 977 passed / 5 skipped
+  / 0 failed (982); pós-11D: 973 passed / 5 skipped / 0 failed (978) —
+  histórico).
 - **Fases internas concluídas sobre a 0.6.8:** 9A×2 (auditorias
   read-only), 9B (persistência opt-in do execution state — default
   OFF), 10A (spec Advanced Planning), 10B (MVP: guardrails R5, Stage 2
@@ -52,7 +54,7 @@ pós-11E: 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30): 967+5/0;
   ver abaixo)**, **11F (auto-anexo de `run_pytest` após WRITE; ver
   abaixo)**, **11G (evidência real em modo corrections; ver
   abaixo)**, **11H (toggles persistentes de automação + UI; ver
-  abaixo)**.
+  abaixo)**, **11I (export de relatório de evidências; ver abaixo)**.
 - **`search_files`:** 7ª tool de filesystem no registry default
   (EXECUÇÃO ✅) e **presente no Planner Catalog**
   (`app/planner/catalog.py` — PLANEJAMENTO AUTOMÁTICO ✅). Nenhuma
@@ -129,16 +131,27 @@ pós-11E: 977+5/0; pós-11D: 973+5/0; pós-11C (2026-08-30): 967+5/0;
   abrir e persistem ao clicar (permissões inalteradas). `main.py`
   passa `toggles_file=settings.data_dir / "agent_toggles.json"`.
   Spec: `docs/SPEC-11H-SETTINGS_UI_TOGGLES.md`.
+- **Export de relatório de evidências (11I — IMPLEMENTADA + TESTADA,
+  concluída):** opt-in `export_execution_reports` (Settings/env
+  `LUMEN_EXPORT_EXECUTION_REPORTS`, **default OFF** — bit-a-bit atual)
+  que, em estado terminal (COMPLETED/FAILED), exporta via `_final`
+  (best-effort — **falha não quebra a execução**) um JSON **sanitizado**
+  em `data_dir/reports/<plan_id_sanitizado>.json` contendo `plan` +
+  `execution_report` + `correction_history` + auditoria **filtrada por
+  `plan_id`** (módulo puro `app/tools/report_export.py`; reutiliza a
+  sanitização do 9B — segredos redigidos, strings truncadas, sem
+  stdout). Sem execução, sem permissões. Spec:
+  `docs/SPEC-11I-REPORT_EXPORT.md`.
 - **Próximos tópicos da trilha Coding Agent (11A): NÃO AUTORIZADOS**
   (reparo via CorrectionEngine, wiring Settings→Planner). Build/test
   estruturado foi entregue na 11D (`run_pytest`), a verificação real
   (opt-in) na 11E, o auto-anexo após WRITE na 11F, a evidência em
-  modo corrections na 11G e os toggles persistentes (Settings/UI) na
-  11H.
+  modo corrections na 11G, os toggles persistentes (Settings/UI) na
+  11H e o export de relatório de evidências (opt-in) na 11I.
 - **Proibições vigentes preservadas:** R4 (replanning automático) e
   Computer Control / vision / Unreal / Blueprint / C++ (F17).
-- **Docs:** LUMEN_STATE sincronizado com a 11H; README/ROADMAP
-  sincronizados com a 11G (982/987) — doc sync pós-11H pendente nos
+- **Docs:** LUMEN_STATE sincronizado com a 11I; README/ROADMAP
+  sincronizados com a 11H (987/992) — doc sync pós-11I pendente nos
   comandos seguintes.
 
 ## OBJECTIVE — 0.6.3 (histórico)
