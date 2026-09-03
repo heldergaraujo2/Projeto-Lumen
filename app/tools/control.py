@@ -371,6 +371,10 @@ class ToolsController:
         self._plan: Plan | None = None
         self._registry: ToolRegistry | None = None
         self._terminal_policy: TerminalPolicy | None = None
+        # CC-4: escopos de Computer Control criados em sessão (NÃO
+        # persistem entre sessões — assim como a permissão COMPUTER_CONTROL;
+        # ver grant_computer_control). Cada plano/execução lê este dict.
+        self._cc_scopes: dict = {}
         self._terminal_store = (
             TerminalStore(terminal_file) if terminal_file is not None else None
         )
@@ -964,7 +968,10 @@ class ToolsController:
         :meth:`enable_terminal` (allowlist explícita — registro nunca é
         automático); 11K: ``restore_snapshot`` (rollback manual) também
         sempre — porteio pela permissão ``WRITE`` + checkpoint
-        pré-validado (manifest + confinamento + política).
+        pré-validado (manifest + confinamento + política). CC-4:
+        ``cc_request_scope`` **somente** quando a permissão
+        ``COMPUTER_CONTROL`` foi explicitamente concedida (gate de
+        catálogo no planning_catalog; o registry também exige o grant).
         """
         sandbox = self._sandbox()
         registry = build_filesystem_registry(self._permissions, sandbox, self._audit)
@@ -982,6 +989,17 @@ class ToolsController:
                 RunCommandTool(self._terminal_policy, sandbox, self._audit)
             )
             registry.register(RunPytestTool(sandbox, self._audit))
+        # CC-4: ferramentas de Computer Control SOMENTE quando a permissão
+        # COMPUTER_CONTROL foi explicitamente concedida (grant por sessão,
+        # ver grant_computer_control). O registry também faz o gate
+        # (required_permission = COMPUTER_CONTROL); aqui a registramos só
+        # quando há grant — paridade com include_computer_control do catálogo.
+        if self._permissions.is_granted(PermissionLevel.COMPUTER_CONTROL):
+            from app.tools.computer_control import CcRequestScopeTool
+
+            registry.register(
+                CcRequestScopeTool(scopes=self._cc_scopes, audit=self._audit)
+            )
         return registry
 
     # ---------------------------------------------------------------- execução

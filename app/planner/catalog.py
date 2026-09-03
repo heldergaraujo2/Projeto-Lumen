@@ -62,7 +62,9 @@ def _fs(name: str, description: str) -> ToolSpec:
     )
 
 
-#: Allowlist completa (10 ferramentas já existentes — nada novo foi criado).
+#: Allowlist completa: 8 de filesystem + 2 de terminal (run_command,
+#: run_pytest — gated por include_terminal) + 1 de Computer Control
+#: (cc_request_scope — gated por include_computer_control, CC-4).
 TOOL_SPECS: tuple[ToolSpec, ...] = (
     _fs("list_directory", "Lista arquivos e subdiretórios de um diretório."),
     _fs("read_file", "Lê o conteúdo de um arquivo de texto (UTF-8)."),
@@ -183,6 +185,55 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         terminal=True,
     ),
+
+    ToolSpec(
+        name="cc_request_scope",
+        description=(
+            "Solicita um escopo de Computer Control (consentimento por sessão) "
+            "para automação de desktop. MVP: apenas a ação 'screenshot'. "
+            "O escopo é temporário (máx. 3600s) e limitado em número de ações."
+        ),
+        parameters=(
+            ParameterSpec(
+                "allowed_actions",
+                "array",
+                True,
+                "Ações permitidas no escopo (MVP: apenas ['screenshot']).",
+            ),
+            ParameterSpec(
+                "expires_in_s",
+                "integer",
+                True,
+                "Duração do escopo em segundos (1..3600).",
+            ),
+            ParameterSpec(
+                "max_actions_total",
+                "integer",
+                True,
+                "Limite total de ações no escopo (> 0).",
+            ),
+            ParameterSpec(
+                "max_actions_per_minute",
+                "integer",
+                True,
+                "Limite de ações por minuto (> 0).",
+            ),
+            ParameterSpec(
+                "app_name",
+                "string",
+                False,
+                "Nome do aplicativo-alvo (um de app/processo/janela é obrigatório).",
+            ),
+            ParameterSpec("process_name", "string", False, "Nome do processo-alvo."),
+            ParameterSpec(
+                "window_title_pattern",
+                "string",
+                False,
+                "Padrão do título da janela.",
+            ),
+        ),
+        computer_control=True,
+    ),
 )
 
 
@@ -195,8 +246,9 @@ def build_catalog(
     habilitado) omite ``run_command`` — o Planner simplesmente não o
     conhece; não há como planejar o que não está na lista.
     ``include_computer_control`` faz o mesmo para as ferramentas de
-    automação do desktop (CC-4+); enquanto nenhuma ferramenta CC existe
-    no catálogo o flag é inerte.
+    automação do desktop (CC-4): hoje revela apenas ``cc_request_scope``
+    (solicitação de escopo/consentimento); as ações de automação
+    propriamente ditas entram em etapa futura.
     """
     catalog: dict[str, dict] = {}
     for spec in TOOL_SPECS:
