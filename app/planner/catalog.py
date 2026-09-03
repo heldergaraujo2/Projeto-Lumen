@@ -45,6 +45,7 @@ class ToolSpec:
     description: str
     parameters: tuple[ParameterSpec, ...]
     terminal: bool = False   # run_command: exige terminal habilitado
+    computer_control: bool = False  # ferramentas de automação do desktop (CC)
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -185,16 +186,23 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
 )
 
 
-def build_catalog(*, include_terminal: bool) -> dict[str, dict]:
+def build_catalog(
+    *, include_terminal: bool, include_computer_control: bool = False
+) -> dict[str, dict]:
     """Allowlist de planejamento como dict serializável (para o prompt).
 
     ``include_terminal=False`` (default quando o terminal não está
     habilitado) omite ``run_command`` — o Planner simplesmente não o
     conhece; não há como planejar o que não está na lista.
+    ``include_computer_control`` faz o mesmo para as ferramentas de
+    automação do desktop (CC-4+); enquanto nenhuma ferramenta CC existe
+    no catálogo o flag é inerte.
     """
     catalog: dict[str, dict] = {}
     for spec in TOOL_SPECS:
         if spec.terminal and not include_terminal:
+            continue
+        if spec.computer_control and not include_computer_control:
             continue
         catalog[spec.name] = {
             "description": spec.description,

@@ -84,6 +84,8 @@ OPERATION_LABELS = {
     "run_command": "execução de comando",
     "terminal_grant": "concessão de TERMINAL",
     "terminal_revoke": "revogação de TERMINAL",
+    "cc_grant": "concessão de COMPUTER_CONTROL",
+    "cc_revoke": "revogação de COMPUTER_CONTROL",
     "terminal_enable": "habilitação do terminal",
     "terminal_disable": "desabilitação do terminal",
     "allowlist_add": "comando allowlistado",
@@ -492,11 +494,17 @@ class ToolsController:
         if self._toggles.verification_enabled:
             self.enable_verification("pytest_result")
 
-    def _audit_admin(self, operation: str, *, success: bool = True,
+    def _audit_admin(self, operation: str, *,
+                     tool: str = "terminal_admin",
+                     success: bool = True,
                      error: str | None = None, **detail: Any) -> None:
-        """Audita ações administrativas de terminal (0.6.x) — JSONL."""
+        """Audita ações administrativas de terminal (0.6.x) — JSONL.
+
+        ``tool`` é "terminal_admin" por padrão; quem registra ações
+        administrativas de outra ferramenta pode sobrescrevê-lo.
+        """
         self._audit.record(
-            tool="terminal_admin",
+            tool=tool,
             operation=operation,
             requested_path=None,
             success=success,
@@ -626,8 +634,7 @@ class ToolsController:
 
         Caminho dedicado e auditado — o genérico :meth:`grant_permission`
         continua rejeitando TERMINAL (nenhuma concessão silenciosa ou
-        "por engano"; COMPUTER_CONTROL segue inconcedível por qualquer
-        via). A concessão **não persiste** entre sessões.
+        "por engano"). A concessão **não persiste** entre sessões.
         """
         self._permissions.grant("TERMINAL")
         logger.info("Permissão TERMINAL concedida pela UI (explícita).")
@@ -638,6 +645,23 @@ class ToolsController:
         self._permissions.revoke("TERMINAL")
         logger.info("Permissão TERMINAL revogada pela UI.")
         self._audit_admin("terminal_revoke")
+
+    def grant_computer_control(self) -> None:
+        """Concede **explicitamente** a permissão COMPUTER_CONTROL (0.6.x).
+
+        Caminho dedicado e auditado — o genérico :meth:`grant_permission`
+        continua rejeitando COMPUTER_CONTROL (nenhuma concessão silenciosa
+        ou "por engano"). A concessão **não persiste** entre sessões.
+        """
+        self._permissions.grant("COMPUTER_CONTROL")
+        logger.info("Permissão COMPUTER_CONTROL concedida pela UI (explícita).")  # noqa: E501
+        self._audit_admin("cc_grant", tool="cc_admin")
+
+    def revoke_computer_control(self) -> None:
+        """Revoga a permissão COMPUTER_CONTROL (explícito; auditado)."""
+        self._permissions.revoke("COMPUTER_CONTROL")
+        logger.info("Permissão COMPUTER_CONTROL revogada pela UI.")
+        self._audit_admin("cc_revoke", tool="cc_admin")
 
     def disable_terminal(self) -> None:
         """Remove a ferramenta de terminal e esvazia a allowlist persistida."""
@@ -916,15 +940,20 @@ class ToolsController:
         As 6 ferramentas de filesystem (sempre registradas por
         :meth:`build_registry`) + ``run_command`` **somente** quando o
         terminal já estiver explicitamente habilitado
-        (:meth:`enable_terminal`). Nada além disso: o Planner não
-        conhece ferramentas que a camada de tools não registraria — e o
-        registro continua sendo o porteiro real na execução (permissões,
-        sandbox e checkpoints inalterados).
+        (:meth:`enable_terminal`); ferramentas de automação do desktop
+        (CC) **somente** quando a permissão ``COMPUTER_CONTROL`` foi
+        explicitamente concedida (:meth:`grant_computer_control` — CC-3).
+        Nada além disso: o Planner não conhece ferramentas que a camada
+        de tools não registraria — e o registro continua sendo o porteiro
+        real na execução (permissões, sandbox e checkpoints inalterados).
         """
         from app.planner.catalog import build_catalog
 
         return build_catalog(
-            include_terminal=self._terminal_policy is not None
+            include_terminal=self._terminal_policy is not None,
+            include_computer_control=self._permissions.is_granted(
+                "COMPUTER_CONTROL"
+            ),
         )
 
     def build_registry(self) -> ToolRegistry:

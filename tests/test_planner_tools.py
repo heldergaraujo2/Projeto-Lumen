@@ -78,6 +78,45 @@ def test_catalog_omits_run_command_unless_terminal_enabled():
         assert name in with_terminal
 
 
+def test_catalog_computer_control_defaults_off_and_flag_is_inert(monkeypatch):
+    # CC-3: o flag existe e defaulta a False; sem specs CC no catálogo,
+    # ligá-lo não adiciona nenhuma ferramenta (nada inventado).
+    base = build_catalog(include_terminal=False)
+    assert "computer_control" not in str(base)
+    with_cc = build_catalog(include_terminal=False, include_computer_control=True)
+    assert with_cc == base  # ainda não há ferramentas CC no catálogo
+
+
+def test_catalog_gates_computer_control_tools(monkeypatch):
+    # Simula uma ferramenta CC futura (CC-4): o gate é simétrico ao do
+    # terminal — omitida por padrão, presente quando include_computer_control.
+    import app.planner.catalog as catalog_mod
+    from app.planner.catalog import ToolSpec
+
+    fake_cc = (
+        ToolSpec(
+            name="cc_click",
+            description="Clica em um ponto da tela (CC).",
+            parameters=(),
+            computer_control=True,
+        ),
+    )
+    monkeypatch.setattr(catalog_mod, "TOOL_SPECS", catalog_mod.TOOL_SPECS + fake_cc)
+
+    assert "cc_click" not in build_catalog(include_terminal=False)
+    assert "cc_click" not in build_catalog(
+        include_terminal=True, include_computer_control=False
+    )
+    assert "cc_click" in build_catalog(
+        include_terminal=False, include_computer_control=True
+    )
+    # o gate do terminal não vaza: terminal off + CC on não traz run_command
+    cc_only = build_catalog(
+        include_terminal=False, include_computer_control=True
+    )
+    assert "run_command" not in cc_only
+
+
 def test_catalog_has_no_generic_or_invented_tool():
     catalog = build_catalog(include_terminal=True)
     for forbidden in ("execute_anything", "run_python", "run_shell",
