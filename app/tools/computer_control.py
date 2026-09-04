@@ -191,3 +191,116 @@ class CcRequestScopeTool(ComputerControlTool):
                 },
             },
         )
+
+
+class CcScreenshotTool(ComputerControlTool):
+    """Captura um screenshot (metadata-only) dentro de um scope já concedido.
+
+    Segurança:
+    - Fail-closed: nega se não houver scope/expirado/ação não permitida/limite excedido.
+    - Auditoria metadata-only (sem bytes).
+    - Consome orçamento do scope via scope.consume_action().
+    """
+
+    name = "cc_screenshot"
+    description = (
+        "Captura um screenshot (somente metadados; sem bytes) usando um scope de "
+        "Computer Control previamente concedido."
+    )
+    operation = OP_CC_SCREENSHOT
+
+    def __init__(self, *, scopes: dict[str, CCScope], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=str(scope_id) if isinstance(scope_id, str) else None,
+                action_type=CCActionType.SCREENSHOT.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+
+        # Local import para evitar mexer na seção de imports do módulo.
+        from app.computer_control.policy import evaluate_cc_action
+
+        decision = evaluate_cc_action(
+            has_computer_control_permission=True,  # se chegou aqui, o registry já exigiu a permissão
+            scope=scope,
+            action=CCActionType.SCREENSHOT,
+        )
+        if not decision.allowed:
+            self._audit_record(
+                success=False,
+                error=decision.reason,
+                scope_id=scope_id,
+                action_type=CCActionType.SCREENSHOT.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error=decision.reason)
+
+        # Reserva/consome orçamento antes de capturar (evita capturar se não puder consumir).
+        try:
+            scope.consume_action()
+        except PermissionError:
+            decision2 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.SCREENSHOT,
+                now=_now_utc(),
+            )
+            reason = decision2.reason if not decision2.allowed else "denied_scope_limit_exceeded"
+            self._audit_record(
+                success=False,
+                error=reason,
+                scope_id=scope_id,
+                action_type=CCActionType.SCREENSHOT.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error=reason)
+
+        try:
+            info = self._driver.screenshot(target=scope.target)
+            if not isinstance(info, ScreenshotInfo):
+                raise TypeError("driver.screenshot must return ScreenshotInfo")
+        except Exception:
+            self._audit_record(
+                success=False,
+                error="screenshot_failed",
+                scope_id=scope_id,
+                action_type=CCActionType.SCREENSHOT.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="screenshot_failed")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            action_type=CCActionType.SCREENSHOT.value,
+            artifact_ref=info.artifact_ref,
+            duration_ms=_dur_ms(),
+        )
+        return ToolResult(
+            ok=True,
+            data={
+                "scope_id": scope_id,
+                "screenshot": {
+                    "width": info.width,
+                    "height": info.height,
+                    "artifact_ref": info.artifact_ref,
+                },
+            },
+        )

@@ -234,6 +234,17 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         computer_control=True,
     ),
+    ToolSpec(
+        name="cc_screenshot",
+        description=(
+            "Captura um screenshot (somente metadados; sem bytes) usando um scope de "
+            "Computer Control previamente concedido."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+        ),
+        computer_control=True,
+    ),
 )
 
 

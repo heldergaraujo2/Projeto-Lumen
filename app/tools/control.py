@@ -989,16 +989,30 @@ class ToolsController:
                 RunCommandTool(self._terminal_policy, sandbox, self._audit)
             )
             registry.register(RunPytestTool(sandbox, self._audit))
-        # CC-4: ferramentas de Computer Control SOMENTE quando a permissão
-        # COMPUTER_CONTROL foi explicitamente concedida (grant por sessão,
-        # ver grant_computer_control). O registry também faz o gate
-        # (required_permission = COMPUTER_CONTROL); aqui a registramos só
-        # quando há grant — paridade com include_computer_control do catálogo.
+        # CC-4/CC-5: ferramentas de Computer Control SOMENTE quando a
+        # permissão COMPUTER_CONTROL foi explicitamente concedida (grant
+        # por sessão, ver grant_computer_control). O registry também faz o
+        # gate (required_permission = COMPUTER_CONTROL); aqui as
+        # registramos só quando há grant — paridade com
+        # include_computer_control do catálogo.
         if self._permissions.is_granted(PermissionLevel.COMPUTER_CONTROL):
-            from app.tools.computer_control import CcRequestScopeTool
+            from app.computer_control.fake_driver import FakeComputerControlDriver
+            from app.tools.computer_control import (
+                CcRequestScopeTool,
+                CcScreenshotTool,
+            )
 
+            # CC-5 MVP: o driver é determinístico e sem SO (FakeDriver —
+            # metadata-only); o driver real (Windows) entra em etapa
+            # futura e é injetado aqui sem mudar o contrato das tools.
+            cc_driver = FakeComputerControlDriver()
             registry.register(
                 CcRequestScopeTool(scopes=self._cc_scopes, audit=self._audit)
+            )
+            registry.register(
+                CcScreenshotTool(
+                    scopes=self._cc_scopes, audit=self._audit, driver=cc_driver
+                )
             )
         return registry
 
