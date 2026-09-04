@@ -24,6 +24,9 @@ OP_CC_SCREENSHOT = "cc_screenshot"
 
 OP_CC_MOUSE_MOVE = "cc_mouse_move"
 
+OP_CC_LIST_SCOPES = "cc_list_scopes"
+OP_CC_REVOKE_SCOPE = "cc_revoke_scope"
+
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -434,3 +437,87 @@ class CcMouseMoveTool(ComputerControlTool):
             ok=True,
             data={"scope_id": scope_id, "cursor": {"x": x, "y": y, "dx": dx, "dy": dy}},
         )
+
+
+class CcListScopesTool(ComputerControlTool):
+    """Lista scopes de Computer Control criados na sess?o (metadados-only)."""
+
+    name = "cc_list_scopes"
+    description = (
+        "Lista os scopes de Computer Control ativos na sess?o (metadados-only), "
+        "incluindo a??es permitidas, expira??o e or?amento consumido."
+    )
+    operation = OP_CC_LIST_SCOPES
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        now = _now_utc()
+        scopes_out: list[dict] = []
+        for s in self._scopes.values():
+            scopes_out.append(
+                {
+                    "scope_id": s.scope_id,
+                    "created_at": s.created_at.isoformat(),
+                    "expires_at": s.expires_at.isoformat(),
+                    "expired": s.is_expired(now=now),
+                    "allowed_actions": [a.value for a in sorted(s.allowed_actions, key=lambda x: x.value)],
+                    "target": {
+                        "app_name": s.target.app_name,
+                        "process_name": s.target.process_name,
+                        "window_title_pattern": s.target.window_title_pattern,
+                    },
+                    "limits": {
+                        "max_actions_total": s.limits.max_actions_total,
+                        "max_actions_per_minute": s.limits.max_actions_per_minute,
+                        "max_session_seconds": s.limits.max_session_seconds,
+                    },
+                    "actions_used": s.actions_used,
+                    "remaining_actions": s.remaining_actions(),
+                }
+            )
+
+        self._audit_record(success=True, duration_ms=_dur_ms(), scopes_count=len(scopes_out))
+        return ToolResult(ok=True, data={"count": len(scopes_out), "scopes": scopes_out})
+
+
+class CcRevokeScopeTool(ComputerControlTool):
+    """Revoga (remove) um scope de Computer Control da sess?o atual."""
+
+    name = "cc_revoke_scope"
+    description = (
+        "Revoga um scope de Computer Control previamente concedido nesta sess?o "
+        "(redu??o de privil?gio; remove o scope)."
+    )
+    operation = OP_CC_REVOKE_SCOPE
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        removed = self._scopes.pop(scope_id, None)
+        if removed is None:
+            self._audit_record(
+                success=False,
+                error="scope_not_found",
+                scope_id=scope_id,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="scope_not_found")
+
+        self._audit_record(success=True, scope_id=scope_id, duration_ms=_dur_ms())
+        return ToolResult(ok=True, data={"scope_id": scope_id, "revoked": True})

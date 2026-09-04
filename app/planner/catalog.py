@@ -259,6 +259,22 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         computer_control=True,
     ),
+
+    ToolSpec(
+        name="cc_list_scopes",
+        description="Lista os scopes de Computer Control ativos nesta sess?o (metadados-only).",
+        parameters=(),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_revoke_scope",
+        description="Revoga (remove) um scope de Computer Control desta sess?o.",
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+        ),
+        computer_control=True,
+    ),
 )
 
 

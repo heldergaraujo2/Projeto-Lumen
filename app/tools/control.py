@@ -1003,6 +1003,8 @@ class ToolsController:
                 CcRequestScopeTool,
                 CcScreenshotTool,
                 CcMouseMoveTool,
+                CcListScopesTool,
+                CcRevokeScopeTool,
             )
 
             # Seleção do driver por SO. No Windows usamos o driver real
@@ -1036,6 +1038,12 @@ class ToolsController:
             )
             registry.register(
                 CcMouseMoveTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
+            )
+            registry.register(
+                CcListScopesTool(scopes=self._cc_scopes, audit=self._audit)
+            )
+            registry.register(
+                CcRevokeScopeTool(scopes=self._cc_scopes, audit=self._audit)
             )
         return registry
 
