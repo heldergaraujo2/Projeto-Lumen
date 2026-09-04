@@ -61,3 +61,8 @@ class ComputerControlDriver(Protocol):
     def mouse_click(
         self, *, button: str = "left", target: Optional[CCTarget] = None
     ) -> tuple[int, int]: ...
+
+
+    def mouse_click_at(
+        self, *, dx: int, dy: int, button: str = "left", target: Optional[CCTarget] = None
+    ) -> tuple[int, int]: ...

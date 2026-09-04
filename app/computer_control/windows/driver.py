@@ -99,3 +99,15 @@ class WindowsComputerControlDriver:
         user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
         return (int(pt.x), int(pt.y))
+
+    def mouse_click_at(
+        self,
+        *,
+        dx: int,
+        dy: int,
+        button: str = "left",
+        target: Optional[CCTarget] = None,
+    ) -> tuple[int, int]:
+        # MVP: move relativo + click no ponto atual (ap?s mover).
+        self.mouse_move(dx=dx, dy=dy, target=target)
+        return self.mouse_click(button=button, target=target)

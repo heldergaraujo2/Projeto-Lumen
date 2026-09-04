@@ -45,3 +45,17 @@ class FakeComputerControlDriver:
         if button != "left":
             raise ValueError("only left button is supported in MVP")
         return (self._x, self._y)
+
+    def mouse_click_at(
+        self, *, dx: int, dy: int, button: str = "left", target: Optional[CCTarget] = None
+    ) -> tuple[int, int]:
+        # target accepted for API compatibility; fake driver does not use it.
+        if button != "left":
+            raise ValueError("only left button is supported in MVP")
+        if not isinstance(dx, int) or isinstance(dx, bool):
+            raise TypeError("dx must be int")
+        if not isinstance(dy, int) or isinstance(dy, bool):
+            raise TypeError("dy must be int")
+        self._x += dx
+        self._y += dy
+        return (self._x, self._y)

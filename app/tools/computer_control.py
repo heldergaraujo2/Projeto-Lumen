@@ -25,6 +25,7 @@ OP_CC_SCREENSHOT = "cc_screenshot"
 OP_CC_MOUSE_MOVE = "cc_mouse_move"
 
 OP_CC_MOUSE_CLICK = "cc_mouse_click"
+OP_CC_MOUSE_CLICK_AT = "cc_mouse_click_at"
 OP_CC_LIST_SCOPES = "cc_list_scopes"
 OP_CC_REVOKE_SCOPE = "cc_revoke_scope"
 
@@ -607,3 +608,120 @@ class CcMouseClickTool(ComputerControlTool):
             y=y,
         )
         return ToolResult(ok=True, data={"scope_id": scope_id, "click": {"button": "left", "x": x, "y": y}})
+
+
+class CcMouseClickAtTool(ComputerControlTool):
+    """Move relativo (dx, dy) e clica (MVP: bot?o esquerdo).
+
+    Seguran?a:
+    - Scope-gated (evaluate_cc_action) + consume_action (or?amento).
+    - MVP: dx/dy em [-50..50], sem double click, sem outros bot?es.
+    """
+
+    name = "cc_mouse_click_at"
+    description = (
+        "Move o mouse de forma relativa (dx, dy) e clica (bot?o esquerdo) usando um scope de Computer Control "
+        "previamente concedido (MVP: movimento pequeno; 1 click)."
+    )
+    operation = OP_CC_MOUSE_CLICK_AT
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from app.computer_control.policy import evaluate_cc_action
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        dx = kwargs.get("dx")
+        dy = kwargs.get("dy")
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(dx, int) or isinstance(dx, bool):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, action_type=CCActionType.MOUSE_CLICK.value, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(dy, int) or isinstance(dy, bool):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, action_type=CCActionType.MOUSE_CLICK.value, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        if dx < -50 or dx > 50 or dy < -50 or dy > 50:
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_CLICK.value,
+                duration_ms=_dur_ms(),
+                dx=dx,
+                dy=dy,
+            )
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        decision = evaluate_cc_action(
+            has_computer_control_permission=True,
+            scope=scope,
+            action=CCActionType.MOUSE_CLICK,
+        )
+        if not decision.allowed:
+            self._audit_record(
+                success=False,
+                error=decision.reason,
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_CLICK.value,
+                duration_ms=_dur_ms(),
+                dx=dx,
+                dy=dy,
+            )
+            return ToolResult(ok=False, error=decision.reason)
+
+        try:
+            scope.consume_action()
+        except PermissionError:
+            self._audit_record(
+                success=False,
+                error="denied_scope_limit_exceeded",
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_CLICK.value,
+                duration_ms=_dur_ms(),
+                dx=dx,
+                dy=dy,
+            )
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            x, y = self._driver.mouse_click_at(dx=dx, dy=dy, button="left", target=scope.target)
+        except Exception:
+            self._audit_record(
+                success=False,
+                error="mouse_click_failed",
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_CLICK.value,
+                duration_ms=_dur_ms(),
+                dx=dx,
+                dy=dy,
+            )
+            return ToolResult(ok=False, error="mouse_click_failed")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            action_type=CCActionType.MOUSE_CLICK.value,
+            duration_ms=_dur_ms(),
+            button="left",
+            dx=dx,
+            dy=dy,
+            x=x,
+            y=y,
+        )
+        return ToolResult(
+            ok=True,
+            data={"scope_id": scope_id, "click": {"button": "left", "x": x, "y": y, "dx": dx, "dy": dy}},
+        )
