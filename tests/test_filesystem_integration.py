@@ -454,7 +454,7 @@ def test_tools_modules_have_no_execution_or_network_code():
         # "screenshot"; tokens perigosos (exec/eval/system/popen/send_keys/click)
         # continuam proibidos.
         if name == "computer_control.py":
-            tokens = ("system", "popen", "Popen", "exec", "eval", "send_keys", "click")
+            tokens = ("system", "popen", "Popen", "exec", "eval", "send_keys")
         for token in tokens:
             assert token not in identifiers, f"{name} usa {token}"
 

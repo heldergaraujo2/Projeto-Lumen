@@ -39,3 +39,9 @@ class FakeComputerControlDriver:
         self._x += dx
         self._y += dy
         return (self._x, self._y)
+
+    def mouse_click(self, *, button: str = "left", target: Optional[CCTarget] = None) -> tuple[int, int]:
+        # target accepted for API compatibility; fake driver does not use it.
+        if button != "left":
+            raise ValueError("only left button is supported in MVP")
+        return (self._x, self._y)

@@ -275,6 +275,18 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         computer_control=True,
     ),
+
+    ToolSpec(
+        name="cc_mouse_click",
+        description=(
+            "Clica com o mouse (bot?o esquerdo) no ponto atual do cursor usando um scope de Computer Control "
+            "previamente concedido (MVP: 1 click; sem coordenadas; sem double click)."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+        ),
+        computer_control=True,
+    ),
 )
 
 

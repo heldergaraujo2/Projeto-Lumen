@@ -76,3 +76,26 @@ class WindowsComputerControlDriver:
         if not user32.GetCursorPos(ctypes.byref(pt2)):
             return (new_x, new_y)
         return (int(pt2.x), int(pt2.y))
+
+    def mouse_click(self, *, button: str = "left", target: Optional[CCTarget] = None) -> tuple[int, int]:
+        # target accepted for API compatibility; MVP does not filter by window/app.
+        if button != "left":
+            raise ValueError("only left button is supported in MVP")
+
+        user32 = ctypes.windll.user32
+
+        class POINT(ctypes.Structure):
+            _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
+
+        pt = POINT()
+        if not user32.GetCursorPos(ctypes.byref(pt)):
+            raise OSError("GetCursorPos failed")
+
+        MOUSEEVENTF_LEFTDOWN = 0x0002
+        MOUSEEVENTF_LEFTUP = 0x0004
+
+        # MVP: click at current cursor position (no move, no double click).
+        user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+
+        return (int(pt.x), int(pt.y))
