@@ -996,16 +996,35 @@ class ToolsController:
         # registramos só quando há grant — paridade com
         # include_computer_control do catálogo.
         if self._permissions.is_granted(PermissionLevel.COMPUTER_CONTROL):
+            import sys
+
             from app.computer_control.fake_driver import FakeComputerControlDriver
             from app.tools.computer_control import (
                 CcRequestScopeTool,
                 CcScreenshotTool,
             )
 
-            # CC-5 MVP: o driver é determinístico e sem SO (FakeDriver —
-            # metadata-only); o driver real (Windows) entra em etapa
-            # futura e é injetado aqui sem mudar o contrato das tools.
+            # Seleção do driver por SO. No Windows usamos o driver real
+            # (mss -> PNG em data/audit/artifacts/cc); nos demais SOs, ou
+            # se o driver real não puder ser carregado, usamos o FakeDriver
+            # determinístico/metadata-only. O contrato das tools não muda.
+            # (Usa ``sys.platform`` e não ``platform.system()`` para não
+            # introduzir o token "system", proibido pelo guard estático.)
             cc_driver = FakeComputerControlDriver()
+            if sys.platform == "win32":
+                try:
+                    from app.computer_control.windows.driver import (
+                        WindowsComputerControlDriver,
+                    )
+
+                    artifacts_dir = self._audit_file.parent / "artifacts" / "cc"
+                    cc_driver = WindowsComputerControlDriver(artifacts_dir=artifacts_dir)
+                except Exception as exc:  # pragma: no cover - depende do SO/mss
+                    logger.warning(
+                        "Driver CC de Windows indisponível; caindo para "
+                        "FakeComputerControlDriver: %s",
+                        exc,
+                    )
             registry.register(
                 CcRequestScopeTool(scopes=self._cc_scopes, audit=self._audit)
             )

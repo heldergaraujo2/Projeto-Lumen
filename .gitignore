@@ -9,6 +9,8 @@ data/logs/*
 data/memory/*
 !data/memory/.gitkeep
 data/tasks.json
+# Auditoria e artefatos gerados (ex.: screenshots CC em data/audit/artifacts)
+data/audit/
 
 # Python
 __pycache__/
