@@ -51,3 +51,8 @@ class ComputerControlDriver(Protocol):
     """
 
     def screenshot(self, *, target: Optional[CCTarget] = None) -> ScreenshotInfo: ...
+
+
+    def mouse_move(
+        self, *, dx: int, dy: int, target: Optional[CCTarget] = None
+    ) -> tuple[int, int]: ...

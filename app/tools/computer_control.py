@@ -22,6 +22,8 @@ OP_CC_SCOPE = "cc_scope"
 OP_CC_SCREENSHOT = "cc_screenshot"
 
 
+OP_CC_MOUSE_MOVE = "cc_mouse_move"
+
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -37,8 +39,9 @@ def _parse_actions(value: Any) -> FrozenSet[CCActionType] | None:
             actions.add(CCActionType(item))
         except Exception:
             return None
-    # MVP hard-limit: only SCREENSHOT is supported for now.
-    if actions != {CCActionType.SCREENSHOT}:
+    # MVP hard-limit: only a small allowlist of actions is supported.
+    allowed = {CCActionType.SCREENSHOT, CCActionType.MOUSE_MOVE}
+    if not actions.issubset(allowed):
         return None
     return frozenset(actions)
 
@@ -303,4 +306,131 @@ class CcScreenshotTool(ComputerControlTool):
                     "artifact_ref": info.artifact_ref,
                 },
             },
+        )
+
+
+class CcMouseMoveTool(ComputerControlTool):
+    """Move o mouse de forma relativa (dx, dy) dentro de um scope concedido.
+
+    MVP: apenas movimento relativo pequeno; sem clique e sem teclado.
+    """
+
+    name = "cc_mouse_move"
+    description = (
+        "Move o mouse de forma relativa (dx, dy) usando um scope de Computer Control previamente concedido. "
+        "MVP: movimento pequeno; sem clique/teclado."
+    )
+    operation = OP_CC_MOUSE_MOVE
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from app.computer_control.policy import evaluate_cc_action
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        dx = kwargs.get("dx")
+        dy = kwargs.get("dy")
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(dx, int) or isinstance(dx, bool):
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_MOVE.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(dy, int) or isinstance(dy, bool):
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_MOVE.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="invalid_input")
+
+        # Limite de seguran?a do MVP: movimento pequeno.
+        if dx < -50 or dx > 50 or dy < -50 or dy > 50:
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_MOVE.value,
+                duration_ms=_dur_ms(),
+                dx=dx,
+                dy=dy,
+            )
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        decision = evaluate_cc_action(
+            has_computer_control_permission=True,
+            scope=scope,
+            action=CCActionType.MOUSE_MOVE,
+        )
+        if not decision.allowed:
+            self._audit_record(
+                success=False,
+                error=decision.reason,
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_MOVE.value,
+                duration_ms=_dur_ms(),
+                dx=dx,
+                dy=dy,
+            )
+            return ToolResult(ok=False, error=decision.reason)
+
+        try:
+            scope.consume_action()
+        except PermissionError:
+            self._audit_record(
+                success=False,
+                error="denied_scope_limit_exceeded",
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_MOVE.value,
+                duration_ms=_dur_ms(),
+                dx=dx,
+                dy=dy,
+            )
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            x, y = self._driver.mouse_move(dx=dx, dy=dy, target=scope.target)
+        except Exception:
+            self._audit_record(
+                success=False,
+                error="mouse_move_failed",
+                scope_id=scope_id,
+                action_type=CCActionType.MOUSE_MOVE.value,
+                duration_ms=_dur_ms(),
+                dx=dx,
+                dy=dy,
+            )
+            return ToolResult(ok=False, error="mouse_move_failed")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            action_type=CCActionType.MOUSE_MOVE.value,
+            duration_ms=_dur_ms(),
+            dx=dx,
+            dy=dy,
+            x=x,
+            y=y,
+        )
+        return ToolResult(
+            ok=True,
+            data={"scope_id": scope_id, "cursor": {"x": x, "y": y, "dx": dx, "dy": dy}},
         )

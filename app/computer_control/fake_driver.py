@@ -21,9 +21,21 @@ class FakeComputerControlDriver:
         self._height = height
         self._artifact_prefix = artifact_prefix
         self._counter = 0
+        self._x = 0
+        self._y = 0
 
     def screenshot(self, *, target: Optional[CCTarget] = None) -> ScreenshotInfo:
         # target is accepted for API compatibility; fake driver does not use it.
         self._counter += 1
         artifact_ref = f"{self._artifact_prefix}{self._counter}"
         return ScreenshotInfo(width=self._width, height=self._height, artifact_ref=artifact_ref)
+
+    def mouse_move(self, *, dx: int, dy: int, target: Optional[CCTarget] = None) -> tuple[int, int]:
+        # target accepted for API compatibility; fake driver does not use it.
+        if not isinstance(dx, int) or isinstance(dx, bool):
+            raise TypeError("dx must be int")
+        if not isinstance(dy, int) or isinstance(dy, bool):
+            raise TypeError("dy must be int")
+        self._x += dx
+        self._y += dy
+        return (self._x, self._y)

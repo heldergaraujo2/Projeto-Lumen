@@ -1002,6 +1002,7 @@ class ToolsController:
             from app.tools.computer_control import (
                 CcRequestScopeTool,
                 CcScreenshotTool,
+                CcMouseMoveTool,
             )
 
             # Seleção do driver por SO. No Windows usamos o driver real
@@ -1032,6 +1033,9 @@ class ToolsController:
                 CcScreenshotTool(
                     scopes=self._cc_scopes, audit=self._audit, driver=cc_driver
                 )
+            )
+            registry.register(
+                CcMouseMoveTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
             )
         return registry
 

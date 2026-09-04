@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
+import ctypes
+from ctypes import wintypes
+
 from mss import mss
 from mss.tools import to_png
 
@@ -47,3 +50,29 @@ class WindowsComputerControlDriver:
             width, height = img.size
 
         return ScreenshotInfo(width=width, height=height, artifact_ref=str(out_path))
+
+    def mouse_move(self, *, dx: int, dy: int, target: Optional[CCTarget] = None) -> tuple[int, int]:
+        # target accepted for API compatibility; MVP does not filter by window/app.
+        if not isinstance(dx, int) or isinstance(dx, bool):
+            raise TypeError("dx must be int")
+        if not isinstance(dy, int) or isinstance(dy, bool):
+            raise TypeError("dy must be int")
+
+        user32 = ctypes.windll.user32
+
+        class POINT(ctypes.Structure):
+            _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
+
+        pt = POINT()
+        if not user32.GetCursorPos(ctypes.byref(pt)):
+            raise OSError("GetCursorPos failed")
+
+        new_x = int(pt.x + dx)
+        new_y = int(pt.y + dy)
+        if not user32.SetCursorPos(new_x, new_y):
+            raise OSError("SetCursorPos failed")
+
+        pt2 = POINT()
+        if not user32.GetCursorPos(ctypes.byref(pt2)):
+            return (new_x, new_y)
+        return (int(pt2.x), int(pt2.y))
