@@ -1097,6 +1097,14 @@ class ToolsController:
                 snapshots_dir=self._snapshots_dir,
             )
         ]
+        # CC-10: checkpoint prevalidated para a??es de clique (somente vi?veis).
+        if self._permissions.is_granted(PermissionLevel.COMPUTER_CONTROL):
+            from app.tools.computer_control import PrevalidatedComputerControlCheckpoints
+
+            policies.append(
+                PrevalidatedComputerControlCheckpoints(self._permissions, registry, self._cc_scopes)
+            )
+
         if self._terminal_policy is not None:
             policies.append(
                 PrevalidatedTerminalCheckpoints(

@@ -725,3 +725,50 @@ class CcMouseClickAtTool(ComputerControlTool):
             ok=True,
             data={"scope_id": scope_id, "click": {"button": "left", "x": x, "y": y, "dx": dx, "dy": dy}},
         )
+
+
+from app.security.permissions import PermissionManager  # local import style OK for tools module
+from app.tools.base import ToolRegistry
+from app.tools.handler import ToolCheckpoints
+from app.computer_control.policy import evaluate_cc_action
+
+
+class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
+    """Checkpoint CC somente para a??es vi?veis (sem aprova??o decorativa).
+
+    Pede aprova??o apenas para a??es de clique (mouse_click, mouse_click_at) e
+    somente quando:
+    - a tool est? registrada,
+    - a permiss?o COMPUTER_CONTROL est? concedida,
+    - e evaluate_cc_action(...) permite a a??o para o scope_id informado.
+    """
+
+    def __init__(self, permissions: PermissionManager, registry: ToolRegistry, scopes: dict[str, "CCScope"]) -> None:
+        super().__init__(("cc_mouse_click", "cc_mouse_click_at"))
+        self._permissions = permissions
+        self._registry = registry
+        self._scopes = scopes
+
+    def requires_checkpoint(self, task) -> bool:  # type: ignore[override]
+        if not super().requires_checkpoint(task):
+            return False
+        if not task.tool:
+            return False
+        try:
+            tool = self._registry.get(task.tool)
+        except Exception:
+            return False  # n?o registrada: falha controlada no handler
+        if not self._permissions.is_granted(tool.required_permission):
+            return False
+        params = dict(task.parameters or {})
+        scope_id = params.get("scope_id")
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            return False  # invi?vel: handler falha com invalid_input
+        scope = self._scopes.get(scope_id)
+        action = CCActionType.MOUSE_CLICK
+        decision = evaluate_cc_action(
+            has_computer_control_permission=True,
+            scope=scope,
+            action=action,
+        )
+        return decision.allowed
