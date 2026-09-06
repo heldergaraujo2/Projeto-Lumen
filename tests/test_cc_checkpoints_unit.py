@@ -22,7 +22,7 @@ def _scope(*, scope_id: str, action: CCActionType = CCActionType.MOUSE_CLICK, ma
         scope_id=scope_id,
         created_at=now,
         expires_at=now + timedelta(seconds=60),
-        target=CCTarget(app_name="Desktop"),
+        target=CCTarget(app_name="Desktop", window_title_pattern="Notepad"),
         allowed_actions=frozenset({action}),
         limits=CCLimits(max_actions_total=max_actions_total, max_actions_per_minute=999),
     )

@@ -111,19 +111,64 @@ class WindowsComputerControlDriver:
         # MVP: move relativo + click no ponto atual (ap?s mover).
         self.mouse_move(dx=dx, dy=dy, target=target)
         return self.mouse_click(button=button, target=target)
-
     def key_type(self, *, text: str, target: Optional[CCTarget] = None) -> int:
-        # target accepted for API compatibility; MVP does not filter by window/app.
+        # MVP: foca por window_title_pattern (se fornecido) e digita via SendInput (UNICODE).
         if not isinstance(text, str):
             raise TypeError("text must be str")
 
-        user32 = ctypes.windll.user32
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+
+        def _focus_by_title_substring(sub: str) -> None:
+            sub_l = sub.lower()
+            hwnd_match = None
+
+            EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+            def _cb(hwnd, lparam):  # noqa: ANN001
+                nonlocal hwnd_match
+                if hwnd_match is not None:
+                    return False
+                if not user32.IsWindowVisible(hwnd):
+                    return True
+                length = user32.GetWindowTextLengthW(hwnd)
+                if length <= 0:
+                    return True
+                buf = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buf, length + 1)
+                title = buf.value
+                if title and sub_l in title.lower():
+                    hwnd_match = hwnd
+                    return False
+                return True
+
+            user32.EnumWindows(EnumWindowsProc(_cb), 0)
+            if hwnd_match is None:
+                raise LookupError("target window not found")
+
+            SW_RESTORE = 9
+            user32.ShowWindow(hwnd_match, SW_RESTORE)
+            user32.SetForegroundWindow(hwnd_match)
+
+        if target is not None and isinstance(target.window_title_pattern, str) and target.window_title_pattern.strip():
+            _focus_by_title_substring(target.window_title_pattern.strip())
+
+        # IMPORTANT: INPUT is a union of MOUSEINPUT/KEYBDINPUT/HARDWAREINPUT.
+        # If we define only KEYBDINPUT, sizeof(INPUT) is too small and SendInput fails (WinError 87).
+        ULONG_PTR = ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_uint32
 
         INPUT_KEYBOARD = 1
         KEYEVENTF_KEYUP = 0x0002
         KEYEVENTF_UNICODE = 0x0004
 
-        ULONG_PTR = ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_uint32
+        class MOUSEINPUT(ctypes.Structure):
+            _fields_ = [
+                ("dx", wintypes.LONG),
+                ("dy", wintypes.LONG),
+                ("mouseData", wintypes.DWORD),
+                ("dwFlags", wintypes.DWORD),
+                ("time", wintypes.DWORD),
+                ("dwExtraInfo", ULONG_PTR),
+            ]
 
         class KEYBDINPUT(ctypes.Structure):
             _fields_ = [
@@ -134,20 +179,31 @@ class WindowsComputerControlDriver:
                 ("dwExtraInfo", ULONG_PTR),
             ]
 
+        class HARDWAREINPUT(ctypes.Structure):
+            _fields_ = [
+                ("uMsg", wintypes.DWORD),
+                ("wParamL", wintypes.WORD),
+                ("wParamH", wintypes.WORD),
+            ]
+
         class _INPUT_UNION(ctypes.Union):
-            _fields_ = [("ki", KEYBDINPUT)]
+            _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT), ("hi", HARDWAREINPUT)]
 
         class INPUT(ctypes.Structure):
             _anonymous_ = ("u",)
             _fields_ = [("type", wintypes.DWORD), ("u", _INPUT_UNION)]
 
+        user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int)
+        user32.SendInput.restype = wintypes.UINT
+
         def _send(ch: str) -> None:
             code = ord(ch)
             down = INPUT(type=INPUT_KEYBOARD, ki=KEYBDINPUT(wVk=0, wScan=code, dwFlags=KEYEVENTF_UNICODE, time=0, dwExtraInfo=0))
             up = INPUT(type=INPUT_KEYBOARD, ki=KEYBDINPUT(wVk=0, wScan=code, dwFlags=KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, time=0, dwExtraInfo=0))
-            n = user32.SendInput(2, ctypes.byref((INPUT * 2)(down, up)), ctypes.sizeof(INPUT))
-            if n != 2:
-                raise OSError("SendInput failed")
+            arr = (INPUT * 2)(down, up)
+            sent = user32.SendInput(2, arr, ctypes.sizeof(INPUT))
+            if sent != 2:
+                raise ctypes.WinError(ctypes.get_last_error())
 
         for ch in text:
             _send(ch)

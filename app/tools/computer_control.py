@@ -787,6 +787,10 @@ class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
                 return False
             if any(ord(ch) < 32 for ch in text):
                 return False
+            scope = self._scopes.get(scope_id)
+            pat = scope.target.window_title_pattern if scope is not None else None
+            if not (isinstance(pat, str) and pat.strip()):
+                return False
             action = CCActionType.KEY_TYPE
         else:
             action = CCActionType.MOUSE_CLICK
@@ -867,6 +871,20 @@ class CcKeyTypeTool(ComputerControlTool):
             return ToolResult(ok=False, error="invalid_input")
 
         scope = self._scopes.get(scope_id)
+        if scope is not None:
+            pat = scope.target.window_title_pattern
+            if not (isinstance(pat, str) and pat.strip()):
+                # Fail-closed: sem alvo de janela n?o digitamos (a UI rouba foco no approve).
+                self._audit_record(
+                    success=False,
+                    error="invalid_input",
+                    scope_id=scope_id,
+                    action_type=CCActionType.KEY_TYPE.value,
+                    duration_ms=_dur_ms(),
+                    chars=len(text),
+                )
+                return ToolResult(ok=False, error="invalid_input")
+
         decision = evaluate_cc_action(
             has_computer_control_permission=True,
             scope=scope,

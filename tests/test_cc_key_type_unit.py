@@ -22,7 +22,7 @@ def _make_scope(*, scope_id: str = "s1", max_actions_total: int = 2) -> CCScope:
         scope_id=scope_id,
         created_at=now,
         expires_at=now + timedelta(seconds=60),
-        target=CCTarget(app_name="Desktop"),
+        target=CCTarget(app_name="Desktop", window_title_pattern="Notepad"),
         allowed_actions=frozenset({CCActionType.KEY_TYPE}),
         limits=CCLimits(max_actions_total=max_actions_total, max_actions_per_minute=999),
     )
