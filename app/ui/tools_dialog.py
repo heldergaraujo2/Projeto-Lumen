@@ -13,6 +13,7 @@ Clareza de UX (o usuário sempre vê): **o que** a Lumen quer fazer,
 from __future__ import annotations
 
 import logging
+import os
 import tkinter as tk
 from tkinter import messagebox
 
@@ -113,6 +114,13 @@ class ToolsDialog:
         )
         self.refuse_button.pack(side=tk.LEFT)
 
+        self.open_screenshot_button = tk.Button(
+            buttons, text="?? ABRIR SCREENSHOT", relief=tk.FLAT, cursor="hand2",
+            bg="#7aa2ff", fg="#0d1220", font=("Segoe UI", 10, "bold"),
+            state=tk.DISABLED, command=self._open_last_cc_screenshot,
+        )
+        self.open_screenshot_button.pack(side=tk.LEFT, padx=(8, 0))
+
     def _refresh_pending(self) -> None:
         pending = self._controller.pending_approval()
         if pending is None:
@@ -121,6 +129,7 @@ class ToolsDialog:
             )
             self.approve_button.configure(state=tk.DISABLED)
             self.refuse_button.configure(state=tk.DISABLED)
+            self.open_screenshot_button.configure(state=tk.DISABLED)
             return
         where = pending.get("requested_path") or "?"
         if pending.get("resolved_path"):
@@ -151,6 +160,9 @@ class ToolsDialog:
                 "checkpoint da operação); Recusar mantém a falha — nada "
                 "é executado."
             )
+            # CC UX: corre??o proposta n?o tem screenshot associado.
+            if hasattr(self, "open_screenshot_button"):
+                self.open_screenshot_button.configure(state=tk.DISABLED)
             self.pending_label.configure(text=text, fg=_WARN)
             self.approve_button.configure(state=tk.NORMAL)
             self.refuse_button.configure(state=tk.NORMAL)
@@ -177,9 +189,37 @@ class ToolsDialog:
             timeout = pending.get("timeout_s")
             if timeout is not None:
                 text += f"\nTimeout: {timeout}s"
+        tool = pending.get("tool")
+        if tool in ("cc_mouse_click", "cc_mouse_click_at"):
+            self.open_screenshot_button.configure(state=tk.NORMAL)
+        else:
+            self.open_screenshot_button.configure(state=tk.DISABLED)
         self.pending_label.configure(text=text, fg=_WARN)
         self.approve_button.configure(state=tk.NORMAL)
         self.refuse_button.configure(state=tk.NORMAL)
+
+    def _open_last_cc_screenshot(self) -> None:
+        """Abre o ?ltimo artifact_ref de cc_screenshot (se existir)."""
+        records = self._controller.audit_records(limit=_AUDIT_LIMIT)
+        last = None
+        for rec in reversed(records):
+            if rec.get("tool") == "cc_screenshot" and rec.get("success") is True:
+                last = rec
+                break
+        if not last:
+            self._set_status(False, "?? Nenhum screenshot encontrado na auditoria.")
+            return
+        artifact = last.get("artifact_ref")
+        if not artifact and isinstance(last.get("detail"), dict):
+            artifact = last["detail"].get("artifact_ref")
+        if not artifact or not isinstance(artifact, str):
+            self._set_status(False, "?? Screenshot sem artifact_ref.")
+            return
+        try:
+            os.startfile(artifact)  # Windows
+            self._set_status(True, f"?? Screenshot aberto: {artifact}")
+        except Exception as exc:
+            self._set_status(False, f"?? N?o foi poss?vel abrir o screenshot: {exc}")
 
     def _approve(self) -> None:
         try:
