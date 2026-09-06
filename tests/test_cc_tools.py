@@ -48,7 +48,7 @@ def test_request_scope_rejects_invalid_inputs():
     r = tool.run(**{k: v for k, v in VALID.items() if k != "app_name"})
     assert r.ok is False and r.error == "invalid_input"
     # ação fora do MVP (mouse_click) é rejeitada
-    r = tool.run(**{**VALID, "allowed_actions": ["key_type"]})
+    r = tool.run(**{**VALID, "allowed_actions": ["key_combo"]})
     assert r.ok is False
     # expiração não-positiva
     r = tool.run(**{**VALID, "expires_in_s": 0})

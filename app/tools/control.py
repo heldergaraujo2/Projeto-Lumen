@@ -1005,6 +1005,7 @@ class ToolsController:
                 CcMouseMoveTool,
                 CcMouseClickTool,
                 CcMouseClickAtTool,
+                CcKeyTypeTool,
                 CcListScopesTool,
                 CcRevokeScopeTool,
             )
@@ -1046,6 +1047,9 @@ class ToolsController:
             )
             registry.register(
                 CcMouseClickAtTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
+            )
+            registry.register(
+                CcKeyTypeTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
             )
             registry.register(
                 CcListScopesTool(scopes=self._cc_scopes, audit=self._audit)

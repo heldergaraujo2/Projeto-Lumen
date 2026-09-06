@@ -111,3 +111,45 @@ class WindowsComputerControlDriver:
         # MVP: move relativo + click no ponto atual (ap?s mover).
         self.mouse_move(dx=dx, dy=dy, target=target)
         return self.mouse_click(button=button, target=target)
+
+    def key_type(self, *, text: str, target: Optional[CCTarget] = None) -> int:
+        # target accepted for API compatibility; MVP does not filter by window/app.
+        if not isinstance(text, str):
+            raise TypeError("text must be str")
+
+        user32 = ctypes.windll.user32
+
+        INPUT_KEYBOARD = 1
+        KEYEVENTF_KEYUP = 0x0002
+        KEYEVENTF_UNICODE = 0x0004
+
+        ULONG_PTR = ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_uint32
+
+        class KEYBDINPUT(ctypes.Structure):
+            _fields_ = [
+                ("wVk", wintypes.WORD),
+                ("wScan", wintypes.WORD),
+                ("dwFlags", wintypes.DWORD),
+                ("time", wintypes.DWORD),
+                ("dwExtraInfo", ULONG_PTR),
+            ]
+
+        class _INPUT_UNION(ctypes.Union):
+            _fields_ = [("ki", KEYBDINPUT)]
+
+        class INPUT(ctypes.Structure):
+            _anonymous_ = ("u",)
+            _fields_ = [("type", wintypes.DWORD), ("u", _INPUT_UNION)]
+
+        def _send(ch: str) -> None:
+            code = ord(ch)
+            down = INPUT(type=INPUT_KEYBOARD, ki=KEYBDINPUT(wVk=0, wScan=code, dwFlags=KEYEVENTF_UNICODE, time=0, dwExtraInfo=0))
+            up = INPUT(type=INPUT_KEYBOARD, ki=KEYBDINPUT(wVk=0, wScan=code, dwFlags=KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, time=0, dwExtraInfo=0))
+            n = user32.SendInput(2, ctypes.byref((INPUT * 2)(down, up)), ctypes.sizeof(INPUT))
+            if n != 2:
+                raise OSError("SendInput failed")
+
+        for ch in text:
+            _send(ch)
+
+        return len(text)

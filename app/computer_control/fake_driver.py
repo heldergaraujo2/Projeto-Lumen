@@ -59,3 +59,9 @@ class FakeComputerControlDriver:
         self._x += dx
         self._y += dy
         return (self._x, self._y)
+
+    def key_type(self, *, text: str, target: Optional[CCTarget] = None) -> int:
+        # target accepted for API compatibility; fake driver does not use it.
+        if not isinstance(text, str):
+            raise TypeError("text must be str")
+        return len(text)

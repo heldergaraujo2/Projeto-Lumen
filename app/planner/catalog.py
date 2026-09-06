@@ -301,6 +301,19 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         computer_control=True,
     ),
+
+    ToolSpec(
+        name="cc_key_type",
+        description=(
+            "Digita texto usando um scope de Computer Control previamente concedido "
+            "(MVP: texto curto; sem registrar o conte?do no audit)."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("text", "string", True, "Texto a digitar (MVP: <= 80 chars, sem caracteres de controle)."),
+        ),
+        computer_control=True,
+    ),
 )
 
 

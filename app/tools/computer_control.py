@@ -26,6 +26,7 @@ OP_CC_MOUSE_MOVE = "cc_mouse_move"
 
 OP_CC_MOUSE_CLICK = "cc_mouse_click"
 OP_CC_MOUSE_CLICK_AT = "cc_mouse_click_at"
+OP_CC_KEY_TYPE = "cc_key_type"
 OP_CC_LIST_SCOPES = "cc_list_scopes"
 OP_CC_REVOKE_SCOPE = "cc_revoke_scope"
 
@@ -45,7 +46,7 @@ def _parse_actions(value: Any) -> FrozenSet[CCActionType] | None:
         except Exception:
             return None
     # MVP hard-limit: only a small allowlist of actions is supported.
-    allowed = {CCActionType.SCREENSHOT, CCActionType.MOUSE_MOVE, CCActionType.MOUSE_CLICK}
+    allowed = {CCActionType.SCREENSHOT, CCActionType.MOUSE_MOVE, CCActionType.MOUSE_CLICK, CCActionType.KEY_TYPE}
     if not actions.issubset(allowed):
         return None
     return frozenset(actions)
@@ -744,7 +745,7 @@ class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
     """
 
     def __init__(self, permissions: PermissionManager, registry: ToolRegistry, scopes: dict[str, "CCScope"]) -> None:
-        super().__init__(("cc_mouse_click", "cc_mouse_click_at"))
+        super().__init__(("cc_mouse_click", "cc_mouse_click_at", "cc_key_type"))
         self._permissions = permissions
         self._registry = registry
         self._scopes = scopes
@@ -765,10 +766,155 @@ class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
         if not isinstance(scope_id, str) or not scope_id.strip():
             return False  # invi?vel: handler falha com invalid_input
         scope = self._scopes.get(scope_id)
-        action = CCActionType.MOUSE_CLICK
+        tool_name = task.tool
+
+        # Par?metros por tool (viabilidade) ? sem aprova??o decorativa.
+        if tool_name == "cc_mouse_click_at":
+            dx = params.get("dx")
+            dy = params.get("dy")
+            if not isinstance(dx, int) or isinstance(dx, bool):
+                return False
+            if not isinstance(dy, int) or isinstance(dy, bool):
+                return False
+            if dx < -50 or dx > 50 or dy < -50 or dy > 50:
+                return False
+
+        if tool_name == "cc_key_type":
+            text = params.get("text")
+            if not isinstance(text, str) or not text:
+                return False
+            if len(text) > 80:
+                return False
+            if any(ord(ch) < 32 for ch in text):
+                return False
+            action = CCActionType.KEY_TYPE
+        else:
+            action = CCActionType.MOUSE_CLICK
+
         decision = evaluate_cc_action(
             has_computer_control_permission=True,
             scope=scope,
             action=action,
         )
         return decision.allowed
+
+
+class CcKeyTypeTool(ComputerControlTool):
+    """Digita texto (MVP) usando um scope concedido.
+
+    Seguran?a:
+    - Scope-gated (evaluate_cc_action) + consume_action (or?amento).
+    - Checkpoint ser? exigido por policy (CC-11/CC-10).
+    - Auditoria metadata-only: NUNCA registra o texto digitado.
+    """
+
+    name = "cc_key_type"
+    description = (
+        "Digita texto usando um scope de Computer Control previamente concedido. "
+        "MVP: texto curto, sem caracteres de controle; sem registrar o conte?do."
+    )
+    operation = OP_CC_KEY_TYPE
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from app.computer_control.policy import evaluate_cc_action
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        text = kwargs.get("text")
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(text, str) or not text:
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.KEY_TYPE.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="invalid_input")
+
+        # MVP safety: texto curto e sem caracteres de controle (sem \n, \t, etc).
+        if len(text) > 80:
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.KEY_TYPE.value,
+                duration_ms=_dur_ms(),
+                chars=len(text),
+            )
+            return ToolResult(ok=False, error="invalid_input")
+        if any(ord(ch) < 32 for ch in text):
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.KEY_TYPE.value,
+                duration_ms=_dur_ms(),
+                chars=len(text),
+            )
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        decision = evaluate_cc_action(
+            has_computer_control_permission=True,
+            scope=scope,
+            action=CCActionType.KEY_TYPE,
+        )
+        if not decision.allowed:
+            self._audit_record(
+                success=False,
+                error=decision.reason,
+                scope_id=scope_id,
+                action_type=CCActionType.KEY_TYPE.value,
+                duration_ms=_dur_ms(),
+                chars=len(text),
+            )
+            return ToolResult(ok=False, error=decision.reason)
+
+        try:
+            scope.consume_action()
+        except PermissionError:
+            self._audit_record(
+                success=False,
+                error="denied_scope_limit_exceeded",
+                scope_id=scope_id,
+                action_type=CCActionType.KEY_TYPE.value,
+                duration_ms=_dur_ms(),
+                chars=len(text),
+            )
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            typed = self._driver.key_type(text=text, target=scope.target)
+        except Exception:
+            self._audit_record(
+                success=False,
+                error="key_type_failed",
+                scope_id=scope_id,
+                action_type=CCActionType.KEY_TYPE.value,
+                duration_ms=_dur_ms(),
+                chars=len(text),
+            )
+            return ToolResult(ok=False, error="key_type_failed")
+
+        # Auditoria metadata-only: nunca inclui o texto.
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            action_type=CCActionType.KEY_TYPE.value,
+            duration_ms=_dur_ms(),
+            chars_typed=int(typed),
+        )
+        return ToolResult(ok=True, data={"scope_id": scope_id, "chars_typed": int(typed)})
