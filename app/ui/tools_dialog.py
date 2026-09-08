@@ -104,7 +104,7 @@ class ToolsDialog:
         self.approve_button = tk.Button(
             buttons, text="✔ APROVAR", relief=tk.FLAT, cursor="hand2",
             bg=_OK_GREEN, fg="#0d1220", font=("Segoe UI", 10, "bold"),
-            state=tk.DISABLED, command=self._approve,
+            state=tk.DISABLED, command=self._approve_with_popup_for_cc_click,
         )
         self.approve_button.pack(side=tk.LEFT, padx=(0, 8))
         self.refuse_button = tk.Button(
@@ -220,6 +220,71 @@ class ToolsDialog:
             self._set_status(True, f"?? Screenshot aberto: {artifact}")
         except Exception as exc:
             self._set_status(False, f"?? N?o foi poss?vel abrir o screenshot: {exc}")
+
+    def _approve_with_popup_for_cc_click(self) -> None:
+        """UI safety: approval popup for CC click tools.
+
+        Rationale: if user clicks the APPROVE button with the mouse, the cursor is on the UI.
+        For CC click actions we want the user to position the cursor on the real target and
+        confirm with Enter (no mouse movement).
+        """
+        pending = self._controller.pending_approval() or {}
+        tool = pending.get("tool")
+        if tool not in ("cc_mouse_click", "cc_mouse_click_at"):
+            self._approve()
+            return
+
+        win = tk.Toplevel(self.top)
+        win.title("Confirmar click (Computer Control)")
+        win.configure(bg=_PANEL)
+        win.geometry("520x180+120+120")
+        win.transient(self.top)
+        win.grab_set()
+
+        msg = (
+            "COMPUTER CONTROL ? confirma??o\n\n"
+            "1) Posicione o mouse no ALVO (ex.: ?cone do arquivo).\n"
+            "2) Pressione ENTER para APROVAR e executar o click.\n"
+            "ESC cancela."
+        )
+        tk.Label(win, text=msg, fg=_TEXT, bg=_PANEL, justify=tk.LEFT,
+                 font=("Segoe UI", 10), wraplength=500).pack(anchor=tk.W, padx=16, pady=12)
+
+        buttons = tk.Frame(win, bg=_PANEL)
+        buttons.pack(anchor=tk.E, padx=16, pady=(0, 12))
+
+        def _do_approve():
+            try:
+                win.grab_release()
+                win.destroy()
+            except Exception:
+                pass
+            self._approve()
+
+        def _cancel():
+            try:
+                win.grab_release()
+                win.destroy()
+            except Exception:
+                pass
+
+        b_ok = tk.Button(
+            buttons, text="? APROVAR (ENTER)", relief=tk.FLAT, cursor="hand2",
+            bg=_OK_GREEN, fg="#0d1220", font=("Segoe UI", 10, "bold"),
+            command=_do_approve,
+        )
+        b_ok.pack(side=tk.RIGHT, padx=(8, 0))
+
+        b_cancel = tk.Button(
+            buttons, text="Cancelar (ESC)", relief=tk.FLAT, cursor="hand2",
+            bg=_ERR_RED, fg="#0d1220", font=("Segoe UI", 10, "bold"),
+            command=_cancel,
+        )
+        b_cancel.pack(side=tk.RIGHT)
+
+        win.bind("<Return>", lambda e: _do_approve())
+        win.bind("<Escape>", lambda e: _cancel())
+        b_ok.focus_set()
 
     def _approve(self) -> None:
         try:
