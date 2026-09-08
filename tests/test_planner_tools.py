@@ -78,6 +78,56 @@ def test_catalog_omits_run_command_unless_terminal_enabled():
         assert name in with_terminal
 
 
+def test_catalog_cc_request_scope_gated_behind_computer_control_flag():
+    # CC-4: cc_request_scope existe no catálogo, mas só aparece quando
+    # include_computer_control=True (gate simétrico ao do terminal).
+    without_cc = build_catalog(include_terminal=False)
+    with_cc = build_catalog(
+        include_terminal=False, include_computer_control=True
+    )
+    assert "cc_request_scope" not in without_cc
+    assert "cc_request_scope" in with_cc
+    # gate de terminal não vaza (CC on não revela run_command)
+    assert "run_command" not in with_cc
+    # parâmetros esperados da spec
+    params = {p["name"] for p in with_cc["cc_request_scope"]["parameters"]}
+    assert {
+        "allowed_actions", "expires_in_s", "max_actions_total",
+        "max_actions_per_minute", "app_name", "process_name",
+        "window_title_pattern",
+    } <= params
+
+
+def test_catalog_gates_computer_control_tools(monkeypatch):
+    # Simula uma ferramenta CC futura (CC-4): o gate é simétrico ao do
+    # terminal — omitida por padrão, presente quando include_computer_control.
+    import app.planner.catalog as catalog_mod
+    from app.planner.catalog import ToolSpec
+
+    fake_cc = (
+        ToolSpec(
+            name="cc_click",
+            description="Clica em um ponto da tela (CC).",
+            parameters=(),
+            computer_control=True,
+        ),
+    )
+    monkeypatch.setattr(catalog_mod, "TOOL_SPECS", catalog_mod.TOOL_SPECS + fake_cc)
+
+    assert "cc_click" not in build_catalog(include_terminal=False)
+    assert "cc_click" not in build_catalog(
+        include_terminal=True, include_computer_control=False
+    )
+    assert "cc_click" in build_catalog(
+        include_terminal=False, include_computer_control=True
+    )
+    # o gate do terminal não vaza: terminal off + CC on não traz run_command
+    cc_only = build_catalog(
+        include_terminal=False, include_computer_control=True
+    )
+    assert "run_command" not in cc_only
+
+
 def test_catalog_has_no_generic_or_invented_tool():
     catalog = build_catalog(include_terminal=True)
     for forbidden in ("execute_anything", "run_python", "run_shell",

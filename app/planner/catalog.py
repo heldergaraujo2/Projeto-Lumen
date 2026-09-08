@@ -45,6 +45,7 @@ class ToolSpec:
     description: str
     parameters: tuple[ParameterSpec, ...]
     terminal: bool = False   # run_command: exige terminal habilitado
+    computer_control: bool = False  # ferramentas de automação do desktop (CC)
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -61,7 +62,9 @@ def _fs(name: str, description: str) -> ToolSpec:
     )
 
 
-#: Allowlist completa (10 ferramentas já existentes — nada novo foi criado).
+#: Allowlist completa: 8 de filesystem + 2 de terminal (run_command,
+#: run_pytest — gated por include_terminal) + 1 de Computer Control
+#: (cc_request_scope — gated por include_computer_control, CC-4).
 TOOL_SPECS: tuple[ToolSpec, ...] = (
     _fs("list_directory", "Lista arquivos e subdiretórios de um diretório."),
     _fs("read_file", "Lê o conteúdo de um arquivo de texto (UTF-8)."),
@@ -182,19 +185,201 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         terminal=True,
     ),
+
+    ToolSpec(
+        name="cc_request_scope",
+        description=(
+            "Solicita um escopo de Computer Control (consentimento por sessão) "
+            "para automação de desktop. MVP: apenas a ação 'screenshot'. "
+            "O escopo é temporário (máx. 3600s) e limitado em número de ações."
+        ),
+        parameters=(
+            ParameterSpec(
+                "allowed_actions",
+                "array",
+                True,
+                "Ações permitidas no escopo (MVP: apenas ['screenshot']).",
+            ),
+            ParameterSpec(
+                "expires_in_s",
+                "integer",
+                True,
+                "Duração do escopo em segundos (1..3600).",
+            ),
+            ParameterSpec(
+                "max_actions_total",
+                "integer",
+                True,
+                "Limite total de ações no escopo (> 0).",
+            ),
+            ParameterSpec(
+                "max_actions_per_minute",
+                "integer",
+                True,
+                "Limite de ações por minuto (> 0).",
+            ),
+            ParameterSpec(
+                "app_name",
+                "string",
+                False,
+                "Nome do aplicativo-alvo (um de app/processo/janela é obrigatório).",
+            ),
+            ParameterSpec("process_name", "string", False, "Nome do processo-alvo."),
+            ParameterSpec(
+                "window_title_pattern",
+                "string",
+                False,
+                "Padrão do título da janela.",
+            ),
+        ),
+        computer_control=True,
+    ),
+    ToolSpec(
+        name="cc_screenshot",
+        description=(
+            "Captura um screenshot (somente metadados; sem bytes) usando um scope de "
+            "Computer Control previamente concedido."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_mouse_move",
+        description=(
+            "Move o mouse de forma relativa (dx, dy) usando um scope de Computer Control previamente concedido. "
+            "MVP: movimento pequeno; sem clique/teclado."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("dx", "integer", True, "Delta X (pixels), inteiro em [-50..50]."),
+            ParameterSpec("dy", "integer", True, "Delta Y (pixels), inteiro em [-50..50]."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_list_scopes",
+        description="Lista os scopes de Computer Control ativos nesta sess?o (metadados-only).",
+        parameters=(),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_revoke_scope",
+        description="Revoga (remove) um scope de Computer Control desta sess?o.",
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_mouse_click",
+        description=(
+            "Clica com o mouse (bot?o esquerdo) no ponto atual do cursor usando um scope de Computer Control "
+            "previamente concedido (MVP: 1 click; sem coordenadas; sem double click)."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_mouse_click_at",
+        description=(
+            "Move o mouse de forma relativa (dx, dy) e clica (bot?o esquerdo) usando um scope de Computer Control "
+            "previamente concedido (MVP: movimento pequeno; 1 click)."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("dx", "integer", True, "Delta X (pixels), inteiro em [-50..50]."),
+            ParameterSpec("dy", "integer", True, "Delta Y (pixels), inteiro em [-50..50]."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_key_type",
+        description=(
+            "Digita texto usando um scope de Computer Control previamente concedido "
+            "(MVP: texto curto; sem registrar o conte?do no audit)."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("text", "string", True, "Texto a digitar (MVP: <= 80 chars, sem caracteres de controle)."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_double_click_and_type",
+        description=(
+            "Executa double-click (bot?o esquerdo) no ponto atual do cursor e em seguida digita texto. "
+            "Pensado para 1 aprova??o (popup ENTER) sem mover o mouse."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("text", "string", True, "Texto a digitar (MVP: <= 80 chars, sem caracteres de controle)."),
+            ParameterSpec("open_delay_ms", "integer", False, "Espera ap?s abrir (100..3000 ms). Default 700."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_focus_window",
+        description="Foca a janela-alvo (best-effort) usando window_title_pattern do scope.",
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_wait_for_window",
+        description="Espera a janela-alvo aparecer e ent?o a foca (best-effort) usando window_title_pattern do scope.",
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("timeout_s", "integer", False, "Timeout em segundos (1..120). Default 10."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_locate_template",
+        description="Localiza um template dentro de um screenshot (offline, vis?o local) e retorna coordenadas.",
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("screenshot_artifact_ref", "string", True, "Caminho do PNG (artifact_ref) do cc_screenshot."),
+            ParameterSpec("template_path", "string", True, "Caminho do PNG do template (recorte)."),
+            ParameterSpec("threshold", "number", False, "Threshold (0..1]. Default 0.90."),
+        ),
+        computer_control=True,
+    ),
 )
 
 
-def build_catalog(*, include_terminal: bool) -> dict[str, dict]:
+def build_catalog(
+    *, include_terminal: bool, include_computer_control: bool = False
+) -> dict[str, dict]:
     """Allowlist de planejamento como dict serializável (para o prompt).
 
     ``include_terminal=False`` (default quando o terminal não está
     habilitado) omite ``run_command`` — o Planner simplesmente não o
     conhece; não há como planejar o que não está na lista.
+    ``include_computer_control`` faz o mesmo para as ferramentas de
+    automação do desktop (CC-4): hoje revela apenas ``cc_request_scope``
+    (solicitação de escopo/consentimento); as ações de automação
+    propriamente ditas entram em etapa futura.
     """
     catalog: dict[str, dict] = {}
     for spec in TOOL_SPECS:
         if spec.terminal and not include_terminal:
+            continue
+        if spec.computer_control and not include_computer_control:
             continue
         catalog[spec.name] = {
             "description": spec.description,

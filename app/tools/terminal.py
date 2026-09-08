@@ -156,6 +156,9 @@ SAFE_ENV_VARS: frozenset[str] = frozenset({
     "PROCESSOR_ARCHITECTURE", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
 })
 
+SAFE_ENV_VARS_UPPER: frozenset[str] = frozenset(v.upper() for v in SAFE_ENV_VARS)
+
+
 #: Marcadores de segredo no NOME de variáveis de ambiente.
 _SECRET_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 
@@ -603,8 +606,8 @@ def build_safe_environment() -> dict[str, str]:
         upper = name.upper()
         if any(marker in upper for marker in _SECRET_MARKERS):
             continue
-        if name in SAFE_ENV_VARS or upper.startswith("LC_"):
-            env[name] = value
+        if upper in SAFE_ENV_VARS_UPPER or upper.startswith("LC_"):
+            env[upper] = value
     env.setdefault("PATH", os.defpath)
     return env
 

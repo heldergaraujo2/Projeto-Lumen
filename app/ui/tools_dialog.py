@@ -13,6 +13,7 @@ Clareza de UX (o usuário sempre vê): **o que** a Lumen quer fazer,
 from __future__ import annotations
 
 import logging
+import os
 import tkinter as tk
 from tkinter import messagebox
 
@@ -103,7 +104,7 @@ class ToolsDialog:
         self.approve_button = tk.Button(
             buttons, text="✔ APROVAR", relief=tk.FLAT, cursor="hand2",
             bg=_OK_GREEN, fg="#0d1220", font=("Segoe UI", 10, "bold"),
-            state=tk.DISABLED, command=self._approve,
+            state=tk.DISABLED, command=self._approve_with_popup_for_cc_click,
         )
         self.approve_button.pack(side=tk.LEFT, padx=(0, 8))
         self.refuse_button = tk.Button(
@@ -113,6 +114,13 @@ class ToolsDialog:
         )
         self.refuse_button.pack(side=tk.LEFT)
 
+        self.open_screenshot_button = tk.Button(
+            buttons, text="?? ABRIR SCREENSHOT", relief=tk.FLAT, cursor="hand2",
+            bg="#7aa2ff", fg="#0d1220", font=("Segoe UI", 10, "bold"),
+            state=tk.DISABLED, command=self._open_last_cc_screenshot,
+        )
+        self.open_screenshot_button.pack(side=tk.LEFT, padx=(8, 0))
+
     def _refresh_pending(self) -> None:
         pending = self._controller.pending_approval()
         if pending is None:
@@ -121,6 +129,7 @@ class ToolsDialog:
             )
             self.approve_button.configure(state=tk.DISABLED)
             self.refuse_button.configure(state=tk.DISABLED)
+            self.open_screenshot_button.configure(state=tk.DISABLED)
             return
         where = pending.get("requested_path") or "?"
         if pending.get("resolved_path"):
@@ -151,6 +160,9 @@ class ToolsDialog:
                 "checkpoint da operação); Recusar mantém a falha — nada "
                 "é executado."
             )
+            # CC UX: corre??o proposta n?o tem screenshot associado.
+            if hasattr(self, "open_screenshot_button"):
+                self.open_screenshot_button.configure(state=tk.DISABLED)
             self.pending_label.configure(text=text, fg=_WARN)
             self.approve_button.configure(state=tk.NORMAL)
             self.refuse_button.configure(state=tk.NORMAL)
@@ -177,9 +189,102 @@ class ToolsDialog:
             timeout = pending.get("timeout_s")
             if timeout is not None:
                 text += f"\nTimeout: {timeout}s"
+        tool = pending.get("tool")
+        if tool in ("cc_mouse_click", "cc_mouse_click_at", "cc_double_click_and_type"):
+            self.open_screenshot_button.configure(state=tk.NORMAL)
+        else:
+            self.open_screenshot_button.configure(state=tk.DISABLED)
         self.pending_label.configure(text=text, fg=_WARN)
         self.approve_button.configure(state=tk.NORMAL)
         self.refuse_button.configure(state=tk.NORMAL)
+
+    def _open_last_cc_screenshot(self) -> None:
+        """Abre o ?ltimo artifact_ref de cc_screenshot (se existir)."""
+        records = self._controller.audit_records(limit=_AUDIT_LIMIT)
+        last = None
+        for rec in reversed(records):
+            if rec.get("tool") == "cc_screenshot" and rec.get("success") is True:
+                last = rec
+                break
+        if not last:
+            self._set_status(False, "?? Nenhum screenshot encontrado na auditoria.")
+            return
+        artifact = last.get("artifact_ref")
+        if not artifact and isinstance(last.get("detail"), dict):
+            artifact = last["detail"].get("artifact_ref")
+        if not artifact or not isinstance(artifact, str):
+            self._set_status(False, "?? Screenshot sem artifact_ref.")
+            return
+        try:
+            os.startfile(artifact)  # Windows
+            self._set_status(True, f"?? Screenshot aberto: {artifact}")
+        except Exception as exc:
+            self._set_status(False, f"?? N?o foi poss?vel abrir o screenshot: {exc}")
+
+    def _approve_with_popup_for_cc_click(self) -> None:
+        """UI safety: approval popup for CC click tools.
+
+        Rationale: if user clicks the APPROVE button with the mouse, the cursor is on the UI.
+        For CC click actions we want the user to position the cursor on the real target and
+        confirm with Enter (no mouse movement).
+        """
+        pending = self._controller.pending_approval() or {}
+        tool = pending.get("tool")
+        if tool not in ("cc_mouse_click", "cc_mouse_click_at", "cc_double_click_and_type"):
+            self._approve()
+            return
+
+        win = tk.Toplevel(self.top)
+        win.title("Confirmar click (Computer Control)")
+        win.configure(bg=_PANEL)
+        win.geometry("520x180+120+120")
+        win.transient(self.top)
+        win.grab_set()
+
+        msg = (
+            "COMPUTER CONTROL ? confirma??o\n\n"
+            "1) Posicione o mouse no ALVO (ex.: ?cone do arquivo).\n"
+            "2) Pressione ENTER para APROVAR e executar o click.\n"
+            "ESC cancela."
+        )
+        tk.Label(win, text=msg, fg=_TEXT, bg=_PANEL, justify=tk.LEFT,
+                 font=("Segoe UI", 10), wraplength=500).pack(anchor=tk.W, padx=16, pady=12)
+
+        buttons = tk.Frame(win, bg=_PANEL)
+        buttons.pack(anchor=tk.E, padx=16, pady=(0, 12))
+
+        def _do_approve():
+            try:
+                win.grab_release()
+                win.destroy()
+            except Exception:
+                pass
+            self._approve()
+
+        def _cancel():
+            try:
+                win.grab_release()
+                win.destroy()
+            except Exception:
+                pass
+
+        b_ok = tk.Button(
+            buttons, text="? APROVAR (ENTER)", relief=tk.FLAT, cursor="hand2",
+            bg=_OK_GREEN, fg="#0d1220", font=("Segoe UI", 10, "bold"),
+            command=_do_approve,
+        )
+        b_ok.pack(side=tk.RIGHT, padx=(8, 0))
+
+        b_cancel = tk.Button(
+            buttons, text="Cancelar (ESC)", relief=tk.FLAT, cursor="hand2",
+            bg=_ERR_RED, fg="#0d1220", font=("Segoe UI", 10, "bold"),
+            command=_cancel,
+        )
+        b_cancel.pack(side=tk.RIGHT)
+
+        win.bind("<Return>", lambda e: _do_approve())
+        win.bind("<Escape>", lambda e: _cancel())
+        b_ok.focus_set()
 
     def _approve(self) -> None:
         try:
