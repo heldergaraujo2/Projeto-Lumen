@@ -190,7 +190,7 @@ class ToolsDialog:
             if timeout is not None:
                 text += f"\nTimeout: {timeout}s"
         tool = pending.get("tool")
-        if tool in ("cc_mouse_click", "cc_mouse_click_at"):
+        if tool in ("cc_mouse_click", "cc_mouse_click_at", "cc_double_click_and_type"):
             self.open_screenshot_button.configure(state=tk.NORMAL)
         else:
             self.open_screenshot_button.configure(state=tk.DISABLED)
@@ -230,7 +230,7 @@ class ToolsDialog:
         """
         pending = self._controller.pending_approval() or {}
         tool = pending.get("tool")
-        if tool not in ("cc_mouse_click", "cc_mouse_click_at"):
+        if tool not in ("cc_mouse_click", "cc_mouse_click_at", "cc_double_click_and_type"):
             self._approve()
             return
 

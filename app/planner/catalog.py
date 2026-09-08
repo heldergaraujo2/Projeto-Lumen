@@ -314,6 +314,20 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         computer_control=True,
     ),
+
+    ToolSpec(
+        name="cc_double_click_and_type",
+        description=(
+            "Executa double-click (bot?o esquerdo) no ponto atual do cursor e em seguida digita texto. "
+            "Pensado para 1 aprova??o (popup ENTER) sem mover o mouse."
+        ),
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("text", "string", True, "Texto a digitar (MVP: <= 80 chars, sem caracteres de controle)."),
+            ParameterSpec("open_delay_ms", "integer", False, "Espera ap?s abrir (100..3000 ms). Default 700."),
+        ),
+        computer_control=True,
+    ),
 )
 
 

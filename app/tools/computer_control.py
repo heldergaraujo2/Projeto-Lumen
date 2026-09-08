@@ -27,6 +27,7 @@ OP_CC_MOUSE_MOVE = "cc_mouse_move"
 OP_CC_MOUSE_CLICK = "cc_mouse_click"
 OP_CC_MOUSE_CLICK_AT = "cc_mouse_click_at"
 OP_CC_KEY_TYPE = "cc_key_type"
+OP_CC_DOUBLE_CLICK_AND_TYPE = "cc_double_click_and_type"
 OP_CC_LIST_SCOPES = "cc_list_scopes"
 OP_CC_REVOKE_SCOPE = "cc_revoke_scope"
 
@@ -728,6 +729,135 @@ class CcMouseClickAtTool(ComputerControlTool):
         )
 
 
+
+class CcDoubleClickAndTypeTool(ComputerControlTool):
+    """Double-click (no cursor atual) e digita texto (1 aprova??o).
+
+    Uso t?pico: usu?rio posiciona o mouse sobre um ?cone (ex.: arquivo .txt),
+    aprova via ENTER no popup, e a tool faz double-click para abrir e ent?o
+    digita no app (ex.: Notepad) focando por window_title_pattern do scope.
+
+    Seguran?a:
+    - Scope-gated (evaluate_cc_action) para MOUSE_CLICK e KEY_TYPE.
+    - Reserva or?amento para 2 a??es antes de executar (consume_action 2x).
+    - Auditoria metadata-only: nunca registra o texto.
+    """
+
+    name = "cc_double_click_and_type"
+    description = (
+        "Executa double-click (bot?o esquerdo) no ponto atual do cursor e em seguida "
+        "digita texto (MVP) usando um scope de Computer Control previamente concedido. "
+        "Pensado para 1 aprova??o (popup ENTER) sem mover o mouse."
+    )
+    operation = OP_CC_DOUBLE_CLICK_AND_TYPE
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from app.computer_control.policy import evaluate_cc_action
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        text = kwargs.get("text")
+        open_delay_ms = kwargs.get("open_delay_ms", 700)
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(text, str) or not text:
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(open_delay_ms, int) or isinstance(open_delay_ms, bool):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if open_delay_ms < 100 or open_delay_ms > 3000:
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        # MVP safety: texto curto e sem caracteres de controle
+        if len(text) > 80 or any(ord(ch) < 32 for ch in text):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms(), chars=len(text))
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        if scope is None:
+            self._audit_record(success=False, error="denied_no_scope", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_no_scope")
+
+        # Fail-closed: precisamos de window_title_pattern para focar antes de digitar
+        pat = scope.target.window_title_pattern
+        if not (isinstance(pat, str) and pat.strip()):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms(), chars=len(text))
+            return ToolResult(ok=False, error="invalid_input")
+
+        # Pr?-checagem de or?amento para 2 a??es (total). (rate/min ainda ? MVP no core)
+        if scope.remaining_actions() < 2:
+            self._audit_record(success=False, error="denied_scope_limit_exceeded", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        # Viabilidade: click e type precisam ser permitidos pelo scope/policy
+        d_click = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.MOUSE_CLICK)
+        if not d_click.allowed:
+            self._audit_record(success=False, error=d_click.reason, scope_id=scope_id, action_type=CCActionType.MOUSE_CLICK.value, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error=d_click.reason)
+
+        d_type = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.KEY_TYPE)
+        if not d_type.allowed:
+            self._audit_record(success=False, error=d_type.reason, scope_id=scope_id, action_type=CCActionType.KEY_TYPE.value, duration_ms=_dur_ms(), chars=len(text))
+            return ToolResult(ok=False, error=d_type.reason)
+
+        # Reserva or?amento antes de executar (2 a??es)
+        try:
+            scope.consume_action()
+            scope.consume_action()
+        except PermissionError:
+            self._audit_record(success=False, error="denied_scope_limit_exceeded", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        # Executa double click (2 cliques) no cursor atual
+        try:
+            self._driver.mouse_click(button="left", target=scope.target)
+            time.sleep(0.05)
+            self._driver.mouse_click(button="left", target=scope.target)
+        except Exception:
+            self._audit_record(success=False, error="mouse_click_failed", scope_id=scope_id, duration_ms=_dur_ms(), clicks=2)
+            return ToolResult(ok=False, error="mouse_click_failed")
+
+        time.sleep(open_delay_ms / 1000.0)
+
+        # Digita (driver foca pela window_title_pattern)
+        try:
+            typed = self._driver.key_type(text=text, target=scope.target)
+        except Exception:
+            self._audit_record(success=False, error="key_type_failed", scope_id=scope_id, duration_ms=_dur_ms(), chars=len(text))
+            return ToolResult(ok=False, error="key_type_failed")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            action_type="double_click_and_type",
+            duration_ms=_dur_ms(),
+            clicks=2,
+            open_delay_ms=open_delay_ms,
+            chars_typed=int(typed),
+        )
+        return ToolResult(
+            ok=True,
+            data={
+                "scope_id": scope_id,
+                "clicks": 2,
+                "open_delay_ms": open_delay_ms,
+                "chars_typed": int(typed),
+            },
+        )
+
 from app.security.permissions import PermissionManager  # local import style OK for tools module
 from app.tools.base import ToolRegistry
 from app.tools.handler import ToolCheckpoints
@@ -745,7 +875,7 @@ class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
     """
 
     def __init__(self, permissions: PermissionManager, registry: ToolRegistry, scopes: dict[str, "CCScope"]) -> None:
-        super().__init__(("cc_mouse_click", "cc_mouse_click_at", "cc_key_type"))
+        super().__init__(("cc_mouse_click", "cc_mouse_click_at", "cc_key_type", "cc_double_click_and_type"))
         self._permissions = permissions
         self._registry = registry
         self._scopes = scopes
@@ -778,6 +908,42 @@ class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
                 return False
             if dx < -50 or dx > 50 or dy < -50 or dy > 50:
                 return False
+
+        if tool_name == "cc_double_click_and_type":
+            text = params.get("text")
+            if not isinstance(text, str) or not text:
+                return False
+            if len(text) > 80:
+                return False
+            if any(ord(ch) < 32 for ch in text):
+                return False
+            open_delay_ms = params.get("open_delay_ms", 700)
+            if not isinstance(open_delay_ms, int) or isinstance(open_delay_ms, bool):
+                return False
+            if open_delay_ms < 100 or open_delay_ms > 3000:
+                return False
+
+            scope = self._scopes.get(scope_id)
+            pat = scope.target.window_title_pattern if scope is not None else None
+            if not (isinstance(pat, str) and pat.strip()):
+                return False
+            # precisa de or?amento para 2 a??es (double-click + digitar)
+            if scope is None or scope.remaining_actions() < 2:
+                return False
+
+            d1 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.MOUSE_CLICK,
+            )
+            if not d1.allowed:
+                return False
+            d2 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.KEY_TYPE,
+            )
+            return d2.allowed
 
         if tool_name == "cc_key_type":
             text = params.get("text")
