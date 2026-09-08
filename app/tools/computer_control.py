@@ -28,6 +28,8 @@ OP_CC_MOUSE_CLICK = "cc_mouse_click"
 OP_CC_MOUSE_CLICK_AT = "cc_mouse_click_at"
 OP_CC_KEY_TYPE = "cc_key_type"
 OP_CC_DOUBLE_CLICK_AND_TYPE = "cc_double_click_and_type"
+OP_CC_WINDOW_FOCUS = "cc_window_focus"
+OP_CC_WINDOW_WAIT = "cc_window_wait"
 OP_CC_LIST_SCOPES = "cc_list_scopes"
 OP_CC_REVOKE_SCOPE = "cc_revoke_scope"
 
@@ -47,7 +49,7 @@ def _parse_actions(value: Any) -> FrozenSet[CCActionType] | None:
         except Exception:
             return None
     # MVP hard-limit: only a small allowlist of actions is supported.
-    allowed = {CCActionType.SCREENSHOT, CCActionType.MOUSE_MOVE, CCActionType.MOUSE_CLICK, CCActionType.KEY_TYPE}
+    allowed = {CCActionType.SCREENSHOT, CCActionType.MOUSE_MOVE, CCActionType.MOUSE_CLICK, CCActionType.KEY_TYPE, CCActionType.WINDOW_FOCUS, CCActionType.WINDOW_WAIT}
     if not actions.issubset(allowed):
         return None
     return frozenset(actions)
@@ -857,6 +859,221 @@ class CcDoubleClickAndTypeTool(ComputerControlTool):
                 "chars_typed": int(typed),
             },
         )
+
+
+class CcFocusWindowTool(ComputerControlTool):
+    """Foca a janela-alvo (best-effort) pelo window_title_pattern do scope."""
+
+    name = "cc_focus_window"
+    description = (
+        "Traz a janela-alvo para frente (best-effort) usando o window_title_pattern do scope. "
+        "?til antes de clicar/digitar."
+    )
+    operation = OP_CC_WINDOW_FOCUS
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from app.computer_control.policy import evaluate_cc_action
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        if scope is None:
+            self._audit_record(success=False, error="denied_no_scope", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_no_scope")
+
+        pat = scope.target.window_title_pattern
+        if not (isinstance(pat, str) and pat.strip()):
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_FOCUS.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="invalid_input")
+
+        decision = evaluate_cc_action(
+            has_computer_control_permission=True,
+            scope=scope,
+            action=CCActionType.WINDOW_FOCUS,
+        )
+        if not decision.allowed:
+            self._audit_record(
+                success=False,
+                error=decision.reason,
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_FOCUS.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error=decision.reason)
+
+        try:
+            scope.consume_action()
+        except PermissionError:
+            self._audit_record(
+                success=False,
+                error="denied_scope_limit_exceeded",
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_FOCUS.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            focused = bool(self._driver.focus_window(target=scope.target))
+        except Exception:
+            self._audit_record(
+                success=False,
+                error="window_focus_failed",
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_FOCUS.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="window_focus_failed")
+
+        if not focused:
+            self._audit_record(
+                success=False,
+                error="window_not_found",
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_FOCUS.value,
+                duration_ms=_dur_ms(),
+            )
+            return ToolResult(ok=False, error="window_not_found")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            action_type=CCActionType.WINDOW_FOCUS.value,
+            duration_ms=_dur_ms(),
+        )
+        return ToolResult(ok=True, data={"scope_id": scope_id, "focused": True})
+
+
+class CcWaitForWindowTool(ComputerControlTool):
+    """Espera a janela-alvo aparecer e foca (best-effort)."""
+
+    name = "cc_wait_for_window"
+    description = (
+        "Espera at? a janela-alvo existir (best-effort) usando window_title_pattern do scope e ent?o a foca. "
+        "?til para aguardar apps abrirem."
+    )
+    operation = OP_CC_WINDOW_WAIT
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from app.computer_control.policy import evaluate_cc_action
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        timeout_s = kwargs.get("timeout_s", 10)
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(timeout_s, int) or isinstance(timeout_s, bool) or timeout_s <= 0 or timeout_s > 120:
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        if scope is None:
+            self._audit_record(success=False, error="denied_no_scope", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_no_scope")
+
+        pat = scope.target.window_title_pattern
+        if not (isinstance(pat, str) and pat.strip()):
+            self._audit_record(
+                success=False,
+                error="invalid_input",
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_WAIT.value,
+                duration_ms=_dur_ms(),
+                timeout_s=timeout_s,
+            )
+            return ToolResult(ok=False, error="invalid_input")
+
+        decision = evaluate_cc_action(
+            has_computer_control_permission=True,
+            scope=scope,
+            action=CCActionType.WINDOW_WAIT,
+        )
+        if not decision.allowed:
+            self._audit_record(
+                success=False,
+                error=decision.reason,
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_WAIT.value,
+                duration_ms=_dur_ms(),
+                timeout_s=timeout_s,
+            )
+            return ToolResult(ok=False, error=decision.reason)
+
+        try:
+            scope.consume_action()
+        except PermissionError:
+            self._audit_record(
+                success=False,
+                error="denied_scope_limit_exceeded",
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_WAIT.value,
+                duration_ms=_dur_ms(),
+                timeout_s=timeout_s,
+            )
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            ok = bool(self._driver.wait_for_window(target=scope.target, timeout_s=timeout_s))
+        except Exception:
+            self._audit_record(
+                success=False,
+                error="window_wait_failed",
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_WAIT.value,
+                duration_ms=_dur_ms(),
+                timeout_s=timeout_s,
+            )
+            return ToolResult(ok=False, error="window_wait_failed")
+
+        if not ok:
+            self._audit_record(
+                success=False,
+                error="window_not_found",
+                scope_id=scope_id,
+                action_type=CCActionType.WINDOW_WAIT.value,
+                duration_ms=_dur_ms(),
+                timeout_s=timeout_s,
+            )
+            return ToolResult(ok=False, error="window_not_found")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            action_type=CCActionType.WINDOW_WAIT.value,
+            duration_ms=_dur_ms(),
+            timeout_s=timeout_s,
+        )
+        return ToolResult(ok=True, data={"scope_id": scope_id, "found": True, "timeout_s": timeout_s})
 
 from app.security.permissions import PermissionManager  # local import style OK for tools module
 from app.tools.base import ToolRegistry

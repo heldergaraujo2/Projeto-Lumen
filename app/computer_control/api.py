@@ -18,6 +18,8 @@ class CCActionType(str, Enum):
     SCROLL = "scroll"
     KEY_TYPE = "key_type"
     KEY_COMBO = "key_combo"
+    WINDOW_FOCUS = "window_focus"
+    WINDOW_WAIT = "window_wait"
 
 
 @dataclass(frozen=True)
@@ -71,3 +73,8 @@ class ComputerControlDriver(Protocol):
     def key_type(
         self, *, text: str, target: Optional[CCTarget] = None
     ) -> int: ...
+
+
+    def focus_window(self, *, target: CCTarget) -> bool: ...
+
+    def wait_for_window(self, *, target: CCTarget, timeout_s: int) -> bool: ...

@@ -65,3 +65,19 @@ class FakeComputerControlDriver:
         if not isinstance(text, str):
             raise TypeError("text must be str")
         return len(text)
+
+    def focus_window(self, *, target: CCTarget) -> bool:
+        # Deterministic: succeed only if a title pattern is provided.
+        if not isinstance(target, CCTarget):
+            raise TypeError("target must be CCTarget")
+        pat = target.window_title_pattern
+        return bool(isinstance(pat, str) and pat.strip())
+
+    def wait_for_window(self, *, target: CCTarget, timeout_s: int) -> bool:
+        # Deterministic: same rule as focus_window; no real waiting.
+        if not isinstance(target, CCTarget):
+            raise TypeError("target must be CCTarget")
+        if not isinstance(timeout_s, int) or isinstance(timeout_s, bool) or timeout_s <= 0:
+            raise ValueError("timeout_s must be positive int")
+        pat = target.window_title_pattern
+        return bool(isinstance(pat, str) and pat.strip())

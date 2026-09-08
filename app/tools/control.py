@@ -1007,6 +1007,8 @@ class ToolsController:
                 CcMouseClickAtTool,
                 CcKeyTypeTool,
                 CcDoubleClickAndTypeTool,
+                CcFocusWindowTool,
+                CcWaitForWindowTool,
                 CcListScopesTool,
                 CcRevokeScopeTool,
             )
@@ -1054,6 +1056,12 @@ class ToolsController:
             )
             registry.register(
                 CcDoubleClickAndTypeTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
+            )
+            registry.register(
+                CcFocusWindowTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
+            )
+            registry.register(
+                CcWaitForWindowTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
             )
             registry.register(
                 CcListScopesTool(scopes=self._cc_scopes, audit=self._audit)

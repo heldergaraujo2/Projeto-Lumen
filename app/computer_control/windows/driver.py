@@ -209,3 +209,62 @@ class WindowsComputerControlDriver:
             _send(ch)
 
         return len(text)
+
+    def focus_window(self, *, target: CCTarget) -> bool:
+        if not isinstance(target, CCTarget):
+            raise TypeError("target must be CCTarget")
+        pat = target.window_title_pattern
+        if not (isinstance(pat, str) and pat.strip()):
+            return False
+
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+
+        sub_l = pat.strip().lower()
+        hwnd_match = None
+
+        EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+        def _cb(hwnd, lparam):  # noqa: ANN001
+            nonlocal hwnd_match
+            if hwnd_match is not None:
+                return False
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length <= 0:
+                return True
+            buf = ctypes.create_unicode_buffer(length + 1)
+            user32.GetWindowTextW(hwnd, buf, length + 1)
+            title = buf.value
+            if title and sub_l in title.lower():
+                hwnd_match = hwnd
+                return False
+            return True
+
+        user32.EnumWindows(EnumWindowsProc(_cb), 0)
+        if hwnd_match is None:
+            return False
+
+        SW_RESTORE = 9
+        user32.ShowWindow(hwnd_match, SW_RESTORE)
+        user32.SetForegroundWindow(hwnd_match)
+        return True
+
+    def wait_for_window(self, *, target: CCTarget, timeout_s: int) -> bool:
+        if not isinstance(target, CCTarget):
+            raise TypeError("target must be CCTarget")
+        if not isinstance(timeout_s, int) or isinstance(timeout_s, bool) or timeout_s <= 0:
+            raise ValueError("timeout_s must be positive int")
+
+        pat = target.window_title_pattern
+        if not (isinstance(pat, str) and pat.strip()):
+            return False
+
+        import time
+
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            if self.focus_window(target=target):
+                return True
+            time.sleep(0.2)
+        return False

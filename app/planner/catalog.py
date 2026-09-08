@@ -328,6 +328,25 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         computer_control=True,
     ),
+
+    ToolSpec(
+        name="cc_focus_window",
+        description="Foca a janela-alvo (best-effort) usando window_title_pattern do scope.",
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+        ),
+        computer_control=True,
+    ),
+
+    ToolSpec(
+        name="cc_wait_for_window",
+        description="Espera a janela-alvo aparecer e ent?o a foca (best-effort) usando window_title_pattern do scope.",
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("timeout_s", "integer", False, "Timeout em segundos (1..120). Default 10."),
+        ),
+        computer_control=True,
+    ),
 )
 
 
