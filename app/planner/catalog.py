@@ -347,6 +347,18 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         computer_control=True,
     ),
+
+    ToolSpec(
+        name="cc_locate_template",
+        description="Localiza um template dentro de um screenshot (offline, vis?o local) e retorna coordenadas.",
+        parameters=(
+            ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+            ParameterSpec("screenshot_artifact_ref", "string", True, "Caminho do PNG (artifact_ref) do cc_screenshot."),
+            ParameterSpec("template_path", "string", True, "Caminho do PNG do template (recorte)."),
+            ParameterSpec("threshold", "number", False, "Threshold (0..1]. Default 0.90."),
+        ),
+        computer_control=True,
+    ),
 )
 
 

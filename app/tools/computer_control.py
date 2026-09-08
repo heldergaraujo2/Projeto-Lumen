@@ -30,6 +30,7 @@ OP_CC_KEY_TYPE = "cc_key_type"
 OP_CC_DOUBLE_CLICK_AND_TYPE = "cc_double_click_and_type"
 OP_CC_WINDOW_FOCUS = "cc_window_focus"
 OP_CC_WINDOW_WAIT = "cc_window_wait"
+OP_CC_LOCATE_TEMPLATE = "cc_locate_template"
 OP_CC_LIST_SCOPES = "cc_list_scopes"
 OP_CC_REVOKE_SCOPE = "cc_revoke_scope"
 
@@ -1074,6 +1075,122 @@ class CcWaitForWindowTool(ComputerControlTool):
             timeout_s=timeout_s,
         )
         return ToolResult(ok=True, data={"scope_id": scope_id, "found": True, "timeout_s": timeout_s})
+
+
+class CcLocateTemplateTool(ComputerControlTool):
+    """Localiza um template dentro de um screenshot (offline, via OpenCV).
+
+    N?o executa mouse/teclado. Retorna coordenadas (centro) e confian?a.
+    Auditoria metadata-only: n?o grava bytes nem caminhos sens?veis do template.
+    """
+
+    name = "cc_locate_template"
+    description = (
+        "Localiza um template dentro de um screenshot (offline, vis?o local) e retorna "
+        "as coordenadas do centro e a confian?a do match."
+    )
+    operation = OP_CC_LOCATE_TEMPLATE
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from pathlib import Path as _Path
+
+        t0 = time.perf_counter()
+
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        screenshot_artifact_ref = kwargs.get("screenshot_artifact_ref")
+        template_path = kwargs.get("template_path")
+        threshold = kwargs.get("threshold", 0.90)
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(screenshot_artifact_ref, str) or not screenshot_artifact_ref.strip():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(template_path, str) or not template_path.strip():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(threshold, (int, float)) or not (0.0 < float(threshold) <= 1.0):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        if scope is None:
+            self._audit_record(success=False, error="denied_no_scope", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_no_scope")
+        if scope.is_expired():
+            self._audit_record(success=False, error="denied_scope_expired", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_scope_expired")
+
+        sp = _Path(screenshot_artifact_ref)
+        tp = _Path(template_path)
+        if not sp.exists() or not sp.is_file():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not tp.exists() or not tp.is_file():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        from app.computer_vision.template_match import locate_template
+
+        try:
+            m = locate_template(screenshot_path=sp, template_path=tp, threshold=float(threshold))
+        except Exception:
+            self._audit_record(
+                success=False,
+                error="locate_failed",
+                scope_id=scope_id,
+                artifact_ref=str(sp),
+                duration_ms=_dur_ms(),
+                template_name=tp.name,
+            )
+            return ToolResult(ok=False, error="locate_failed")
+
+        if m is None:
+            self._audit_record(
+                success=False,
+                error="template_not_found",
+                scope_id=scope_id,
+                artifact_ref=str(sp),
+                duration_ms=_dur_ms(),
+                template_name=tp.name,
+                threshold=float(threshold),
+            )
+            return ToolResult(ok=False, error="template_not_found")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            artifact_ref=str(sp),
+            duration_ms=_dur_ms(),
+            template_name=tp.name,
+            confidence=m.confidence,
+            x=m.x,
+            y=m.y,
+            w=m.w,
+            h=m.h,
+            center_x=m.center_x,
+            center_y=m.center_y,
+        )
+        return ToolResult(
+            ok=True,
+            data={
+                "scope_id": scope_id,
+                "match": {
+                    "confidence": m.confidence,
+                    "x": m.x,
+                    "y": m.y,
+                    "w": m.w,
+                    "h": m.h,
+                    "center_x": m.center_x,
+                    "center_y": m.center_y,
+                },
+            },
+        )
 
 from app.security.permissions import PermissionManager  # local import style OK for tools module
 from app.tools.base import ToolRegistry
