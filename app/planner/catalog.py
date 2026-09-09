@@ -395,6 +395,20 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
             ),
             computer_control=True,
         ),
+
+        ToolSpec(
+            name="cc_click_target_live",
+            description="Offline-first click via target_id; fallback to vision provider; auto-learn template.",
+            parameters=(
+                ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+                ParameterSpec("target_id", "string", True, "Identificador est?vel do alvo (salva template aprendido)."),
+                ParameterSpec("query", "string", True, "Descri??o do alvo (usada no fallback com vis?o)."),
+                ParameterSpec("offline_threshold", "number", False, "Threshold offline (0..1]. Default 0.85."),
+                ParameterSpec("learn", "boolean", False, "Se True, salva template aprendido. Default True."),
+                ParameterSpec("button", "string", False, "Bot?o: left/right/middle. Default left."),
+            ),
+            computer_control=True,
+        ),
 )
 
 

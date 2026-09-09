@@ -877,6 +877,15 @@ class ToolsController:
         })
         return rows
 
+
+    def grant_vision_provider(self) -> None:
+        """Concede explicitamente a permiss?o VISION_PROVIDER (envio de screenshots para provider com vis?o)."""
+        self._permissions.grant(PermissionLevel.VISION_PROVIDER)
+        try:
+            self._audit.record(tool="vision_admin", action="grant_vision_provider")
+        except Exception:
+            pass
+
     def grant_permission(self, level: str) -> None:
         """Concede CHAT/READ/WRITE (explícito; outros níveis são rejeitados)."""
         resolved = self._resolve_manageable(level)
@@ -1013,6 +1022,7 @@ class ToolsController:
                 CcMouseMoveToTool,
                 CcClickTemplateTool,
                 CcClickTemplateLiveTool,
+                CcClickTargetLiveTool,
                 CcListScopesTool,
                 CcRevokeScopeTool,
             )
@@ -1079,6 +1089,21 @@ class ToolsController:
             registry.register(
                 CcClickTemplateLiveTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
             )
+            # CC-18/19: hybrid offline-first click with provider fallback (only if VISION_PROVIDER granted)
+            if self._permissions.is_granted(PermissionLevel.VISION_PROVIDER):
+                from app.ai.openai_vision_locator import OpenAIVisionLocator
+                from pathlib import Path
+                locator = OpenAIVisionLocator()
+                templates_dir = Path("data/templates/cc_targets").resolve()
+                registry.register(
+                    CcClickTargetLiveTool(
+                        scopes=self._cc_scopes,
+                        audit=self._audit,
+                        driver=cc_driver,
+                        locator=locator,
+                        templates_dir=templates_dir,
+                    )
+                )
             registry.register(
                 CcListScopesTool(scopes=self._cc_scopes, audit=self._audit)
             )

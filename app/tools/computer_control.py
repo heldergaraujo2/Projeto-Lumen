@@ -29,6 +29,7 @@ OP_CC_MOUSE_CLICK_AT = "cc_mouse_click_at"
 OP_CC_MOUSE_MOVE_TO = "cc_mouse_move_to"
 OP_CC_CLICK_TEMPLATE = "cc_click_template"
 OP_CC_CLICK_TEMPLATE_LIVE = "cc_click_template_live"
+OP_CC_CLICK_TARGET_LIVE = "cc_click_target_live"
 OP_CC_KEY_TYPE = "cc_key_type"
 OP_CC_DOUBLE_CLICK_AND_TYPE = "cc_double_click_and_type"
 OP_CC_WINDOW_FOCUS = "cc_window_focus"
@@ -1486,6 +1487,203 @@ class CcClickTemplateLiveTool(ComputerControlTool):
             "button": button,
             "screenshot_artifact_ref": str(artifact),
             "match": {"confidence": m.confidence, "center_x": m.center_x, "center_y": m.center_y},
+        })
+
+
+class CcClickTargetLiveTool(ComputerControlTool):
+    """Hybrid click: offline-first template, fallback to vision provider, auto-learn.
+
+    Params:
+      - target_id: used to store learned template at templates_dir/{target_id}.png
+      - query: natural language target description for provider vision
+      - learn: if True, crop provider bbox and save as template for future offline runs
+    """
+
+    name = "cc_click_target_live"
+    description = "Offline-first click by target_id; fallback to vision provider; auto-learn template."
+    operation = OP_CC_CLICK_TARGET_LIVE
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, locator, templates_dir, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+        self._locator = locator
+        self._templates_dir = templates_dir
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        import re as _re
+        from pathlib import Path as _Path
+        from app.computer_control.policy import evaluate_cc_action
+        from app.computer_vision.template_match import locate_template
+
+        t0 = time.perf_counter()
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        target_id = kwargs.get("target_id")
+        query = kwargs.get("query")
+        offline_threshold = kwargs.get("offline_threshold", 0.85)
+        button = kwargs.get("button", "left")
+        learn = kwargs.get("learn", True)
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(target_id, str) or not target_id.strip():
+            return ToolResult(ok=False, error="invalid_input")
+        if not _re.fullmatch(r"[a-zA-Z0-9_.-]{1,64}", target_id):
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(query, str) or not query.strip() or len(query) > 240:
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(offline_threshold, (int, float)) or not (0.0 < float(offline_threshold) <= 1.0):
+            return ToolResult(ok=False, error="invalid_input")
+        if button not in ("left", "right", "middle"):
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(learn, bool):
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        if scope is None:
+            return ToolResult(ok=False, error="denied_no_scope")
+
+        # Need: screenshot + move + click = 3 actions
+        if scope.remaining_actions() < 3:
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        d_shot = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.SCREENSHOT)
+        if not d_shot.allowed:
+            return ToolResult(ok=False, error=d_shot.reason)
+        d_move = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.MOUSE_MOVE)
+        if not d_move.allowed:
+            return ToolResult(ok=False, error=d_move.reason)
+        d_click = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.MOUSE_CLICK)
+        if not d_click.allowed:
+            return ToolResult(ok=False, error=d_click.reason)
+
+        # consume screenshot budget
+        try:
+            scope.consume_action()
+        except PermissionError:
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            shot = self._driver.screenshot(target=scope.target)
+            artifact = getattr(shot, "artifact_ref", None)
+            width = int(getattr(shot, "width", 0))
+            height = int(getattr(shot, "height", 0))
+        except Exception:
+            self._audit_record(success=False, error="screenshot_failed", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="screenshot_failed")
+
+        if not isinstance(artifact, str) or not artifact.strip() or not _Path(artifact).exists():
+            return ToolResult(ok=False, error="screenshot_failed")
+
+        sp = _Path(artifact)
+        templates_dir = _Path(self._templates_dir)
+        tpl_path = templates_dir / f"{target_id}.png"
+
+        # ---------- Offline-first ----------
+        m = None
+        if tpl_path.exists() and tpl_path.is_file():
+            try:
+                m = locate_template(screenshot_path=sp, template_path=tpl_path, threshold=float(offline_threshold))
+            except Exception:
+                m = None
+
+        if m is not None:
+            # consume move+click
+            try:
+                scope.consume_action()
+                scope.consume_action()
+            except PermissionError:
+                return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+            try:
+                self._driver.mouse_move_to(x=int(m.center_x), y=int(m.center_y), target=scope.target)
+                self._driver.mouse_click(button=button, target=scope.target)
+            except Exception:
+                self._audit_record(success=False, error="click_failed", scope_id=scope_id, duration_ms=_dur_ms(), target_id=target_id)
+                return ToolResult(ok=False, error="click_failed")
+
+            self._audit_record(success=True, scope_id=scope_id, duration_ms=_dur_ms(),
+                               target_id=target_id, used_template=True, used_provider=False)
+            return ToolResult(ok=True, data={
+                "scope_id": scope_id,
+                "target_id": target_id,
+                "used_template": True,
+                "used_provider": False,
+                "template_path": str(tpl_path),
+                "match": {"confidence": m.confidence, "center_x": m.center_x, "center_y": m.center_y},
+            })
+
+        # ---------- Provider fallback ----------
+        try:
+            vr = self._locator.locate(image_path=sp, query=query.strip())
+        except Exception:
+            self._audit_record(success=False, error="vision_provider_failed", scope_id=scope_id, duration_ms=_dur_ms(), target_id=target_id)
+            return ToolResult(ok=False, error="vision_provider_failed")
+
+        if vr is None:
+            self._audit_record(success=False, error="target_not_found", scope_id=scope_id, duration_ms=_dur_ms(), target_id=target_id)
+            return ToolResult(ok=False, error="target_not_found")
+
+        # derive pixels; prefer real width/height from ScreenshotInfo; fallback to image decode if needed
+        if width <= 0 or height <= 0:
+            try:
+                import cv2  # type: ignore
+                img = cv2.imread(str(sp), cv2.IMREAD_COLOR)
+                if img is not None:
+                    height, width = img.shape[:2]
+            except Exception:
+                width, height = 1, 1
+
+        cx = int(round(vr.center_x_norm * float(width)))
+        cy = int(round(vr.center_y_norm * float(height)))
+
+        # consume move+click
+        try:
+            scope.consume_action()
+            scope.consume_action()
+        except PermissionError:
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            self._driver.mouse_move_to(x=cx, y=cy, target=scope.target)
+            self._driver.mouse_click(button=button, target=scope.target)
+        except Exception:
+            self._audit_record(success=False, error="click_failed", scope_id=scope_id, duration_ms=_dur_ms(), target_id=target_id)
+            return ToolResult(ok=False, error="click_failed")
+
+        learned = False
+        if learn:
+            try:
+                templates_dir.mkdir(parents=True, exist_ok=True)
+                import cv2  # type: ignore
+                img = cv2.imread(str(sp), cv2.IMREAD_COLOR)
+                if img is not None:
+                    x0 = max(0, int(vr.x_norm * width))
+                    y0 = max(0, int(vr.y_norm * height))
+                    x1 = min(width, int((vr.x_norm + vr.w_norm) * width))
+                    y1 = min(height, int((vr.y_norm + vr.h_norm) * height))
+                    if x1 > x0 + 4 and y1 > y0 + 4:
+                        crop = img[y0:y1, x0:x1]
+                        cv2.imwrite(str(tpl_path), crop)
+                        learned = True
+            except Exception:
+                learned = False
+
+        self._audit_record(success=True, scope_id=scope_id, duration_ms=_dur_ms(),
+                           target_id=target_id, used_template=False, used_provider=True, learned_template=learned)
+        return ToolResult(ok=True, data={
+            "scope_id": scope_id,
+            "target_id": target_id,
+            "used_template": False,
+            "used_provider": True,
+            "learned_template": learned,
+            "template_path": str(tpl_path),
+            "provider": getattr(vr, "provider", None),
+            "model": getattr(vr, "model", None),
+            "confidence": getattr(vr, "confidence", None),
         })
 
 from app.security.permissions import PermissionManager  # local import style OK for tools module
