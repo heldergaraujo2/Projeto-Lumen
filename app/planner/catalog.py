@@ -383,6 +383,18 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
             ),
             computer_control=True,
         ),
+
+        ToolSpec(
+            name="cc_click_template_live",
+            description="Tira screenshot ao vivo, localiza template (offline) e clica no centro encontrado.",
+            parameters=(
+                ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+                ParameterSpec("template_path", "string", True, "Caminho do PNG do template (recorte, reutiliz?vel)."),
+                ParameterSpec("threshold", "number", False, "Threshold (0..1]. Default 0.85."),
+                ParameterSpec("button", "string", False, "Bot?o: left/right/middle. Default left."),
+            ),
+            computer_control=True,
+        ),
 )
 
 

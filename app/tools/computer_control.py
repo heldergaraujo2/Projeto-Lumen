@@ -28,6 +28,7 @@ OP_CC_MOUSE_CLICK = "cc_mouse_click"
 OP_CC_MOUSE_CLICK_AT = "cc_mouse_click_at"
 OP_CC_MOUSE_MOVE_TO = "cc_mouse_move_to"
 OP_CC_CLICK_TEMPLATE = "cc_click_template"
+OP_CC_CLICK_TEMPLATE_LIVE = "cc_click_template_live"
 OP_CC_KEY_TYPE = "cc_key_type"
 OP_CC_DOUBLE_CLICK_AND_TYPE = "cc_double_click_and_type"
 OP_CC_WINDOW_FOCUS = "cc_window_focus"
@@ -1359,6 +1360,133 @@ class CcClickTemplateTool(ComputerControlTool):
         return ToolResult(ok=True, data={"scope_id": scope_id, "clicked": True, "button": button, "match": {
             "confidence": m.confidence, "x": m.x, "y": m.y, "w": m.w, "h": m.h, "center_x": m.center_x, "center_y": m.center_y
         }})
+
+
+class CcClickTemplateLiveTool(ComputerControlTool):
+    """Screenshot ao vivo -> locate template (offline) -> move_to -> click.
+
+    Resolve o problema de ter que passar screenshot_artifact_ref manualmente.
+    """
+
+    name = "cc_click_template_live"
+    description = "Tira screenshot ao vivo, localiza template (offline) e clica no centro encontrado."
+    operation = OP_CC_CLICK_TEMPLATE_LIVE
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from pathlib import Path as _Path
+        from app.computer_control.policy import evaluate_cc_action
+        from app.computer_vision.template_match import locate_template
+
+        t0 = time.perf_counter()
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        template_path = kwargs.get("template_path")
+        threshold = kwargs.get("threshold", 0.85)
+        button = kwargs.get("button", "left")
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(template_path, str) or not template_path.strip():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(threshold, (int, float)) or not (0.0 < float(threshold) <= 1.0):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if button not in ("left", "right", "middle"):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        tp = _Path(template_path)
+        if not tp.exists() or not tp.is_file():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms(), template_name=tp.name)
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        if scope is None:
+            self._audit_record(success=False, error="denied_no_scope", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_no_scope")
+
+        # precisamos de 3 a??es: screenshot + move + click
+        if scope.remaining_actions() < 3:
+            self._audit_record(success=False, error="denied_scope_limit_exceeded", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        d_shot = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.SCREENSHOT)
+        if not d_shot.allowed:
+            return ToolResult(ok=False, error=d_shot.reason)
+
+        d_move = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.MOUSE_MOVE)
+        if not d_move.allowed:
+            return ToolResult(ok=False, error=d_move.reason)
+
+        d_click = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.MOUSE_CLICK)
+        if not d_click.allowed:
+            return ToolResult(ok=False, error=d_click.reason)
+
+        # 1) screenshot (consome 1)
+        try:
+            scope.consume_action()
+        except PermissionError:
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            shot = self._driver.screenshot(target=scope.target)
+            artifact = getattr(shot, "artifact_ref", None)
+        except Exception:
+            self._audit_record(success=False, error="screenshot_failed", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="screenshot_failed")
+
+        if not isinstance(artifact, str) or not artifact.strip() or not _Path(artifact).exists():
+            self._audit_record(success=False, error="screenshot_failed", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="screenshot_failed")
+
+        # 2) localizar
+        m = locate_template(screenshot_path=_Path(artifact), template_path=tp, threshold=float(threshold))
+        if m is None:
+            self._audit_record(success=False, error="template_not_found", scope_id=scope_id, duration_ms=_dur_ms(), template_name=tp.name, screenshot_artifact_ref=str(artifact))
+            return ToolResult(ok=False, error="template_not_found")
+
+        # 3) move+click (consome 2)
+        try:
+            scope.consume_action()
+            scope.consume_action()
+        except PermissionError:
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            self._driver.mouse_move_to(x=int(m.center_x), y=int(m.center_y), target=scope.target)
+            self._driver.mouse_click(button=button, target=scope.target)
+        except Exception:
+            self._audit_record(success=False, error="click_failed", scope_id=scope_id, duration_ms=_dur_ms(), template_name=tp.name, confidence=m.confidence)
+            return ToolResult(ok=False, error="click_failed")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            duration_ms=_dur_ms(),
+            template_name=tp.name,
+            screenshot_artifact_ref=str(artifact),
+            threshold=float(threshold),
+            confidence=m.confidence,
+            center_x=m.center_x,
+            center_y=m.center_y,
+            button=button,
+        )
+        return ToolResult(ok=True, data={
+            "scope_id": scope_id,
+            "clicked": True,
+            "button": button,
+            "screenshot_artifact_ref": str(artifact),
+            "match": {"confidence": m.confidence, "center_x": m.center_x, "center_y": m.center_y},
+        })
 
 from app.security.permissions import PermissionManager  # local import style OK for tools module
 from app.tools.base import ToolRegistry
