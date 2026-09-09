@@ -1703,7 +1703,7 @@ class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
     """
 
     def __init__(self, permissions: PermissionManager, registry: ToolRegistry, scopes: dict[str, "CCScope"]) -> None:
-        super().__init__(("cc_mouse_click", "cc_mouse_click_at", "cc_key_type", "cc_double_click_and_type", "cc_mouse_move_to", "cc_click_template"))
+        super().__init__(("cc_mouse_click", "cc_mouse_click_at", "cc_key_type", "cc_double_click_and_type", "cc_mouse_move_to", "cc_click_template", "cc_click_template_live", "cc_click_target_live"))
         self._permissions = permissions
         self._registry = registry
         self._scopes = scopes
@@ -1727,6 +1727,95 @@ class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
         tool_name = task.tool
 
         # Par?metros por tool (viabilidade) ? sem aprova??o decorativa.
+        if tool_name == "cc_click_template_live":
+            from pathlib import Path as _Path
+
+            template_path = params.get("template_path")
+            threshold = params.get("threshold", 0.85)
+            button = params.get("button", "left")
+
+            if not isinstance(template_path, str) or not template_path.strip():
+                return False
+            if not isinstance(threshold, (int, float)) or not (0.0 < float(threshold) <= 1.0):
+                return False
+            if button not in ("left", "right", "middle"):
+                return False
+
+            tp = _Path(template_path)
+            if not tp.exists() or not tp.is_file():
+                return False
+
+            scope = self._scopes.get(scope_id)
+            if scope is None or scope.remaining_actions() < 3:
+                return False
+
+            d0 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.SCREENSHOT,
+            )
+            if not d0.allowed:
+                return False
+            d1 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.MOUSE_MOVE,
+            )
+            if not d1.allowed:
+                return False
+            d2 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.MOUSE_CLICK,
+            )
+            return d2.allowed
+
+        if tool_name == "cc_click_target_live":
+            target_id = params.get("target_id")
+            query = params.get("query")
+            offline_threshold = params.get("offline_threshold", 0.85)
+            button = params.get("button", "left")
+            learn = params.get("learn", True)
+
+            if not isinstance(target_id, str) or not target_id.strip():
+                return False
+            import re as _re
+            if not _re.fullmatch(r"[a-zA-Z0-9_.-]{1,64}", target_id):
+                return False
+            if not isinstance(query, str) or not query.strip() or len(query) > 240:
+                return False
+            if not isinstance(offline_threshold, (int, float)) or not (0.0 < float(offline_threshold) <= 1.0):
+                return False
+            if button not in ("left", "right", "middle"):
+                return False
+            if not isinstance(learn, bool):
+                return False
+
+            scope = self._scopes.get(scope_id)
+            if scope is None or scope.remaining_actions() < 3:
+                return False
+
+            d0 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.SCREENSHOT,
+            )
+            if not d0.allowed:
+                return False
+            d1 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.MOUSE_MOVE,
+            )
+            if not d1.allowed:
+                return False
+            d2 = evaluate_cc_action(
+                has_computer_control_permission=True,
+                scope=scope,
+                action=CCActionType.MOUSE_CLICK,
+            )
+            return d2.allowed
+
         if tool_name == "cc_mouse_click_at":
             dx = params.get("dx")
             dy = params.get("dy")

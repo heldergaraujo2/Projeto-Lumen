@@ -266,10 +266,18 @@ class WindowsComputerControlDriver:
             return False
 
         SW_RESTORE = 9
-        user32.ShowWindow(hwnd_match, SW_RESTORE)
+        SW_SHOW = 5
+        # IMPORTANT: SW_RESTORE pode "des-maximizar" algumas janelas.
+        # S? restaurar quando estiver minimizada (IsIconic).
+        try:
+            if user32.IsIconic(hwnd_match):
+                user32.ShowWindow(hwnd_match, SW_RESTORE)
+            else:
+                user32.ShowWindow(hwnd_match, SW_SHOW)
+        except Exception:
+            pass
         user32.SetForegroundWindow(hwnd_match)
         return True
-
     def wait_for_window(self, *, target: CCTarget, timeout_s: int) -> bool:
         if not isinstance(target, CCTarget):
             raise TypeError("target must be CCTarget")
