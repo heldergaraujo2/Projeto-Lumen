@@ -40,6 +40,13 @@ class FakeComputerControlDriver:
         self._y += dy
         return (self._x, self._y)
 
+
+    def mouse_move_to(self, *, x: int, y: int, target=None) -> tuple[int, int]:
+        if not isinstance(x, int) or isinstance(x, bool):
+            raise TypeError("x must be int")
+        if not isinstance(y, int) or isinstance(y, bool):
+            raise TypeError("y must be int")
+        return (int(x), int(y))
     def mouse_click(self, *, button: str = "left", target: Optional[CCTarget] = None) -> tuple[int, int]:
         # target accepted for API compatibility; fake driver does not use it.
         if button != "left":

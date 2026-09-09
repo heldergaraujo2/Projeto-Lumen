@@ -26,6 +26,8 @@ OP_CC_MOUSE_MOVE = "cc_mouse_move"
 
 OP_CC_MOUSE_CLICK = "cc_mouse_click"
 OP_CC_MOUSE_CLICK_AT = "cc_mouse_click_at"
+OP_CC_MOUSE_MOVE_TO = "cc_mouse_move_to"
+OP_CC_CLICK_TEMPLATE = "cc_click_template"
 OP_CC_KEY_TYPE = "cc_key_type"
 OP_CC_DOUBLE_CLICK_AND_TYPE = "cc_double_click_and_type"
 OP_CC_WINDOW_FOCUS = "cc_window_focus"
@@ -1192,6 +1194,172 @@ class CcLocateTemplateTool(ComputerControlTool):
             },
         )
 
+
+class CcMouseMoveToTool(ComputerControlTool):
+    """Move o mouse para coordenadas absolutas (x,y) na tela virtual."""
+
+    name = "cc_mouse_move_to"
+    description = "Move o mouse para coordenadas absolutas (x,y) na tela virtual."
+    operation = OP_CC_MOUSE_MOVE_TO
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from app.computer_control.policy import evaluate_cc_action
+
+        t0 = time.perf_counter()
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        x = kwargs.get("x")
+        y = kwargs.get("y")
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(x, int) or isinstance(x, bool) or not isinstance(y, int) or isinstance(y, bool):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        if x < -20000 or x > 20000 or y < -20000 or y > 20000:
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms(), x=x, y=y)
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        if scope is None:
+            self._audit_record(success=False, error="denied_no_scope", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_no_scope")
+
+        d = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.MOUSE_MOVE)
+        if not d.allowed:
+            self._audit_record(success=False, error=d.reason, scope_id=scope_id, duration_ms=_dur_ms(), action_type=CCActionType.MOUSE_MOVE.value)
+            return ToolResult(ok=False, error=d.reason)
+
+        try:
+            scope.consume_action()
+        except PermissionError:
+            self._audit_record(success=False, error="denied_scope_limit_exceeded", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            ax, ay = self._driver.mouse_move_to(x=int(x), y=int(y), target=scope.target)
+        except Exception:
+            self._audit_record(success=False, error="mouse_move_failed", scope_id=scope_id, duration_ms=_dur_ms(), x=int(x), y=int(y))
+            return ToolResult(ok=False, error="mouse_move_failed")
+
+        self._audit_record(success=True, scope_id=scope_id, duration_ms=_dur_ms(), action_type=CCActionType.MOUSE_MOVE.value, x=int(x), y=int(y))
+        return ToolResult(ok=True, data={"scope_id": scope_id, "x": int(ax), "y": int(ay)})
+
+
+class CcClickTemplateTool(ComputerControlTool):
+    """Localiza um template em um screenshot (offline) e clica no centro encontrado.
+
+    Fluxo: locate_template -> mouse_move_to(center) -> mouse_click
+    """
+
+    name = "cc_click_template"
+    description = "Localiza um template em um screenshot (offline) e clica no centro encontrado."
+    operation = OP_CC_CLICK_TEMPLATE
+
+    def __init__(self, *, scopes: dict[str, "CCScope"], driver, audit=None):
+        super().__init__(scopes=scopes, audit=audit)
+        self._driver = driver
+
+    def run(self, **kwargs) -> ToolResult:
+        import time
+        from pathlib import Path as _Path
+        from app.computer_control.policy import evaluate_cc_action
+        from app.computer_vision.template_match import locate_template
+
+        t0 = time.perf_counter()
+        def _dur_ms() -> int:
+            return int((time.perf_counter() - t0) * 1000)
+
+        scope_id = kwargs.get("scope_id")
+        screenshot_artifact_ref = kwargs.get("screenshot_artifact_ref")
+        template_path = kwargs.get("template_path")
+        threshold = kwargs.get("threshold", 0.85)
+        button = kwargs.get("button", "left")
+
+        if not isinstance(scope_id, str) or not scope_id.strip():
+            self._audit_record(success=False, error="invalid_input", duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(screenshot_artifact_ref, str) or not screenshot_artifact_ref.strip():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(template_path, str) or not template_path.strip():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if not isinstance(threshold, (int, float)) or not (0.0 < float(threshold) <= 1.0):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+        if button not in ("left", "right", "middle"):
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="invalid_input")
+
+        sp = _Path(screenshot_artifact_ref)
+        tp = _Path(template_path)
+        if not sp.exists() or not sp.is_file() or not tp.exists() or not tp.is_file():
+            self._audit_record(success=False, error="invalid_input", scope_id=scope_id, duration_ms=_dur_ms(), template_name=tp.name)
+            return ToolResult(ok=False, error="invalid_input")
+
+        scope = self._scopes.get(scope_id)
+        if scope is None:
+            self._audit_record(success=False, error="denied_no_scope", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_no_scope")
+
+        if scope.remaining_actions() < 2:
+            self._audit_record(success=False, error="denied_scope_limit_exceeded", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        d1 = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.MOUSE_MOVE)
+        if not d1.allowed:
+            self._audit_record(success=False, error=d1.reason, scope_id=scope_id, duration_ms=_dur_ms(), action_type=CCActionType.MOUSE_MOVE.value)
+            return ToolResult(ok=False, error=d1.reason)
+
+        d2 = evaluate_cc_action(has_computer_control_permission=True, scope=scope, action=CCActionType.MOUSE_CLICK)
+        if not d2.allowed:
+            self._audit_record(success=False, error=d2.reason, scope_id=scope_id, duration_ms=_dur_ms(), action_type=CCActionType.MOUSE_CLICK.value)
+            return ToolResult(ok=False, error=d2.reason)
+
+        m = locate_template(screenshot_path=sp, template_path=tp, threshold=float(threshold))
+        if m is None:
+            self._audit_record(success=False, error="template_not_found", scope_id=scope_id, duration_ms=_dur_ms(), template_name=tp.name, threshold=float(threshold))
+            return ToolResult(ok=False, error="template_not_found")
+
+        try:
+            scope.consume_action()
+            scope.consume_action()
+        except PermissionError:
+            self._audit_record(success=False, error="denied_scope_limit_exceeded", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_scope_limit_exceeded")
+
+        try:
+            self._driver.mouse_move_to(x=int(m.center_x), y=int(m.center_y), target=scope.target)
+            self._driver.mouse_click(button=button, target=scope.target)
+        except Exception:
+            self._audit_record(success=False, error="click_failed", scope_id=scope_id, duration_ms=_dur_ms(), template_name=tp.name, confidence=m.confidence, center_x=m.center_x, center_y=m.center_y)
+            return ToolResult(ok=False, error="click_failed")
+
+        self._audit_record(
+            success=True,
+            scope_id=scope_id,
+            duration_ms=_dur_ms(),
+            template_name=tp.name,
+            threshold=float(threshold),
+            confidence=m.confidence,
+            x=m.x, y=m.y, w=m.w, h=m.h,
+            center_x=m.center_x, center_y=m.center_y,
+            button=button,
+        )
+        return ToolResult(ok=True, data={"scope_id": scope_id, "clicked": True, "button": button, "match": {
+            "confidence": m.confidence, "x": m.x, "y": m.y, "w": m.w, "h": m.h, "center_x": m.center_x, "center_y": m.center_y
+        }})
+
 from app.security.permissions import PermissionManager  # local import style OK for tools module
 from app.tools.base import ToolRegistry
 from app.tools.handler import ToolCheckpoints
@@ -1209,7 +1377,7 @@ class PrevalidatedComputerControlCheckpoints(ToolCheckpoints):
     """
 
     def __init__(self, permissions: PermissionManager, registry: ToolRegistry, scopes: dict[str, "CCScope"]) -> None:
-        super().__init__(("cc_mouse_click", "cc_mouse_click_at", "cc_key_type", "cc_double_click_and_type"))
+        super().__init__(("cc_mouse_click", "cc_mouse_click_at", "cc_key_type", "cc_double_click_and_type", "cc_mouse_move_to", "cc_click_template"))
         self._permissions = permissions
         self._registry = registry
         self._scopes = scopes

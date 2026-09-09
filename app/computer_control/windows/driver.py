@@ -77,6 +77,26 @@ class WindowsComputerControlDriver:
             return (new_x, new_y)
         return (int(pt2.x), int(pt2.y))
 
+
+    def mouse_move_to(self, *, x: int, y: int, target=None) -> tuple[int, int]:
+        if not isinstance(x, int) or isinstance(x, bool):
+            raise TypeError("x must be int")
+        if not isinstance(y, int) or isinstance(y, bool):
+            raise TypeError("y must be int")
+
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        SM_XVIRTUALSCREEN = 76
+        SM_YVIRTUALSCREEN = 77
+        vx = int(user32.GetSystemMetrics(SM_XVIRTUALSCREEN))
+        vy = int(user32.GetSystemMetrics(SM_YVIRTUALSCREEN))
+
+        ax = vx + int(x)
+        ay = vy + int(y)
+
+        ok = user32.SetCursorPos(ax, ay)
+        if not ok:
+            raise RuntimeError("SetCursorPos failed")
+        return (ax, ay)
     def mouse_click(self, *, button: str = "left", target: Optional[CCTarget] = None) -> tuple[int, int]:
         # target accepted for API compatibility; MVP does not filter by window/app.
         if button != "left":

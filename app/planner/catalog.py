@@ -359,6 +359,30 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         computer_control=True,
     ),
+
+        ToolSpec(
+            name="cc_mouse_move_to",
+            description="Move o mouse para coordenadas absolutas (x,y) na tela virtual.",
+            parameters=(
+                ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+                ParameterSpec("x", "integer", True, "Coordenada X absoluta."),
+                ParameterSpec("y", "integer", True, "Coordenada Y absoluta."),
+            ),
+            computer_control=True,
+        ),
+
+        ToolSpec(
+            name="cc_click_template",
+            description="Localiza um template em um screenshot (offline) e clica no centro encontrado.",
+            parameters=(
+                ParameterSpec("scope_id", "string", True, "ID do scope de Computer Control."),
+                ParameterSpec("screenshot_artifact_ref", "string", True, "Caminho do PNG (artifact_ref) do cc_screenshot."),
+                ParameterSpec("template_path", "string", True, "Caminho do PNG do template (recorte)."),
+                ParameterSpec("threshold", "number", False, "Threshold (0..1]. Default 0.85."),
+                ParameterSpec("button", "string", False, "Bot?o: left/right/middle. Default left."),
+            ),
+            computer_control=True,
+        ),
 )
 
 

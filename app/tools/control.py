@@ -1010,6 +1010,8 @@ class ToolsController:
                 CcFocusWindowTool,
                 CcWaitForWindowTool,
                 CcLocateTemplateTool,
+                CcMouseMoveToTool,
+                CcClickTemplateTool,
                 CcListScopesTool,
                 CcRevokeScopeTool,
             )
@@ -1066,6 +1068,12 @@ class ToolsController:
             )
             registry.register(
                 CcLocateTemplateTool(scopes=self._cc_scopes, audit=self._audit)
+            )
+            registry.register(
+                CcMouseMoveToTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
+            )
+            registry.register(
+                CcClickTemplateTool(scopes=self._cc_scopes, audit=self._audit, driver=cc_driver)
             )
             registry.register(
                 CcListScopesTool(scopes=self._cc_scopes, audit=self._audit)
