@@ -296,3 +296,69 @@ class WindowsComputerControlDriver:
                 return True
             time.sleep(0.2)
         return False
+
+
+    def get_virtual_screen_origin(self) -> tuple[int, int]:
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        SM_XVIRTUALSCREEN = 76
+        SM_YVIRTUALSCREEN = 77
+        vx = int(user32.GetSystemMetrics(SM_XVIRTUALSCREEN))
+        vy = int(user32.GetSystemMetrics(SM_YVIRTUALSCREEN))
+        return (vx, vy)
+
+    def get_window_rect(self, *, window_title_pattern: str):
+        if not isinstance(window_title_pattern, str) or not window_title_pattern.strip():
+            return None
+
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        sub_l = window_title_pattern.strip().lower()
+        hwnd_match = None
+
+        EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+        def _cb(hwnd, lparam):  # noqa: ANN001
+            nonlocal hwnd_match
+            if hwnd_match is not None:
+                return False
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length <= 0:
+                return True
+            buf = ctypes.create_unicode_buffer(length + 1)
+            user32.GetWindowTextW(hwnd, buf, length + 1)
+            title = buf.value
+            if title and sub_l in title.lower():
+                hwnd_match = hwnd
+                return False
+            return True
+
+        user32.EnumWindows(EnumWindowsProc(_cb), 0)
+        if hwnd_match is None:
+            return None
+
+        class RECT(ctypes.Structure):
+            _fields_ = [
+                ("left", wintypes.LONG),
+                ("top", wintypes.LONG),
+                ("right", wintypes.LONG),
+                ("bottom", wintypes.LONG),
+            ]
+
+        rect = RECT()
+
+        # Prefer extended frame bounds (more accurate), fallback to GetWindowRect.
+        try:
+            dwmapi = ctypes.WinDLL("dwmapi", use_last_error=True)
+            DWMWA_EXTENDED_FRAME_BOUNDS = 9
+            dwmapi.DwmGetWindowAttribute.argtypes = (wintypes.HWND, wintypes.DWORD, wintypes.LPVOID, wintypes.DWORD)
+            dwmapi.DwmGetWindowAttribute.restype = wintypes.LONG
+            hr = int(dwmapi.DwmGetWindowAttribute(hwnd_match, DWMWA_EXTENDED_FRAME_BOUNDS, ctypes.byref(rect), ctypes.sizeof(rect)))
+            if hr != 0:
+                if not user32.GetWindowRect(hwnd_match, ctypes.byref(rect)):
+                    return None
+        except Exception:
+            if not user32.GetWindowRect(hwnd_match, ctypes.byref(rect)):
+                return None
+
+        return (int(rect.left), int(rect.top), int(rect.right), int(rect.bottom))

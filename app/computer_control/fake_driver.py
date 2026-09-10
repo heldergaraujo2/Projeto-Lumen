@@ -88,3 +88,15 @@ class FakeComputerControlDriver:
             raise ValueError("timeout_s must be positive int")
         pat = target.window_title_pattern
         return bool(isinstance(pat, str) and pat.strip())
+
+
+    def get_virtual_screen_origin(self) -> tuple[int, int]:
+        # Fake driver assumes virtual screen origin at (0, 0).
+        return (0, 0)
+
+    def get_window_rect(self, *, window_title_pattern: str):
+        # Deterministic: if a pattern is provided, assume the "window" is the full fake screen.
+        if not isinstance(window_title_pattern, str) or not window_title_pattern.strip():
+            return None
+        vx, vy = self.get_virtual_screen_origin()
+        return (int(vx), int(vy), int(vx + self._width), int(vy + self._height))

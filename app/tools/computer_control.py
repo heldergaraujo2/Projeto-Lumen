@@ -1450,7 +1450,47 @@ class CcClickTemplateLiveTool(ComputerControlTool):
             return ToolResult(ok=False, error="screenshot_failed")
 
         # 2) localizar
-        m = locate_template(screenshot_path=_Path(artifact), template_path=tp, threshold=float(threshold))
+        # 2) localizar (window-scoped; fail-closed)
+        pat = getattr(scope.target, "window_title_pattern", None)
+        if not (isinstance(pat, str) and pat.strip()):
+            self._audit_record(success=False, error="denied_missing_window_title_pattern", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="denied_missing_window_title_pattern")
+
+        try:
+            rect = self._driver.get_window_rect(window_title_pattern=pat.strip())
+        except Exception:
+            rect = None
+        if rect is None:
+            self._audit_record(success=False, error="window_rect_not_found", scope_id=scope_id, duration_ms=_dur_ms(), window_title_pattern=pat.strip())
+            return ToolResult(ok=False, error="window_rect_not_found")
+
+        try:
+            vx0, vy0 = self._driver.get_virtual_screen_origin()
+        except Exception:
+            self._audit_record(success=False, error="driver_missing_virtual_screen_origin", scope_id=scope_id, duration_ms=_dur_ms())
+            return ToolResult(ok=False, error="driver_missing_virtual_screen_origin")
+
+        left, top, right, bottom = rect
+        x1 = int(left - vx0)
+        y1 = int(top - vy0)
+        x2 = int(right - vx0)
+        y2 = int(bottom - vy0)
+        win_w = x2 - x1
+        win_h = y2 - y1
+        if win_w <= 0 or win_h <= 0:
+            self._audit_record(success=False, error="window_rect_invalid", scope_id=scope_id, duration_ms=_dur_ms(), window_title_pattern=pat.strip())
+            return ToolResult(ok=False, error="window_rect_invalid")
+
+        # Restrict to top ~30% of the window to avoid false positives (multi-monitor).
+        y2 = int(y1 + max(1, int(win_h * 0.30)))
+        search_box = (x1, y1, x2, y2)
+
+        m = locate_template(
+            screenshot_path=_Path(artifact),
+            template_path=tp,
+            threshold=float(threshold),
+            search_box=search_box,
+        )
         if m is None:
             self._audit_record(success=False, error="template_not_found", scope_id=scope_id, duration_ms=_dur_ms(), template_name=tp.name, screenshot_artifact_ref=str(artifact))
             return ToolResult(ok=False, error="template_not_found")
@@ -1586,7 +1626,41 @@ class CcClickTargetLiveTool(ComputerControlTool):
         m = None
         if tpl_path.exists() and tpl_path.is_file():
             try:
-                m = locate_template(screenshot_path=sp, template_path=tpl_path, threshold=float(offline_threshold))
+                # window-scoped offline locate (fail-closed: never match globally)
+                pat = getattr(scope.target, "window_title_pattern", None)
+                search_box = None
+                if isinstance(pat, str) and pat.strip():
+                    rect = None
+                    try:
+                        rect = self._driver.get_window_rect(window_title_pattern=pat.strip())
+                    except Exception:
+                        rect = None
+                    if rect is not None:
+                        try:
+                            vx0, vy0 = self._driver.get_virtual_screen_origin()
+                        except Exception:
+                            rect = None
+                    if rect is not None:
+                        left, top, right, bottom = rect
+                        x1 = int(left - vx0)
+                        y1 = int(top - vy0)
+                        x2 = int(right - vx0)
+                        y2 = int(bottom - vy0)
+                        win_w = x2 - x1
+                        win_h = y2 - y1
+                        if win_w > 0 and win_h > 0:
+                            y2 = int(y1 + max(1, int(win_h * 0.30)))
+                            search_box = (x1, y1, x2, y2)
+
+                if search_box is not None:
+                    m = locate_template(
+                        screenshot_path=sp,
+                        template_path=tpl_path,
+                        threshold=float(offline_threshold),
+                        search_box=search_box,
+                    )
+                else:
+                    m = None
             except Exception:
                 m = None
 
