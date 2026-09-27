@@ -16,6 +16,8 @@ ENV_KEYS_0_2 = (
     "LUMEN_MAX_CONTEXT_MESSAGES",
     "LUMEN_REQUEST_TIMEOUT",
     "LUMEN_MAX_RETRIES",
+    "LUMEN_OLLAMA_BASE_URL",
+    "LUMEN_OLLAMA_KEEP_ALIVE",
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -89,3 +91,17 @@ def test_env_example_documents_all_0_2_keys():
     content = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8")
     for chave in ENV_KEYS_0_2:
         assert chave in content, f"chave ausente no .env.example: {chave}"
+
+
+def test_ollama_settings_are_loaded(tmp_path):
+    settings = Settings.load(
+        env_file=tmp_path / ".env-inexistente",
+        environ={
+            "LUMEN_PROVIDER": "ollama",
+            "LUMEN_OLLAMA_BASE_URL": "http://localhost:11434/",
+            "LUMEN_OLLAMA_KEEP_ALIVE": "10m",
+        },
+    )
+    assert settings.provider == "ollama"
+    assert settings.ollama_base_url == "http://localhost:11434/"
+    assert settings.ollama_keep_alive == "10m"
