@@ -1,5 +1,30 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F12 — EVOLUTION FOUNDATION: 🟨 IMPLEMENTAÇÃO CONCLUÍDA / CI PENDENTE.**
+
+Entregas implementadas:
+- Capability Registry + Capability Measurement;
+- Self-Diagnostics + Improvement Planner;
+- Hypothesis Manager;
+- Experiment Manager com máquina de estados bounded;
+- Candidate Registry;
+- Benchmark Engine + Regression Detector;
+- Safety Validator;
+- Promotion Manager com aprovação humana explícita;
+- Rollback Manager;
+- Evolution Memory;
+- IDs monotônicos `EVOLUTION-000001...`;
+- testes dedicados em `tests/test_evolution_foundation.py`;
+- documentação em `docs/EVOLUTION_FOUNDATION_IMPLEMENTATION.md`.
+
+Limite arquitetural: F12 define contratos e gates; não executa experimentos, não modifica runtime estável, não concede Permission, não altera Policy/Sandbox/Checkpoint/Audit e não chama drivers.
+
+A fase só será marcada 🟩 após CI completa e correção de qualquer falha encontrada.
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F11 — AUTONOMOUS MULTI-STEP AGENT: 🟩 CONCLUÍDA.**
 
 Evidência final:
