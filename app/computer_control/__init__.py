@@ -6,5 +6,5 @@ from .recovery import RecoveryEngine
 from .scopes import CCLimits,CCScope
 from .service import CCExecutionResult,ComputerControlService
 from .verification import ComputerVerifier,VerificationResult,VerificationStatus
-from .vision import OllamaVisionProvider,VisionElement,VisionObservation,VisionProvider,VisionRequest
-__all__=["CCActionType","CCTarget","ScreenRegion","ScreenshotInfo","WindowInfo","CCActionRequest","GroundedTarget","GroundingEngine","GroundingSource","TargetResolver","RecoveryEngine","CCLimits","CCScope","CCExecutionResult","ComputerControlService","ComputerVerifier","VerificationResult","VerificationStatus","OllamaVisionProvider","VisionElement","VisionObservation","VisionProvider","VisionRequest"]
+from .vision import JsonVisionProvider,OllamaVisionProvider,VisionElement,VisionObservation,VisionProvider,VisionProviderManager,VisionRequest
+__all__=["CCActionType","CCTarget","ScreenRegion","ScreenshotInfo","WindowInfo","CCActionRequest","GroundedTarget","GroundingEngine","GroundingSource","TargetResolver","RecoveryEngine","CCLimits","CCScope","CCExecutionResult","ComputerControlService","ComputerVerifier","VerificationResult","VerificationStatus","JsonVisionProvider","OllamaVisionProvider","VisionElement","VisionObservation","VisionProvider","VisionProviderManager","VisionRequest"]
