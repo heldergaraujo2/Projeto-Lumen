@@ -134,7 +134,7 @@ Principal referência para integração Windows.
 ## 4.2 ByteDance UI-TARS / UI-TARS Desktop
 
 ### Utilização prevista
-Principal referência para visão, grounding e interação visual.
+Referência prioritária para **grounding visual, computer-use e interação visual**. UI-TARS não será tratado como a VisionProvider única da Lumen; sua função principal no roadmap é servir como candidato/referência para Grounding e Computer Use.
 
 ### Capacidades a estudar
 - screenshot understanding
@@ -150,6 +150,7 @@ Principal referência para visão, grounding e interação visual.
 ### Classificação inicial
 - **ADAPTAR:** grounding visual
 - **ADAPTAR:** representação de ações
+- **ADAPTAR:** padrões de computer-use
 - **SUPERAR:** integração com UIA/native-first e safety chain da Lumen
 
 ---
@@ -435,9 +436,10 @@ Interface conceitual:
 
 \`\`\`text
 VisionProvider
-├── Ollama / Qwen-VL
-├── Ollama / Qwen3-VL
-├── outros modelos compatíveis
+├── LLaVA — candidato inicial de VisionProvider
+├── Qwen-VL
+├── Qwen3-VL — candidato prioritário
+├── outros VLMs locais compatíveis
 └── futuros Providers
 \`\`\`
 
@@ -465,6 +467,13 @@ VisionProvider
 
 Transformar percepção em alvo acionável.
 
+**Candidatos prioritários a avaliar:**
+- UI-TARS / UI-TARS Desktop — grounding e computer-use;
+- Qwen3-VL — grounding multimodal;
+- grounding próprio da Lumen combinando UIA + visão + OCR + templates.
+
+A Lumen não ficará acoplada a nenhum desses projetos. Eles serão avaliados por benchmarks próprios e integrados através de contratos da Lumen.
+
 Exemplo:
 
 \`\`\`text
@@ -484,15 +493,18 @@ ComputerControl:
 "Click."
 \`\`\`
 
-## Fontes possíveis
+## Candidatos e fontes possíveis
 
 - UIA
 - accessibility tree
 - native APIs
+- DOM/browser structure
 - templates
-- vision
-- bounding boxes
 - OCR
+- bounding boxes
+- VisionProvider
+- **UI-TARS / UI-TARS Desktop — candidato prioritário para estudar grounding e computer-use**
+- **Qwen3-VL — candidato prioritário para grounding multimodal**
 - coordenadas
 
 ## Segurança
@@ -1196,14 +1208,16 @@ Objetivo:
 
 Criar interface visual desacoplada.
 
-Providers possíveis:
-- LLaVA;
-- Qwen-VL;
-- Qwen3-VL;
-- UI-TARS/grounding compatível;
-- futuros modelos locais.
+Providers/candidatos:
+- **LLaVA — candidato inicial de VisionProvider**;
+- **Qwen-VL**;
+- **Qwen3-VL — candidato prioritário**;
+- outros VLMs locais;
+- futuros Providers.
 
-LLaVA é explicitamente **ADOTADO como candidato inicial de VisionProvider**, não como componente obrigatório permanente.
+**Regra arquitetural:** VisionProvider interpreta a tela; não executa ações diretamente.
+
+LLaVA é um candidato inicial, não um componente obrigatório permanente. A Lumen deverá conseguir trocar o modelo visual sem reescrever Computer Intelligence ou Computer Control.
 
 Responsabilidades:
 - screenshot understanding;
@@ -1923,8 +1937,8 @@ O roadmap somente será considerado integralmente concluído quando a Lumen poss
 | F4 | Tool / Agent Protocol | 🟥 |
 | F5 | Computer Intelligence | 🟥 |
 | F6 | Windows Native Intelligence | 🟥 |
-| F7 | Vision Provider / LLaVA | 🟥 |
-| F8 | Grounding Engine | 🟥 |
+| F7 | Vision Provider / LLaVA / Qwen3-VL | 🟥 |
+| F8 | Grounding Engine / UI-TARS + Qwen3-VL candidates | 🟥 |
 | F9 | Secure Computer Control | 🟥 |
 | F10 | Verification + Recovery + Regression | 🟥 |
 | F11 | Unreal Engine Agent | 🟥 |
