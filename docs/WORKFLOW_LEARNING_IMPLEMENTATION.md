@@ -50,3 +50,6 @@ A F10 não chama driver, não concede permissões, não cria checkpoints e não 
 ## Critério de conclusão F10
 
 Implementação + testes focados + suíte CI + documentação + continuidade atualizada. A fase não depende de automação física para ser considerada concluída, mas o smoke test Windows/Unreal permanece explicitamente pendente.
+
+
+CI validation marker: F10 integration validation branch.
