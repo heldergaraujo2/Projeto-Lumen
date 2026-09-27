@@ -105,6 +105,10 @@ class Settings:
     #: 11I: export do relatório de evidências pós-execução
     #: (observabilidade) — OFF por padrão.
     export_execution_reports: bool = False
+    #: F1 — endpoint local do daemon Ollama.
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    #: F1 — tempo de retenção do modelo na memória do Ollama.
+    ollama_keep_alive: str = "5m"
 
     def __post_init__(self) -> None:
         if self.log_level not in VALID_LOG_LEVELS:
@@ -237,6 +241,11 @@ class Settings:
                 pick("LUMEN_EXPORT_EXECUTION_REPORTS", "0").strip().lower()
                 in ("1", "true", "yes", "sim", "on")
             ),
+            ollama_base_url=(
+                pick("LUMEN_OLLAMA_BASE_URL", "http://127.0.0.1:11434").strip()
+                or "http://127.0.0.1:11434"
+            ),
+            ollama_keep_alive=(pick("LUMEN_OLLAMA_KEEP_ALIVE", "5m").strip() or "5m"),
         )
 
 
