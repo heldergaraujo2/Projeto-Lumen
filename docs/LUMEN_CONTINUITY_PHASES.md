@@ -1,5 +1,66 @@
 # CURRENT OFFICIAL CONTINUITY — 2026-09-27
 
+**F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA.**
+**F11 — AUTONOMOUS MULTI-STEP AGENT: 🟩 CONCLUÍDA.**
+**Próxima fase oficial: F12 — EVOLUTION FOUNDATION.**
+
+## F11 — EVIDÊNCIA FINAL
+
+- [x] AutonomyLimits.
+- [x] AutonomyGrant com aprovação humana explícita.
+- [x] MultiStepTask / MultiStep.
+- [x] execução sequencial.
+- [x] estado por etapa.
+- [x] estado global da execução.
+- [x] retry/recovery bounded.
+- [x] terminalidade para Permission/Scope.
+- [x] orçamento máximo de passos.
+- [x] orçamento máximo de recoveries.
+- [x] orçamento máximo de tentativas.
+- [x] bloqueio de etapas que exigem aprovação humana adicional.
+- [x] integração opcional com WorkflowMatcher.
+- [x] testes dedicados.
+- [x] documentação F11.
+- [x] CI completa: **1160 passed / 1 skipped / 0 failed**.
+- [x] PR #4 mergeado no master.
+
+## CADEIA OFICIAL
+
+Goal
+ ↓
+Workflow / MultiStepTask
+ ↓
+AutonomousMultiStepAgent
+ ↓
+Autorização humana + orçamento
+ ↓
+StepExecutor seguro
+ ↓
+F7 Permission / Policy / Scope / Checkpoint / Driver / Audit
+ ↓
+F8 Verification / Recovery / Regression
+ ↓
+Próximo passo
+
+A F11 não cria uma autoridade de execução paralela.
+
+## CAPACIDADES ACUMULADAS
+
+A Lumen agora consegue perceber/groundear estado, planejar ações, controlar o computador pela barreira F7, verificar resultados, recuperar falhas limitadas, detectar regressões, planejar operações do Unreal, aprender workflows e orquestrar tarefas com múltiplas etapas sob orçamento e aprovação explícita.
+
+## LIMITAÇÕES
+
+- autonomia não é ilimitada;
+- Permission/Scope não podem ser recuperados automaticamente;
+- etapas de alto risco continuam exigindo aprovação;
+- matcher F10 ainda é lexical;
+- registry F10 é em memória;
+- não houve smoke test físico Windows/Unreal no CI Linux.
+
+---
+
+# CURRENT OFFICIAL CONTINUITY — 2026-09-27
+
 **F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA.**
 **F10 — WORKFLOW LEARNING: 🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FOCADA CONCLUÍDA.**
 
