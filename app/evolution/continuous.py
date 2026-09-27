@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
 from .diagnostics import ImprovementOpportunity, ResearchReport
@@ -195,6 +195,26 @@ class ContinuousEvolutionMonitor:
             relevant,
             True,
         )
+
+    def sync_memory(self, assessment: StabilityAssessment) -> None:
+        """Persist monitoring evidence into an existing F12 EvolutionRecord."""
+        record = self.memory.get(
+            next(
+                observation.evolution_id
+                for observation in self._observations.get(assessment.candidate_id, ())
+                if observation.capability_id == assessment.capability_id
+            )
+        )
+        regressions = record.regressions
+        if assessment.status in {MonitoringStatus.DEGRADED, MonitoringStatus.REGRESSED}:
+            regressions = tuple(dict.fromkeys((*regressions, *assessment.reasons)))
+        updated = replace(
+            record,
+            regressions=regressions,
+            result=f"post-promotion monitoring: {assessment.status.value}",
+            state=EvolutionState.MONITORED,
+        )
+        self.memory.update(updated)
 
     def history(self, candidate_id: str) -> tuple[PostPromotionObservation, ...]:
         return tuple(self._observations.get(candidate_id, ()))
