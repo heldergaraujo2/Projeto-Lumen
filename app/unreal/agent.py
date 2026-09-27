@@ -32,7 +32,7 @@ class UnrealAgent:
             raise ValueError("goal is required")
 
         normalized = " ".join(goal.casefold().split())
-        actions: list[UnrealAction] = []
+        actions: list[UnrealAction] = [self.focus_editor()]
 
         if normalized in {"salvar", "salvar projeto", "save", "save project"}:
             actions.append(self.save())
@@ -50,6 +50,13 @@ class UnrealAgent:
         if observation is not None:
             observation.validate()
         return plan
+
+    def focus_editor(self) -> UnrealAction:
+        return UnrealAction(
+            UnrealOperation.FOCUS_EDITOR,
+            expected=VerificationExpectation("window_focused", "UnrealEditor"),
+            rationale="Focus the explicitly authorized Unreal Editor window before UI interaction.",
+        )
 
     def open_asset(self, asset: str) -> UnrealAction:
         asset = asset.strip()
@@ -114,7 +121,9 @@ class UnrealAgent:
 
         intents = []
         for action in plan.actions:
-            if action.operation is UnrealOperation.OPEN_ASSET:
+            if action.operation is UnrealOperation.FOCUS_EDITOR:
+                intents.append(self.planner.window_focus(rationale=action.rationale))
+            elif action.operation is UnrealOperation.OPEN_ASSET:
                 intents.extend([
                     self.planner.key_combo(*action.keys, rationale=action.rationale),
                     self.planner.type_text(action.value or "", rationale="Enter the exact asset search term."),
@@ -127,11 +136,10 @@ class UnrealAgent:
                     self.planner.key_press("ENTER", rationale="Confirm the selected level."),
                 ])
             else:
-                intents.append(
-                    self.planner.key_combo(*action.keys, rationale=action.rationale)
-                    if len(action.keys) > 1
-                    else self.planner.key_press(action.keys[0], rationale=action.rationale)
-                )
+                if len(action.keys) > 1:
+                    intents.append(self.planner.key_combo(*action.keys, rationale=action.rationale))
+                else:
+                    intents.append(self.planner.key_press(action.keys[0], rationale=action.rationale))
 
         result = self.planner.build(observation_fingerprint, *intents, rationale=plan.goal)
         return result
