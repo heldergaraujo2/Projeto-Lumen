@@ -25,3 +25,5 @@ from .continuous import (
     ContinuousEvolutionMonitor, ContinuousEvolutionPlanner, EvolutionTrigger,
     MonitoringPolicy, MonitoringStatus, PostPromotionObservation, StabilityAssessment,
 )
+
+from .intelligence_stack import (AdapterKind, IntelligenceStack, IntelligenceStackEvolution, ModelProfile, ProviderProfile, RoutingDecision, StackAdaptation, StackEvidence, StackEvaluator, StackLayer, StackRequest)
