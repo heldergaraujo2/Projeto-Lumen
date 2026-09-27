@@ -5,6 +5,7 @@ from typing import Any
 
 from .models import WorkflowDefinition, WorkflowEvidence, WorkflowOutcome, WorkflowRisk, WorkflowStep
 from .registry import WorkflowRegistry
+from app.unreal.models import UnrealPlan
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,28 @@ class WorkflowLearner:
             evidence_count=stats.attempts,
             confidence=stats.success_rate if stats.attempts else 0.0,
             requires_human_approval=workflow.requires_human_approval,
+        )
+
+    def learn_unreal_plan(self, *, plan: UnrealPlan, workflow_id: str, name: str | None = None) -> WorkflowProposal:
+        plan.validate()
+        steps = tuple(
+            {
+                "action": action.operation.value,
+                "parameters": ({"value": action.value} if action.value is not None else {})
+                | ({"keys": action.keys} if action.keys else {}),
+                "expectation_kind": action.expected.kind if action.expected else None,
+                "expectation_value": action.expected.value if action.expected else None,
+                "risk": action.risk.value,
+                "rationale": action.rationale,
+            }
+            for action in plan.actions
+        )
+        return self.learn(
+            workflow_id=workflow_id,
+            name=name or plan.goal,
+            goal=plan.goal,
+            steps=steps,
+            source="unreal_agent",
         )
 
     def record_outcome(self, *, workflow_id: str, outcome: WorkflowOutcome, verification_status: str, observation_fingerprint: str, reason: str = "") -> None:
