@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import re
+from uuid import uuid4
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,9 @@ from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
 from app.security.permissions import PermissionLevel, PermissionManager
 from app.tools.audit_log import JsonlAuditSink, read_audit_tail
 from app.tools.base import ToolRegistry
+from app.tools.protocol import (
+    ParameterDefinition, ToolCall, ToolDefinition, ToolExecutionResult, ToolProtocol,
+)
 from app.tools.filesystem import (
     FILESYSTEM_DESTRUCTIVE_TOOLS,
     OPERATION_DELETE,
@@ -954,6 +958,76 @@ class ToolsController:
             )
             registry.register(RunPytestTool(sandbox, self._audit))
         return registry
+
+    # ---------------------------------------------------------- F2 protocol
+    def tool_protocol(self) -> ToolProtocol:
+        """Retorna o protocolo estruturado das Tools atualmente expostas."""
+        registry = self.build_registry()
+        catalog = self.planning_catalog()
+        definitions = {}
+        for name, info in catalog.items():
+            params = tuple(
+                ParameterDefinition(
+                    name=str(item["name"]),
+                    type=str(item["type"]),
+                    required=bool(item.get("required", False)),
+                    description=str(item.get("description") or ""),
+                )
+                for item in info.get("parameters", [])
+            )
+            definitions[name] = ToolDefinition(
+                name=name,
+                description=str(info.get("description") or ""),
+                parameters=params,
+                destructive=name in FILESYSTEM_DESTRUCTIVE_TOOLS,
+            )
+        available = {item["name"] for item in registry.list_tools()}
+        definitions = {name: definition for name, definition in definitions.items()
+                       if name in available}
+        return ToolProtocol(registry, definitions)
+
+    def validate_tool_call(self, call: ToolCall) -> ToolDefinition:
+        """Valida uma intenção estruturada sem executar nada."""
+        return self.tool_protocol().validate(call)
+
+    def run_tool_call(self, call: ToolCall) -> ToolExecutionResult:
+        """Executa um ToolCall através do pipeline seguro de Plan.
+
+        Nunca chama ToolRegistry.execute diretamente. A chamada vira um
+        plano de uma tarefa e passa por run_plan; portanto permissões,
+        sandbox, checkpoint, auditoria e verificação permanecem ativos.
+        """
+        definition = self.validate_tool_call(call)
+        plan = Plan(
+            id=f"PLN-TOOL-{uuid4().hex[:12].upper()}",
+            objective=call.reason.strip() or f"Executar a ferramenta {call.tool}",
+            status=PlanStatus.READY,
+            tasks=(PlannedTask(
+                id="T1",
+                description=definition.description,
+                order=1,
+                tool=call.tool,
+                parameters=dict(call.parameters),
+            ),),
+        )
+        report = self.run_plan(plan)
+        if report.status is PlanStatus.COMPLETED:
+            return ToolExecutionResult(
+                call_id=call.call_id, tool=call.tool, ok=True,
+                data={"plan_id": report.plan_id, "execution_report": report.to_dict()},
+            )
+        if report.status is PlanStatus.RUNNING and report.pending_checkpoint is not None:
+            return ToolExecutionResult(
+                call_id=call.call_id, tool=call.tool, ok=False,
+                data={"plan_id": report.plan_id, "execution_report": report.to_dict(),
+                      "awaiting_approval": True},
+                error="A execução está aguardando aprovação no checkpoint.",
+            )
+        return ToolExecutionResult(
+            call_id=call.call_id, tool=call.tool, ok=False,
+            data={"plan_id": report.plan_id, "execution_report": report.to_dict()},
+            error=report.error or "A execução da ferramenta falhou.",
+        )
 
     # ---------------------------------------------------------------- execução
     def run_plan(self, plan: Plan) -> ExecutionReport:
