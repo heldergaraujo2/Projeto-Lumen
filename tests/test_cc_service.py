@@ -114,7 +114,7 @@ def test_scope_region_is_rechecked_at_execution():
     scope.allowed_region = ScreenRegion(0, 0, 5, 5)
     result = svc.approve(pending.checkpoint.id, scope=scope, request=request)
     assert not result.success
-    assert result.error == "execution_failed"
+    assert result.error == "point outside authorized region"
     assert svc.driver.calls == []
 
 
@@ -137,7 +137,7 @@ def test_grounded_target_point_is_revalidated_by_scope():
     pending = svc.execute(scope=scope, request=request)
     result = svc.approve(pending.checkpoint.id, scope=scope, request=request)
     assert not result.success
-    assert result.error == "execution_failed"
+    assert result.error == "point outside authorized region"
     assert svc.driver.calls == []
 
 
@@ -174,7 +174,7 @@ def test_screenshot_region_cannot_escape_scope():
     pending = svc.execute(scope=scope, request=request)
     result = svc.approve(pending.checkpoint.id, scope=scope, request=request)
     assert not result.success
-    assert result.error == "execution_failed"
+    assert result.error == "requested screenshot region outside authorized region"
     assert svc.driver.calls == []
 
 
