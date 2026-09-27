@@ -1,3 +1,29 @@
+# F13 — EVOLUTION LABORATORY — 🟩 CONCLUÍDA
+
+**Data:** 2026-09-27
+
+## Evidência
+- laboratório isolado sob `evolution-lab/`;
+- workspace por evolução;
+- path traversal e stable-runtime targeting bloqueados;
+- experimentos e mudanças apenas registrados;
+- candidatos vinculados ao workspace correto;
+- lifecycle F12 reutilizado;
+- **1191 passed / 1 skipped / 0 failed**;
+- Lumen F0 Validation: SUCCESS;
+- PR #7 mergeada;
+- merge commit: `5f2f89d9e49f9839a93e79a867b227d83dbf4bbd`.
+
+## Limites
+F13 não executa código, não chama drivers, não concede permissões, não altera Policy/Sandbox/Checkpoint/Audit e não promove candidatos.
+
+## Próxima fase
+**F14 — Self-Diagnostics + Research for Improvement.**
+
+F14 deverá conectar diagnóstico estruturado, pesquisa de evidências e geração de propostas de melhoria, preservando a separação entre conhecimento/evidência e execução.
+
+---
+
 # F12 — EVOLUTION FOUNDATION — 🟩 CONCLUÍDA
 
 **Data:** 2026-09-27
