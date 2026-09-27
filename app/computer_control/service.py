@@ -234,6 +234,7 @@ class ComputerControlService:
     def _execute(self, *, scope, request, decision, checkpoint):
         start = monotonic()
         try:
+            self._validate_execution_scope(scope, request)
             self._execute_driver(scope, request)
             scope.consume_action(now=datetime.now(timezone.utc))
             audit = make_cc_audit_event(
@@ -255,6 +256,23 @@ class ComputerControlService:
             )
             return CCExecutionResult(False, decision, audit, str(exc), checkpoint)
 
+    def _validate_execution_scope(self, scope, request):
+        if request.region is not None and scope.allowed_region is not None:
+            if not scope.allowed_region.contains_box(
+                request.region.x, request.region.y,
+                request.region.width, request.region.height,
+            ):
+                raise PermissionError("requested screenshot region outside authorized region")
+        if request.action in {
+            CCActionType.MOUSE_MOVE,
+            CCActionType.MOUSE_CLICK,
+            CCActionType.MOUSE_DOUBLE_CLICK,
+            CCActionType.MOUSE_RIGHT_CLICK,
+        }:
+            x, y = action_point(request)
+            if not scope.allows_point(x, y):
+                raise PermissionError("point outside authorized region")
+
     def _execute_driver(self, scope, request):
         if request.action == CCActionType.SCREENSHOT:
             self.driver.screenshot(
@@ -272,8 +290,6 @@ class ComputerControlService:
             CCActionType.MOUSE_RIGHT_CLICK,
         }:
             x, y = action_point(request)
-            if not scope.allows_point(x, y):
-                raise PermissionError("point outside authorized region")
             if request.action == CCActionType.MOUSE_MOVE:
                 self.driver.mouse_move(x, y)
             elif request.action == CCActionType.MOUSE_CLICK:
