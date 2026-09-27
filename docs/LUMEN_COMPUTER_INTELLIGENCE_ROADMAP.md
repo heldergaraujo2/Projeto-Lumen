@@ -1,5 +1,23 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
+**F12 — EVOLUTION FOUNDATION: 🟩 CONCLUÍDA**
+
+Evidência final:
+- primeira suíte: **1176 passed / 1 skipped / 1 failed**;
+- causa corrigida: regex do contrato de ID de evolução;
+- validação final: **1177 passed / 1 skipped / 0 failed**;
+- Lumen Tests run `36354185197`;
+- Lumen F0 Validation run `36354185342`;
+- PR #6 mergeado em master.
+
+F12 agora fornece a fundação do LES: capability registry/measurement, diagnostics, improvement planning, hypotheses, experiment lifecycle, candidate registry, benchmark/regression detection, safety validation, promotion gate, rollback memory e evolution memory.
+
+**Próxima fase oficial: F13 — Evolution Laboratory.**
+
+---
+
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
 **F12 — EVOLUTION FOUNDATION: 🟨 IMPLEMENTAÇÃO CONCLUÍDA / CI PENDENTE.**
 
 A F12 estabelece a fundação do Lumen Evolution System (LES): Capability Registry, Measurement, Self-Diagnostics, Improvement Planner, Hypothesis Manager, Experiment Manager, Candidate Registry, Benchmark Engine, Regression Detector, Safety Validator, Promotion Manager, Rollback Manager e Evolution Memory.
