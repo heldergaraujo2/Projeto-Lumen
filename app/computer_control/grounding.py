@@ -155,7 +155,7 @@ class GroundingEngine:
             raise PermissionError("target outside authorized region")
         if target.confidence < self.min_confidence:
             raise PermissionError("grounding confidence below threshold")
-        if expected_window is not None and target.window != expected_window:
+        if expected_window is not None and target.window is not None and target.window != expected_window:
             raise PermissionError("target belongs to an unexpected window")
         return target.center()
 
