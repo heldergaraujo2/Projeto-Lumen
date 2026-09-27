@@ -18,3 +18,5 @@ __all__ = [
     "RegressionDetector", "SafetyValidator", "CapabilityRegistry", "CandidateRegistry",
     "EvolutionMemory", "ExperimentManager", "PromotionManager", "RollbackManager",
 ]
+
+from .promotion import BenchmarkSuite, BuildEvidence, CandidateBenchmark, CandidateBuilder, PromotionAssessment, PromotionGate
