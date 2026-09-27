@@ -1,5 +1,47 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
+**F11 — AUTONOMOUS MULTI-STEP AGENT: 🟩 CONCLUÍDA**
+
+A F11 unifica a infraestrutura anterior em uma camada de orquestração multi-etapas limitada.
+
+### Entregas
+
+- AutonomyGrant com aprovação humana explícita;
+- AutonomyLimits;
+- MultiStepTask / MultiStep;
+- execução sequencial;
+- estado por etapa e por execução;
+- retry/recovery bounded;
+- terminalidade para falhas de Permission/Scope;
+- descoberta opcional de workflows F10;
+- bloqueio de etapas que exigem aprovação humana adicional;
+- testes dedicados;
+- documentação;
+- CI completa: **1160 passed / 1 skipped / 0 failed**.
+
+### Segurança
+
+A F11 não:
+- concede Permission;
+- altera Policy;
+- amplia Scope;
+- aprova Checkpoint;
+- chama Driver diretamente;
+- remove Audit;
+- remove Verification;
+- cria uma autoridade paralela.
+
+A execução permanece:
+AutonomousMultiStepAgent → StepExecutor autorizado → F7 → F8.
+
+### Próxima fase
+
+**F12 — Evolution Foundation.**
+
+---
+
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
 **F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA**
 **F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA**
 **Próxima fase oficial: F11 — AUTONOMOUS MULTI-STEP AGENT**
