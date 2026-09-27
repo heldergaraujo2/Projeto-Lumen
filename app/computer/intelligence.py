@@ -4,18 +4,18 @@ from dataclasses import dataclass
 
 from app.computer_control.actions import CCActionRequest
 from app.computer_control.verification import VerificationResult
-
 from .actions import ActionPlanner, ExecutionResolver
 from .models import ActionPlan, ComputerObservation, ExecutionMechanism, IntelligenceResult
 from .perception import PerceptionPipeline
 from .recovery import IntelligenceRecovery
+from .regression import RegressionDetector, RegressionResult
 from .targeting import TargetingEngine
 from .verification import IntelligenceVerifier
 
 
 @dataclass
 class ComputerIntelligence:
-    """F3 orchestration boundary: observe → understand → target → plan → resolve."""
+    """Computer loop: observe → understand → target → plan → act → verify → recover."""
 
     perception: PerceptionPipeline
     targeting: TargetingEngine
@@ -23,6 +23,7 @@ class ComputerIntelligence:
     execution: ExecutionResolver
     verification: IntelligenceVerifier
     recovery_engine: IntelligenceRecovery
+    regression: RegressionDetector
 
     @classmethod
     def from_provider(cls, provider, *, min_confidence: float = 0.80, max_recovery_attempts: int = 2):
@@ -33,6 +34,7 @@ class ComputerIntelligence:
             execution=ExecutionResolver(),
             verification=IntelligenceVerifier(),
             recovery_engine=IntelligenceRecovery(max_attempts=max_recovery_attempts),
+            regression=RegressionDetector(),
         )
 
     def observe(self) -> ComputerObservation:
@@ -62,6 +64,15 @@ class ComputerIntelligence:
 
     def verify_state_change(self, before: ComputerObservation, after: ComputerObservation) -> VerificationResult:
         return self.verification.state_changed(before, after)
+
+    def verify_state_unchanged(self, before: ComputerObservation, after: ComputerObservation) -> VerificationResult:
+        return self.verification.state_unchanged(before, after)
+
+    def compare_regression(self, *, baseline: ComputerObservation, candidate: ComputerObservation) -> RegressionResult:
+        return self.regression.compare_fingerprints(
+            baseline=baseline.fingerprint,
+            candidate=candidate.fingerprint,
+        )
 
     def recovery(self, *, failure_reason: str, attempt: int):
         return self.recovery_engine.decide(failure_reason=failure_reason, attempt=attempt)
