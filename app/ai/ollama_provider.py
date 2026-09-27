@@ -150,13 +150,32 @@ class OllamaProvider(AIProvider):
     def _request(self, path: str, payload: Mapping[str, Any] | None) -> Iterator[bytes]:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8") if payload is not None else None
         try:
-            return self._transport("POST" if payload is not None else "GET", f"{self._base_url}{path}", body, self._timeout)
+            stream = self._transport(
+                "POST" if payload is not None else "GET",
+                f"{self._base_url}{path}",
+                body,
+                self._timeout,
+            )
         except TimeoutError as exc:
             raise ProviderTimeoutError("O Ollama excedeu o tempo limite configurado.") from exc
         except HTTPError as exc:
             raise self._map_api_error(_read_http_error(exc), exc.code) from exc
         except (URLError, OSError) as exc:
             raise ProviderNetworkError(f"Não foi possível conectar ao Ollama em {self._base_url}.") from exc
+
+        def guarded() -> Iterator[bytes]:
+            try:
+                yield from stream
+            except TimeoutError as exc:
+                raise ProviderTimeoutError("O Ollama excedeu o tempo limite configurado.") from exc
+            except HTTPError as exc:
+                raise self._map_api_error(_read_http_error(exc), exc.code) from exc
+            except (URLError, OSError) as exc:
+                raise ProviderNetworkError(
+                    f"Não foi possível conectar ao Ollama em {self._base_url}."
+                ) from exc
+
+        return guarded()
 
     @staticmethod
     def _default_transport(method: str, url: str, body: bytes | None, timeout: float) -> Iterator[bytes]:
