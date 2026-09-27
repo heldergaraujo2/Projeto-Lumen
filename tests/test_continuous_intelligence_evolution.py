@@ -75,3 +75,54 @@ def test_security_surface_is_non_executing():
 def test_cycle_requires_human_approval_when_active():
     c=__import__('app.evolution.continuous_intelligence',fromlist=['IntelligenceCycle'] ).IntelligenceCycle("CI-CYCLE-1","reasoning",IntelligenceCycleState.WAITING_GATES,.8,.6,("CI-EV-1",),"degraded",__import__('app.evolution.models',fromlist=['EvolutionRisk']).EvolutionRisk.HIGH,False)
     with pytest.raises(ValueError): c.validate()
+
+def test_invalid_assessment_is_atomic_and_does_not_record_observation():
+    e=ContinuousIntelligenceEvolution()
+    c=e.start_cycle("reasoning", .8)
+    bad=IntelligenceObservation("CI-EV-BAD","vision",.6,10,"fixture",.8)
+    with pytest.raises(ValueError):
+        e.assess(c.cycle_id,bad)
+    assert e.counts()["observations"] == 0
+
+
+def test_duplicate_trigger_is_rejected():
+    e=ContinuousIntelligenceEvolution()
+    c=e.start_cycle("reasoning", .8)
+    e.assess(c.cycle_id,obs(score=.6))
+    e.trigger(c.cycle_id)
+    with pytest.raises(ValueError):
+        e.trigger(c.cycle_id)
+
+
+def test_duplicate_plan_is_rejected():
+    e=ContinuousIntelligenceEvolution()
+    c=e.start_cycle("reasoning", .8)
+    e.assess(c.cycle_id,obs(score=.6))
+    trigger=e.trigger(c.cycle_id)
+    e.plan(trigger,actions=("research",))
+    with pytest.raises(ValueError):
+        e.plan(trigger,actions=("benchmark",))
+
+
+def test_threshold_boundary_is_not_regression():
+    e=ContinuousIntelligenceEvolution(degradation_threshold=.1)
+    c=e.start_cycle("reasoning", .8)
+    updated=e.assess(c.cycle_id,obs(score=.7))
+    assert updated.state is IntelligenceCycleState.ASSESSED
+
+
+def test_assessment_rejects_invalid_sample_without_mutation():
+    e=ContinuousIntelligenceEvolution(min_samples=5)
+    c=e.start_cycle("reasoning", .8)
+    bad=IntelligenceObservation("CI-EV-SMALL","reasoning",.7,1,"fixture",.8)
+    with pytest.raises(ValueError):
+        e.assess(c.cycle_id,bad)
+    assert e.counts()["observations"] == 0
+
+
+def test_plan_rejects_unregistered_trigger():
+    e=ContinuousIntelligenceEvolution()
+    c=e.start_cycle("reasoning", .8)
+    trigger=IntelligenceTrigger("CI-TRIGGER-999999",c.cycle_id,"reasoning",MonitoringStatus.REGRESSED,"degraded",__import__('app.evolution.models',fromlist=['EvolutionRisk']).EvolutionRisk.HIGH,("CI-EV-1",))
+    with pytest.raises(KeyError):
+        e.plan(trigger,actions=("research",))
