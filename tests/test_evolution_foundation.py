@@ -33,6 +33,8 @@ def test_deterministic_evolution_ids_and_format():
     assert engine.next_id() == "EVOLUTION-000001"
     assert engine.next_id() == "EVOLUTION-000002"
     assert EvolutionEngine.identifier_is_valid("EVOLUTION-000042")
+    assert not EvolutionEngine.identifier_is_valid("EVOLUTION-42")
+    assert not EvolutionEngine.identifier_is_valid("EVOLUTION-000042x")
 
 
 def test_start_requires_baseline_and_creates_memory():
