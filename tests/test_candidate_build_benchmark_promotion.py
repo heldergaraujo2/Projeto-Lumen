@@ -107,9 +107,9 @@ def test_approved_candidate_can_be_promoted_as_metadata_only():
     registry = CandidateRegistry()
     c = candidate()
     registry.register(c)
-    registry.update_state("C-1", EvolutionState.PROMOTION_PENDING)
     gate = PromotionGate(candidates=registry)
     assessment = gate.assess(c, build=build_ok(), suite=suite_ok(), risk=EvolutionRisk.LOW)
+    gate.submit_for_promotion(assessment)
     gate.approve(assessment, human_approved=True, reason="validated")
     promoted = gate.promote_record("C-1")
     assert promoted.state is EvolutionState.PROMOTED
@@ -136,3 +136,23 @@ def test_promotion_has_no_execution_surface():
 def test_build_and_benchmark_have_no_execution_surface():
     assert not hasattr(CandidateBuilder(), "execute")
     assert not hasattr(CandidateBenchmark(), "run_process")
+
+
+def test_ineligible_candidate_cannot_enter_promotion_pending():
+    registry = CandidateRegistry(); c = candidate(); registry.register(c)
+    gate = PromotionGate(candidates=registry)
+    assessment = gate.assess(
+        c, build=build_ok(),
+        suite=BenchmarkSuite("C-1", (BenchmarkResult("C-1", "accuracy", .8, .7),)),
+        risk=EvolutionRisk.LOW,
+    )
+    with pytest.raises(ValueError):
+        gate.submit_for_promotion(assessment)
+
+
+def test_rejection_moves_candidate_to_rejected_state():
+    registry = CandidateRegistry(); c = candidate(); registry.register(c)
+    gate = PromotionGate(candidates=registry)
+    assessment = gate.assess(c, build=build_ok(), suite=suite_ok(), risk=EvolutionRisk.LOW)
+    gate.reject(assessment, reason="not selected")
+    assert registry.get("C-1").state is EvolutionState.REJECTED
