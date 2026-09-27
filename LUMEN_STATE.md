@@ -1,5 +1,42 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT: 🟩 CONCLUÍDA.**
+
+Validação final:
+- primeira suíte: 1204 passed / 1 skipped / 1 failed;
+- falha corrigida no teste de fronteira de severidade;
+- segunda suíte final: **1205 passed / 1 skipped / 0 failed**;
+- compile: SUCCESS;
+- Lumen F0 Validation run **36354736453**: SUCCESS;
+- Lumen Tests run **36354736385**: SUCCESS;
+- PR #8 mergeada em master;
+- merge commit: `09ec80b500bf4b63efcc085dda2fce5cfeb8b132`.
+
+Entregas:
+- SelfDiagnostics determinístico;
+- ResearchQuery / ResearchEvidence / ResearchReport;
+- ResearchEngine com provider fornecido pelo chamador;
+- ImprovementOpportunity;
+- ImprovementPlanner;
+- vínculo entre diagnóstico, evidência, baseline, risco e plano;
+- testes de ausência de superfície de execução;
+- documentação em `docs/SELF_DIAGNOSTICS_RESEARCH_IMPLEMENTATION.md`.
+
+Segurança:
+- pesquisa é evidência, não autoridade;
+- F14 não executa experimentos;
+- não acessa drivers;
+- não concede Permission;
+- não altera Policy/Sandbox/Checkpoint/Audit;
+- não promove candidatos;
+- runtime estável permanece protegido.
+
+**Próxima fase oficial: F15 — Candidate Build + Benchmark + Promotion.**
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F13 — EVOLUTION LABORATORY: 🟩 CONCLUÍDA.**
 
 Validação final:
