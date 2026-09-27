@@ -2397,3 +2397,8 @@ O roadmap somente será considerado integralmente concluído quando a Lumen poss
 | F24 | Continuous Intelligence Evolution | 🟥 |
 
 **Regra operacional:** ao concluir uma fase, atualizar este checklist, o `LUMEN_STATE.md`, os testes e o handoff antes de iniciar a seguinte.
+
+
+**F20 — SELF-OPTIMIZING INTELLIGENCE: 🟨 EM VALIDAÇÃO**
+
+O laboratório de otimização estratégica foi implementado; a conclusão oficial aguarda CI.

@@ -40,3 +40,9 @@ from .intelligence_lab import (
     IntelligenceOpportunity, IntelligenceResearch, IntelligenceTrack,
     LumenIntelligenceLab,
 )
+
+from .self_optimizing import (
+    OptimizationAssessment, OptimizationDimension, OptimizationEvidence,
+    OptimizationObjective, OptimizationPolicy, OptimizationRecommendation,
+    SelfOptimizingIntelligence, StrategyVariant,
+)
