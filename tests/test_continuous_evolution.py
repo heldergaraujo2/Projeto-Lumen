@@ -67,7 +67,7 @@ def test_observation_below_sample_policy_is_rejected():
 
 def test_stable_observation_is_recorded():
     monitor, _, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     result = monitor.observe(candidate, measurement=measurement(.91))
     assert result.status is MonitoringStatus.STABLE
     assert result.sample_count == 1
@@ -76,7 +76,7 @@ def test_stable_observation_is_recorded():
 
 def test_single_degradation_triggers_bounded_improvement_proposal():
     monitor, _, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     result = monitor.observe(candidate, measurement=measurement(.8))
     assert result.status is MonitoringStatus.DEGRADED
     trigger = monitor.trigger_if_needed(candidate, result)
@@ -87,7 +87,7 @@ def test_single_degradation_triggers_bounded_improvement_proposal():
 
 def test_repeated_degradation_becomes_regression():
     monitor, _, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     monitor.observe(candidate, measurement=measurement(.8))
     result = monitor.observe(candidate, measurement=measurement(.79))
     assert result.status is MonitoringStatus.REGRESSED
@@ -100,7 +100,7 @@ def test_repeated_degradation_becomes_regression():
 
 def test_recovery_to_baseline_is_stable():
     monitor, _, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     monitor.observe(candidate, measurement=measurement(.8))
     result = monitor.observe(candidate, measurement=measurement(.9))
     assert result.status is MonitoringStatus.STABLE
@@ -109,7 +109,7 @@ def test_recovery_to_baseline_is_stable():
 
 def test_history_is_bounded():
     monitor, _, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     for _ in range(60):
         monitor.observe(candidate, measurement=measurement(.9))
     assert len(monitor.history("C-1")) == 50
@@ -125,7 +125,7 @@ def test_monitoring_has_no_execution_surface():
 
 def test_trigger_does_not_change_candidate_state():
     monitor, candidates, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     monitor.observe(candidate, measurement=measurement(.8))
     result = monitor.observe(candidate, measurement=measurement(.79))
     trigger = monitor.trigger_if_needed(candidates.get("C-1"), result)
@@ -135,7 +135,7 @@ def test_trigger_does_not_change_candidate_state():
 
 def test_planner_links_monitoring_trigger_to_research():
     monitor, _, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     monitor.observe(candidate, measurement=measurement(.8))
     result = monitor.observe(candidate, measurement=measurement(.79))
     trigger = monitor.trigger_if_needed(candidate, result)
@@ -150,7 +150,7 @@ def test_planner_links_monitoring_trigger_to_research():
 
 def test_planner_rejects_wrong_capability():
     monitor, _, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     monitor.observe(candidate, measurement=measurement(.8))
     result = monitor.observe(candidate, measurement=measurement(.79))
     trigger = monitor.trigger_if_needed(candidate, result)
@@ -172,7 +172,7 @@ def test_monitoring_syncs_existing_evolution_memory():
         )
     )
     monitor.memory = memory
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     monitor.observe(candidate, measurement=measurement(.8))
     result = monitor.observe(candidate, measurement=measurement(.79))
     monitor.sync_memory(result)
