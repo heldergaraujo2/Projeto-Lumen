@@ -1,23 +1,24 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
-**F8 — VERIFICATION + RECOVERY + REGRESSION: 🟩 CONCLUÍDA.**
+**F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA.**
 
 Validação:
-- CI final pós-merge: run 36352198604 — **1116 passed / 1 skipped / 0 failed**.
-- pip check: OK; compileall: OK.
-- testes dedicados: `tests/test_verification_recovery_regression.py`.
-- validação física Windows permanece pendente por ausência de runner Windows na CI.
+- F9 implementada diretamente no master;
+- testes dedicados: tests/test_unreal_agent.py;
+- CI completa pós-implementação: aguardando resultado final nesta etapa;
+- CI Linux não constitui smoke test físico do Unreal Editor no Windows.
 
 Entregues:
-- Verification com pós-condições explícitas;
-- VERIFIED / FAILED / INCONCLUSIVE;
-- classificação de falhas;
-- recovery bounded e fail-closed para permission/scope/checkpoint/denials;
-- RegressionDetector determinístico;
-- integração com ComputerIntelligence;
-- documentação F8.
+- UnrealProject + janela autorizada;
+- UnrealAgent/UnrealPlan/UnrealAction;
+- foco explícito do editor;
+- Open Asset / Open Level / Save / Save All / Play / Stop;
+- pós-condições F8;
+- conversão não-executora para ActionPlan/CCActionRequest;
+- fail-closed para objetivos ambíguos;
+- documentação F9.
 
-**Próxima fase oficial:** F9 — Unreal Engine Agent.
+**Próxima fase oficial:** F10 — Workflow Learning.
 
 ---
 
