@@ -956,3 +956,984 @@ O roadmap será considerado concluído quando a Lumen possuir:
 > **A Lumen não deve apenas controlar o computador. Ela deve entender o estado do computador, escolher a melhor forma de agir, executar com segurança, verificar o resultado, recuperar falhas, registrar a experiência e usar essa experiência para executar melhor no futuro.**
 
 Este documento é o roadmap de referência para a evolução de Computer Intelligence da Lumen.
+
+
+---
+
+# 23. MASTER IMPLEMENTATION ROADMAP — LUMEN EVOLUTION EDITION
+
+> Esta seção amplia e consolida o roadmap anterior. As fases abaixo são a sequência oficial de implementação para transformar a Lumen em um Agent local-first capaz de pesquisar, aprender, experimentar, melhorar suas próprias capacidades e continuar segura durante esse processo.
+
+## 23.1 LEGENDA DE STATUS
+
+- 🟩 **CONCLUÍDO** — implementado, testado e documentado com evidência.
+- 🟥 **PENDENTE** — ainda não concluído como capacidade oficial.
+- 🟨 **EM PROGRESSO** — existe implementação parcial, mas o critério completo ainda não foi atingido.
+
+**Regra:** uma fase só pode virar 🟩 quando seu critério de conclusão estiver comprovado por testes/evidências. A existência de código parcial não transforma uma fase em concluída.
+
+---
+
+## 23.2 FASES OFICIAIS DE IMPLEMENTAÇÃO
+
+### FASE 0 — BASELINE, AUDITORIA E CONTRATOS
+**Status: 🟥 PENDENTE**
+
+Objetivo:
+- auditar a arquitetura atual;
+- mapear capacidades existentes;
+- definir contratos de Provider, Tool, Memory, Research, Vision e Evolution;
+- estabelecer benchmarks e testes de baseline;
+- definir o que pode e não pode ser alterado pelo Evolution System.
+
+Critérios:
+- baseline reproduzível;
+- matriz de capacidades;
+- contratos versionados;
+- threat model;
+- métricas iniciais;
+- documentação sincronizada.
+
+---
+
+### FASE 1 — LOCAL PROVIDER FOUNDATION
+**Status: 🟥 PENDENTE**
+
+Implementar Provider local oficial com Ollama.
+
+Modelo inicial:
+- `qwen2.5-coder:7b-instruct-q8_0`
+
+Responsabilidades:
+- reasoning;
+- coding;
+- planning;
+- análise;
+- seleção de ferramentas;
+- interpretação de resultados.
+
+Requisitos:
+- timeout;
+- health check;
+- observabilidade;
+- configuração;
+- fallback;
+- isolamento do ProviderManager;
+- testes.
+
+**Regra:** Ollama é Provider; não é a Lumen.
+
+---
+
+### FASE 2 — RESEARCH ENGINE
+**Status: 🟥 PENDENTE**
+
+Criar capacidade nativa de pesquisa.
+
+Fontes possíveis:
+- web search;
+- páginas;
+- documentação;
+- GitHub;
+- PDFs;
+- vídeos;
+- artigos;
+- repositórios;
+- fontes locais.
+
+Pipeline:
+
+```text
+GOAL
+ ↓
+Research Plan
+ ↓
+Search
+ ↓
+Collect
+ ↓
+Extract
+ ↓
+Normalize
+ ↓
+Compare Sources
+ ↓
+Synthesize
+ ↓
+Verify
+ ↓
+Store
+```
+
+Requisitos:
+- fontes registradas;
+- deduplicação;
+- rastreabilidade;
+- atualização temporal;
+- detecção de conflito;
+- limites de custo/tempo;
+- proteção contra prompt injection em conteúdo pesquisado.
+
+---
+
+### FASE 3 — KNOWLEDGE + EXPERIENCE MEMORY
+**Status: 🟥 PENDENTE**
+
+Separar:
+- conhecimento sobre o mundo;
+- memória operacional;
+- experiência;
+- decisões;
+- sucessos;
+- falhas;
+- estratégias;
+- evidências de habilidade.
+
+Qdrant poderá ser usado para busca semântica, mas não será tratado como "a memória".
+
+Arquitetura prevista:
+
+```text
+Memory Engine
+├── Working Memory
+├── Knowledge
+├── Experience
+├── Decisions
+├── Goals
+├── Failures
+├── Successes
+├── Strategies
+├── Skill Evidence
+└── Semantic Index
+      └── Qdrant (quando adotado)
+```
+
+---
+
+### FASE 4 — TOOL / AGENT PROTOCOL
+**Status: 🟥 PENDENTE**
+
+Toda intenção deve passar por contrato estruturado:
+
+```text
+Intent
+ ↓
+Plan
+ ↓
+Tool Request
+ ↓
+Validation
+ ↓
+Permission
+ ↓
+Checkpoint
+ ↓
+Execution
+ ↓
+Audit
+ ↓
+Verification
+```
+
+O modelo nunca recebe acesso direto ao driver, filesystem, terminal ou Windows.
+
+---
+
+### FASE 5 — COMPUTER INTELLIGENCE
+**Status: 🟥 PENDENTE**
+
+Criar camada unificada para:
+- percepção;
+- estado do computador;
+- targeting;
+- grounding;
+- action resolution;
+- observação;
+- verificação;
+- recovery.
+
+Hierarquia padrão:
+
+```text
+API / Native
+ ↓
+UI Automation
+ ↓
+Accessibility / UI Tree
+ ↓
+Win32 / WinCOM
+ ↓
+DOM
+ ↓
+Template
+ ↓
+Vision Grounding
+ ↓
+Raw Coordinates
+```
+
+---
+
+### FASE 6 — WINDOWS NATIVE INTELLIGENCE
+**Status: 🟥 PENDENTE**
+
+Implementar:
+- UIA;
+- Win32;
+- WinCOM quando necessário;
+- janela/foco;
+- propriedades;
+- árvore de controles;
+- ações estruturadas.
+
+Objetivo:
+**não usar visão quando o próprio Windows já fornece uma representação melhor do alvo.**
+
+---
+
+### FASE 7 — VISION PROVIDER
+**Status: 🟥 PENDENTE**
+
+Criar interface visual desacoplada.
+
+Providers possíveis:
+- LLaVA;
+- Qwen-VL;
+- Qwen3-VL;
+- UI-TARS/grounding compatível;
+- futuros modelos locais.
+
+LLaVA é explicitamente **ADOTADO como candidato inicial de VisionProvider**, não como componente obrigatório permanente.
+
+Responsabilidades:
+- screenshot understanding;
+- OCR;
+- identificação;
+- regiões;
+- estados visuais;
+- descrição estruturada.
+
+---
+
+### FASE 8 — GROUNDING ENGINE
+**Status: 🟥 PENDENTE**
+
+Transformar percepção em alvo acionável.
+
+Validações:
+- janela;
+- região;
+- DPI;
+- escala;
+- resolução;
+- confiança;
+- tipo de ação;
+- orçamento;
+- permissão.
+
+Nenhuma coordenada visual deve ir diretamente para o driver.
+
+---
+
+### FASE 9 — SECURE COMPUTER CONTROL
+**Status: 🟥 PENDENTE**
+
+Consolidar:
+- mouse;
+- teclado;
+- clipboard;
+- janelas;
+- screenshots;
+- drivers Windows.
+
+Backend possível:
+- PyAutoGUI;
+- PyDirectInput;
+- MSS;
+- driver nativo;
+- outros adaptadores.
+
+Essas bibliotecas são **backends**, não a arquitetura de segurança.
+
+Cadeia obrigatória:
+
+```text
+Intent
+ → Policy
+ → PermissionManager
+ → Scope
+ → Action Budget
+ → Checkpoint
+ → Driver
+ → Audit
+ → Verification
+```
+
+---
+
+### FASE 10 — VERIFICATION, RECOVERY E REGRESSION
+**Status: 🟥 PENDENTE**
+
+Criar:
+- verification engine;
+- failure classifier;
+- retry controlado;
+- alternative strategy;
+- recovery;
+- regression detection;
+- action budgets;
+- timeout/cost budgets.
+
+Regra:
+**executar não significa concluir.**
+
+A Lumen deve comprovar o resultado.
+
+---
+
+### FASE 11 — UNREAL ENGINE AGENT
+**Status: 🟥 PENDENTE**
+
+Prioridade:
+1. Unreal Python/API;
+2. arquivos;
+3. CLI/build;
+4. C++;
+5. Blueprint;
+6. Computer Control quando necessário.
+
+Capacidades:
+- projeto;
+- assets;
+- Blueprint;
+- C++;
+- actors;
+- components;
+- levels;
+- materials;
+- packaging;
+- builds;
+- testes.
+
+---
+
+### FASE 12 — WORKFLOW LEARNING
+**Status: 🟥 PENDENTE**
+
+Registrar:
+- objetivo;
+- contexto;
+- trajetória;
+- ações;
+- resultados;
+- falhas;
+- correções;
+- estratégia vencedora;
+- evidências.
+
+Transformar tarefas repetidas em workflows verificáveis.
+
+Workflow aprendido nunca bypassa:
+- Permission;
+- Policy;
+- Audit;
+- Verification.
+
+---
+
+### FASE 13 — AUTONOMOUS MULTI-STEP AGENT
+**Status: 🟥 PENDENTE**
+
+Unificar:
+
+```text
+Goal
+ ↓
+Research
+ ↓
+Understand
+ ↓
+Plan
+ ↓
+Execute
+ ↓
+Observe
+ ↓
+Verify
+ ↓
+Correct
+ ↓
+Test
+ ↓
+Report
+ ↓
+Remember
+```
+
+A Lumen deve conseguir executar tarefas longas mantendo estado e respeitando limites.
+
+---
+
+# 24. LUMEN EVOLUTION SYSTEM — SISTEMA CENTRAL DE AUTOEVOLUÇÃO
+
+## 24.1 VISÃO
+
+O **Lumen Evolution System (LES)** será um subsistema oficial da Lumen destinado a:
+
+> detectar limitações, pesquisar soluções, formular hipóteses, criar experimentos, implementar candidatos, testar, comparar, verificar, aprender com sucesso e fracasso e promover somente melhorias que satisfaçam critérios de segurança e qualidade.
+
+O LES **não terá autoridade irrestrita sobre o próprio sistema de segurança**.
+
+---
+
+## 24.2 FASE 14 — EVOLUTION FOUNDATION
+**Status: 🟥 PENDENTE**
+
+Criar:
+
+```text
+Evolution Engine
+├── Capability Registry
+├── Capability Measurement
+├── Self-Diagnostics
+├── Improvement Planner
+├── Hypothesis Manager
+├── Experiment Manager
+├── Candidate Registry
+├── Benchmark Engine
+├── Regression Detector
+├── Safety Validator
+├── Promotion Manager
+├── Rollback Manager
+└── Evolution Memory
+```
+
+Cada melhoria terá um identificador único:
+
+```text
+EVOLUTION-000001
+EVOLUTION-000002
+...
+```
+
+Cada registro deverá possuir:
+- problema;
+- hipótese;
+- baseline;
+- fontes;
+- alterações;
+- testes;
+- métricas;
+- regressões;
+- decisão;
+- evidências;
+- resultado.
+
+---
+
+## 24.3 FASE 15 — EVOLUTION LABORATORY
+**Status: 🟥 PENDENTE**
+
+Criar laboratório isolado para experimentos.
+
+Estrutura conceitual:
+
+```text
+EvolutionLab/
+├── experiments/
+├── candidates/
+├── benchmarks/
+├── reports/
+├── rejected/
+└── approved/
+```
+
+O laboratório deverá ser separado do runtime estável.
+
+### Regra fundamental
+
+```text
+STABLE LUMEN
+      │
+      ├── checkpoint
+      │
+      ▼
+EXPERIMENTAL WORKSPACE
+      │
+      ▼
+CANDIDATE
+      │
+      ▼
+VALIDATION
+      │
+      ├── FAIL → DISCARD
+      │
+      └── PASS → PROMOTION GATE
+```
+
+Uma falha experimental nunca pode ser necessária para iniciar a Lumen estável.
+
+---
+
+## 24.4 FASE 16 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT
+**Status: 🟥 PENDENTE**
+
+A Lumen deverá conseguir receber uma solicitação como:
+
+> "Seu Computer Control e sua visão estão ruins. Melhore."
+
+E transformar isso em:
+
+```text
+Complaint
+ ↓
+Capability Diagnosis
+ ↓
+Baseline Benchmark
+ ↓
+Research
+ ↓
+Source Evaluation
+ ↓
+Hypotheses
+ ↓
+Improvement Plan
+```
+
+Exemplos de alvos:
+- visão;
+- grounding;
+- Computer Control;
+- planner;
+- recovery;
+- pesquisa;
+- memória;
+- Unreal Agent;
+- ferramentas;
+- desempenho;
+- confiabilidade.
+
+---
+
+## 24.5 FASE 17 — CANDIDATE BUILD + BENCHMARK + PROMOTION
+**Status: 🟥 PENDENTE**
+
+Nenhuma alteração será considerada melhoria apenas porque "parece funcionar".
+
+Pipeline:
+
+```text
+Candidate
+ ↓
+Build
+ ↓
+Unit Tests
+ ↓
+Integration Tests
+ ↓
+Regression Tests
+ ↓
+Security Tests
+ ↓
+Capability Tests
+ ↓
+Benchmark
+ ↓
+Compare Against Baseline
+ ↓
+Promotion Gate
+```
+
+O benchmark deverá medir, conforme a capacidade:
+- precisão;
+- sucesso;
+- falhas;
+- regressões;
+- latência;
+- custo;
+- estabilidade;
+- recuperação;
+- segurança.
+
+---
+
+## 24.6 FASE 18 — CONTINUOUS EVOLUTION
+**Status: 🟥 PENDENTE**
+
+O LES deverá fechar o ciclo:
+
+```text
+OBSERVE
+ ↓
+MEASURE
+ ↓
+DIAGNOSE
+ ↓
+RESEARCH
+ ↓
+HYPOTHESIZE
+ ↓
+EXPERIMENT
+ ↓
+IMPLEMENT
+ ↓
+TEST
+ ↓
+BENCHMARK
+ ↓
+VERIFY
+ ↓
+PROMOTE / REJECT
+ ↓
+LEARN
+ ↓
+MEASURE AGAIN
+ ↺
+```
+
+A evolução deverá ser baseada em evidência, não em autoavaliação subjetiva.
+
+---
+
+# 25. ARQUITETURA DE SEGURANÇA DO LUMEN EVOLUTION SYSTEM
+
+## 25.1 O que a Lumen pode modificar
+
+Por política, o LES poderá evoluir capacidades como:
+- algoritmos;
+- adapters;
+- ferramentas;
+- prompts;
+- estratégias;
+- workflows;
+- parsers;
+- modelos/Providers configuráveis;
+- componentes experimentais;
+- código de capacidades não críticas.
+
+## 25.2 O que NÃO pode ser auto-promovido
+
+O LES não poderá remover ou enfraquecer por conta própria:
+- PermissionManager;
+- Policy Engine;
+- Sandbox;
+- Audit;
+- Checkpoint;
+- regras de promoção;
+- limites de ação;
+- isolamento do Evolution Lab;
+- mecanismos de rollback;
+- controles de segredo/credenciais;
+- barreiras de acesso ao sistema.
+
+Alterações nessas áreas exigem **Human Approval Gate** e revisão explícita.
+
+---
+
+# 26. ESTADOS OFICIAIS DE UMA EVOLUÇÃO
+
+Cada experimento deverá passar por estados rastreáveis:
+
+```text
+PROPOSED
+ ↓
+RESEARCHING
+ ↓
+HYPOTHESIS
+ ↓
+PLANNED
+ ↓
+EXPERIMENTAL
+ ↓
+BUILDING
+ ↓
+TESTING
+ ↓
+BENCHMARKING
+ ↓
+SECURITY_REVIEW
+ ↓
+PROMOTION_PENDING
+ ├── REJECTED
+ └── APPROVED
+       ↓
+    PROMOTED
+       ↓
+   MONITORED
+```
+
+Falha em qualquer ponto deverá produzir estado terminal apropriado, nunca "sucesso silencioso".
+
+---
+
+# 27. EVOLUTION MEMORY
+
+Cada tentativa de evolução deverá produzir memória de engenharia.
+
+Exemplo:
+
+```text
+EVOLUTION-000042
+
+Capability:
+Computer Vision
+
+Problem:
+Grounding inconsistente
+
+Hypothesis:
+Combinar UIA + template + VisionProvider
+
+Research:
+[fontes]
+
+Changes:
+[diff/artefatos]
+
+Baseline:
+71%
+
+Candidate:
+89%
+
+Regression:
+0
+
+Security:
+PASS
+
+Decision:
+PROMOTED
+
+Evidence:
+[test/benchmark references]
+```
+
+A Lumen também deverá registrar experimentos rejeitados.
+
+**Fracasso também é conhecimento.**
+
+---
+
+# 28. HUMAN APPROVAL GATES
+
+Os níveis de risco serão:
+
+### 🟢 BAIXO RISCO
+Pode ser automatizado conforme política:
+- documentação;
+- índices;
+- conhecimento;
+- workflows;
+- testes;
+- otimizações isoladas;
+- prompts não críticos.
+
+### 🟡 MÉDIO RISCO
+Exigir validação adicional:
+- novas dependências;
+- novos Providers;
+- alterações de ferramentas;
+- mudanças de runtime;
+- mudanças com impacto em múltiplos módulos.
+
+### 🔴 ALTO RISCO
+Exigir aprovação humana:
+- Computer Control;
+- permissões;
+- sandbox;
+- Policy;
+- Checkpoints;
+- Audit;
+- secrets;
+- Security Core;
+- alterações capazes de ampliar autoridade da Lumen.
+
+---
+
+# 29. STABLE / EXPERIMENTAL / CANDIDATE
+
+A arquitetura oficial deverá separar:
+
+```text
+STABLE
+  ↓
+imutável durante experimento
+
+EXPERIMENTAL
+  ↓
+ambiente de pesquisa
+
+CANDIDATE
+  ↓
+versão candidata validada
+
+STABLE
+  ↓
+somente após promoção
+```
+
+A Lumen não deve precisar destruir sua versão estável para descobrir se uma ideia funciona.
+
+---
+
+# 30. ROLLBACK E RECOVERY DA EVOLUÇÃO
+
+Todo experimento relevante deverá possuir:
+- checkpoint;
+- identidade de versão;
+- referência Git quando aplicável;
+- manifesto;
+- artefatos;
+- testes;
+- resultado;
+- caminho de rollback.
+
+A promoção deverá ser reversível.
+
+O rollback deve restaurar a versão anterior sem depender do candidato que acabou de falhar.
+
+---
+
+# 31. EXEMPLO OFICIAL — AUTO-MELHORIA DO COMPUTER CONTROL
+
+Solicitação:
+
+> "Lumen, seu Computer Control e Visão não estão bons. Melhore."
+
+Fluxo esperado:
+
+```text
+1. Registrar objetivo
+2. Medir baseline
+3. Diagnosticar falhas
+4. Pesquisar soluções
+5. Avaliar fontes
+6. Criar hipóteses
+7. Criar experimento
+8. Criar workspace isolado
+9. Implementar candidato
+10. Executar testes
+11. Executar benchmark
+12. Comparar com baseline
+13. Executar security validation
+14. Verificar regressões
+15. Rejeitar ou promover
+16. Registrar experiência
+17. Atualizar métricas
+18. Monitorar resultado pós-promoção
+```
+
+A Lumen pode tentar várias estratégias, mas cada tentativa permanece rastreável.
+
+---
+
+# 32. PRINCÍPIO DE AUTOPROTEÇÃO DO LES
+
+> **A Lumen pode melhorar suas capacidades; ela não pode redefinir unilateralmente as regras que protegem sua própria evolução.**
+
+A separação fundamental será:
+
+```text
+CAPABILITY LAYER
+      ↑
+Evolution System
+      ↑
+Experimentation
+      ↑
+Research
+      │
+      │
+========================
+SECURITY BOUNDARY
+========================
+      │
+Policy
+Permission
+Sandbox
+Checkpoint
+Audit
+Rollback
+Promotion Rules
+      │
+      ▼
+Stable Runtime
+```
+
+---
+
+# 33. CRITÉRIO GLOBAL DE CONCLUSÃO — EVOLUTION EDITION
+
+O roadmap somente será considerado integralmente concluído quando a Lumen possuir:
+
+- Provider local;
+- pesquisa autônoma controlada;
+- Knowledge Engine;
+- Experience Memory;
+- Qdrant ou índice semântico equivalente quando apropriado;
+- VisionProvider desacoplado;
+- LLaVA ou equivalente integrado como Provider visual;
+- Grounding Engine;
+- Computer Intelligence;
+- Windows Native Control;
+- Secure Computer Control;
+- Verification;
+- Recovery;
+- Unreal Agent;
+- Workflow Learning;
+- Autonomous Multi-step Agent;
+- Capability Registry;
+- Self-Diagnostics;
+- Research-for-Improvement;
+- Evolution Lab;
+- Experiment Manager;
+- Candidate Registry;
+- Benchmark Engine;
+- Regression Detection;
+- Security Validation;
+- Promotion Gates;
+- Rollback;
+- Evolution Memory;
+- Skill Evidence;
+- métricas de evolução;
+- monitoramento pós-promoção;
+- Human Approval Gates para alto risco;
+- testes automatizados;
+- testes reais de Windows;
+- documentação e continuidade atualizadas.
+
+---
+
+# 34. PRINCÍPIO FINAL DA LUMEN
+
+> **A Lumen deve ser capaz de pesquisar o mundo para aprender, pesquisar o próprio desempenho para encontrar limitações, pesquisar tecnologias para descobrir soluções, experimentar essas soluções em segurança, implementar melhorias em ambientes isolados, provar por testes e métricas o que realmente melhorou, aprender também com seus fracassos e promover somente mudanças que atravessem suas barreiras de segurança.**
+
+> **O objetivo não é uma Lumen que simplesmente se modifica. É uma Lumen que possui um sistema de engenharia capaz de descobrir, provar e incorporar melhorias continuamente sem colocar sua própria continuidade em risco.**
+
+---
+
+# 35. CHECKLIST MASTER DE IMPLEMENTAÇÃO
+
+| Fase | Descrição | Status |
+|---|---|---|
+| F0 | Baseline, Auditoria e Contratos | 🟥 |
+| F1 | Local Provider / Ollama | 🟥 |
+| F2 | Research Engine | 🟥 |
+| F3 | Knowledge + Experience Memory | 🟥 |
+| F4 | Tool / Agent Protocol | 🟥 |
+| F5 | Computer Intelligence | 🟥 |
+| F6 | Windows Native Intelligence | 🟥 |
+| F7 | Vision Provider / LLaVA | 🟥 |
+| F8 | Grounding Engine | 🟥 |
+| F9 | Secure Computer Control | 🟥 |
+| F10 | Verification + Recovery + Regression | 🟥 |
+| F11 | Unreal Engine Agent | 🟥 |
+| F12 | Workflow Learning | 🟥 |
+| F13 | Autonomous Multi-Step Agent | 🟥 |
+| F14 | Evolution Foundation | 🟥 |
+| F15 | Evolution Laboratory | 🟥 |
+| F16 | Self-Diagnostics + Research for Improvement | 🟥 |
+| F17 | Candidate Build + Benchmark + Promotion | 🟥 |
+| F18 | Continuous Evolution | 🟥 |
+
+**Regra operacional:** ao concluir uma fase, atualizar este checklist, o `LUMEN_STATE.md`, os testes e o handoff antes de iniciar a seguinte.
