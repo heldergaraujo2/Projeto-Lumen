@@ -149,3 +149,13 @@ def test_learning_can_capture_unreal_plan_without_execution():
     assert proposal.workflow.source == "unreal_agent"
     assert len(proposal.workflow.steps) == len(plan.actions)
     assert proposal.workflow.steps[0].action == "save"
+
+
+def test_success_evidence_requires_verified_status():
+    with pytest.raises(ValueError):
+        WorkflowEvidence("x", WorkflowOutcome.SUCCESS, "failed", "abc").validate()
+
+
+def test_failed_evidence_cannot_be_verified():
+    with pytest.raises(ValueError):
+        WorkflowEvidence("x", WorkflowOutcome.FAILURE, "verified", "abc").validate()
