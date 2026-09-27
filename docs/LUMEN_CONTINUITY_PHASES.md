@@ -18,7 +18,7 @@ A Lumen deve evoluir dentro de sua própria arquitetura, usando ambientes experi
 
 ## ESTADO DESTE PLANO
 
-O estado acima é a referência operacional atual. F0–F4 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
+O estado acima é a referência operacional atual. F0–F5 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
 
 ---
 
@@ -62,7 +62,16 @@ Entregues:
 - [x] Documentação em docs/WINDOWS_NATIVE_INTELLIGENCE.md.
 
 ## F5 — VISION PROVIDER
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+Entregues:
+- [x] VisionProvider independente e desacoplado de modelo específico.
+- [x] JsonVisionProvider com validação fail-closed.
+- [x] OllamaVisionProvider com qwen3-vl:8b configurável.
+- [x] limites de imagem, resposta, tokens e payload.
+- [x] VisionProviderManager para múltiplos modelos/providers.
+- [x] testes focados + CI completa: 1084 passed / 1 skipped / 0 failed.
+- [x] documentação em docs/VISION_PROVIDER_IMPLEMENTATION.md.
 
 ## F6 — GROUNDING ENGINE
 🟥 PENDENTE
