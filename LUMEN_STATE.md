@@ -1,5 +1,39 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F13 — EVOLUTION LABORATORY: 🟩 CONCLUÍDA.**
+
+Validação final:
+- CI `Lumen Tests` run **36354454813**: **1191 passed / 1 skipped / 0 failed**;
+- CI `Lumen F0 Validation` run **36354454792**: SUCCESS;
+- compile: SUCCESS;
+- PR #7 mergeada em `master`;
+- merge commit: `5f2f89d9e49f9839a93e79a867b227d83dbf4bbd`.
+
+Entregas:
+- Evolution Laboratory isolado;
+- workspace por evolução em `evolution-lab/`;
+- proteção contra path escape;
+- bloqueio de alterações em runtime estável, testes e workflows;
+- registro de experimentos sem execução;
+- registro de mudanças sem execução;
+- Candidate Registry vinculado ao workspace/evolution;
+- reutilização do lifecycle F12;
+- testes de isolamento e ausência de superfície de execução;
+- documentação em `docs/EVOLUTION_LABORATORY_IMPLEMENTATION.md`.
+
+Segurança:
+- F13 não executa código/driver;
+- não concede Permission;
+- não altera Policy/Sandbox/Checkpoint/Audit;
+- não promove candidatos;
+- não permite workspace apontar para runtime estável.
+
+**Próxima fase oficial: F14 — Self-Diagnostics + Research for Improvement.**
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F12 — EVOLUTION FOUNDATION: 🟩 CONCLUÍDA.**
 
 Validação final:
