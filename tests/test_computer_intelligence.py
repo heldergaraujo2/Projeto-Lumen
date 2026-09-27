@@ -42,7 +42,7 @@ def test_state_fingerprint_changes_when_structured_ui_changes():
 
 
 def test_vision_adapter_converts_elements():
-    raw = VisionObservation(800, 600, (VisionElement("Compile", 0.95, 100, 100, 80, 30, "Compile"),))
+    raw = VisionObservation("test", "test-model", 800, 600, (VisionElement("Compile", 0.95, 100, 100, 80, 30, "Compile"),))
     obs = VisionObservationPerception(raw).observe()
     assert obs.elements[0].label == "Compile"
     assert obs.elements[0].source is GroundingSource.VISION
