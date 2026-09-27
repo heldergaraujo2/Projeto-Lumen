@@ -46,3 +46,9 @@ from .self_optimizing import (
     OptimizationObjective, OptimizationPolicy, OptimizationRecommendation,
     SelfOptimizingIntelligence, StrategyVariant,
 )
+
+from .provider_independence import (
+    IndependenceRequirement, ProviderCapabilityContract, ProviderCompatibility,
+    ProviderFallbackPolicy, ProviderIndependenceAssessment, ProviderIndependenceLab,
+    ProviderMigrationPlan,
+)
