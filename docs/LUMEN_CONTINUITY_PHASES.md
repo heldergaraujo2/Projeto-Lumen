@@ -522,7 +522,7 @@ Build evidence, benchmark, regression gate, safety review, Human Approval Gate e
 promoção metadata-only. CI final: 1222 passed / 1 skipped / 0 failed.
 
 ## F16 — CONTINUOUS EVOLUTION
-🟨 IMPLEMENTAÇÃO CONCLUÍDA / CI EM VALIDAÇÃO
+🟩 CONCLUÍDA
 
 Entregas:
 - [x] Post-promotion monitoring.
@@ -534,23 +534,49 @@ Entregas:
 - [x] Integração de evidência de monitoramento com EvolutionMemory.
 - [x] testes dedicados.
 - [x] documentação.
-- [ ] CI completa e F0 Validation.
-- [ ] merge em master e atualização final da evidência.
+- [x] CI completa e F0 Validation.
+- [x] merge em master e atualização final da evidência.
 
 ## F17 — INTELLIGENCE STACK EVOLUTION
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+- [x] Provider/model contracts e deterministic routing.
+- [x] Stack evidence/evaluator.
+- [x] Isolated adaptation boundary.
+- [x] Security boundary preservada.
+- [x] CI final: 1244 passed / 1 skipped / 0 failed.
 
 ## F18 — MODEL ADAPTATION LABORATORY
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+- [x] Model adaptation specifications e experiments isolados.
+- [x] Evidence, benchmark, regression e safety gates.
+- [x] Integração com Evolution Lab e Promotion Gate.
+- [x] CI final: 1259 passed / 1 skipped / 0 failed.
 
 ## F19 — LUMEN INTELLIGENCE LAB
-🟥 PENDENTE
+🟨 IMPLEMENTAÇÃO EM ANDAMENTO
+
+- [x] IntelligenceCapability e baseline contracts.
+- [x] Research/evidence ledger bounded.
+- [x] Hypothesis, finding e opportunity contracts.
+- [x] Integração de evidências F17/F18.
+- [x] Testes dedicados e documentação inicial.
+- [ ] CI final.
+- [ ] Merge em master.
+- [ ] Validação final e encerramento da fase.
 
 ## F20 — SELF-OPTIMIZING INTELLIGENCE
-🟥 PENDENTE
+🟨 EM VALIDAÇÃO
+
+- [x] Implementação registrada.
+- [x] 1292 passed / 1 skipped / 0 failed.
+- [x] compile SUCCESS.
+- [x] F0 Validation SUCCESS.
+- [x] PR #14 merged.
 
 ## F21 — PROVIDER INDEPENDENCE
-🟥 PENDENTE
+⬜ PRÓXIMA FASE
 
 ## F22 — CONTINUOUS INTELLIGENCE EVOLUTION
 🟥 PENDENTE
