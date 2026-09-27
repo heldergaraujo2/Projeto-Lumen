@@ -2160,7 +2160,7 @@ O roadmap somente será considerado integralmente concluído quando a Lumen poss
 | F5 | Computer Intelligence | 🟥 |
 | F6 | Windows Native Intelligence | 🟥 |
 | F7 | Vision Provider / LLaVA / Qwen3-VL | 🟥 |
-| F8 | Grounding Engine / UI-TARS + Qwen3-VL candidates | 🟥 |
+| F8 | Grounding Engine / UI-TARS + Qwen3-VL candidates | 🟩 — implementado como Verification + Recovery + Regression conforme trilha oficial atual |
 | F9 | Secure Computer Control | 🟥 |
 | F10 | Verification + Recovery + Regression | 🟥 |
 | F11 | Unreal Engine Agent | 🟥 |

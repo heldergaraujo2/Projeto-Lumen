@@ -1,5 +1,27 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F8 — VERIFICATION + RECOVERY + REGRESSION: 🟩 CONCLUÍDA.**
+
+Validação:
+- CI da PR F8: executar e registrar antes da promoção para master.
+- testes dedicados: `tests/test_verification_recovery_regression.py`.
+- validação física Windows permanece pendente por ausência de runner Windows na CI.
+
+Entregues:
+- Verification com pós-condições explícitas;
+- VERIFIED / FAILED / INCONCLUSIVE;
+- classificação de falhas;
+- recovery bounded e fail-closed para permission/scope/checkpoint/denials;
+- RegressionDetector determinístico;
+- integração com ComputerIntelligence;
+- documentação F8.
+
+**Próxima fase oficial:** F9 — Unreal Engine Agent.
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F7 — SECURE COMPUTER CONTROL: 🟩 CONCLUÍDA.**
 
 Validação funcional:
