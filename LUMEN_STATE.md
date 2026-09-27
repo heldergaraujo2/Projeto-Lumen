@@ -2006,3 +2006,81 @@ resultados de verificação (números reais de testes), permissões vigentes,
 itens não implementados, estrutura de arquivos e próximo passo. Estado
 documentado que não corresponder ao código é considerado bug de
 documentação.
+
+
+---
+
+# ROADMAP DE EVOLUÇÃO — CONTINUIDADE 2026-09
+
+## Fonte oficial complementar
+
+O roadmap detalhado está em `docs/LUMEN_COMPUTER_INTELLIGENCE_ROADMAP.md`.
+
+A continuidade operacional por fases está em `docs/LUMEN_CONTINUITY_PHASES.md`.
+
+## MASTER STATUS
+
+| Fase | Status |
+|---|---|
+| F0 Baseline/Auditoria/Contratos | 🟥 PENDENTE |
+| F1 Local Provider/Ollama | 🟥 PENDENTE |
+| F2 Research Engine | 🟥 PENDENTE |
+| F3 Knowledge + Experience Memory | 🟥 PENDENTE |
+| F4 Tool/Agent Protocol | 🟥 PENDENTE |
+| F5 Computer Intelligence | 🟥 PENDENTE |
+| F6 Windows Native Intelligence | 🟥 PENDENTE |
+| F7 Vision Provider/LLaVA | 🟥 PENDENTE |
+| F8 Grounding Engine | 🟥 PENDENTE |
+| F9 Secure Computer Control | 🟥 PENDENTE |
+| F10 Verification/Recovery/Regression | 🟥 PENDENTE |
+| F11 Unreal Engine Agent | 🟥 PENDENTE |
+| F12 Workflow Learning | 🟥 PENDENTE |
+| F13 Autonomous Multi-Step Agent | 🟥 PENDENTE |
+| F14 Evolution Foundation | 🟥 PENDENTE |
+| F15 Evolution Laboratory | 🟥 PENDENTE |
+| F16 Self-Diagnostics + Research for Improvement | 🟥 PENDENTE |
+| F17 Candidate/Benchmark/Promotion | 🟥 PENDENTE |
+| F18 Continuous Evolution | 🟥 PENDENTE |
+
+## PRIORIDADE MÁXIMA
+
+**Lumen Evolution System (LES)** é a prioridade arquitetural máxima desta nova trilha.
+
+Objetivo do LES:
+
+> detectar limitações, pesquisar soluções, criar hipóteses, experimentar, implementar, testar, medir, verificar, aprender com sucesso e fracasso e promover melhorias sem colocar a versão estável ou o Security Core em risco.
+
+## PROTEÇÃO
+
+O LES não recebe autoridade unilateral para alterar ou remover:
+- PermissionManager;
+- Policy;
+- Sandbox;
+- Checkpoint;
+- Audit;
+- Rollback;
+- Promotion Rules;
+- proteção de secrets;
+- limites de autoridade.
+
+Mudanças de alto risco exigem Human Approval Gate.
+
+## BASELINE ATUAL
+
+A versão oficial histórica registrada neste arquivo continua sendo 0.6.8, com 995 passed / 5 skipped / 0 failed conforme o último registro existente. Esses números são históricos e não devem ser apresentados como execução nova desta trilha.
+
+## REGRA DE IMPLEMENTAÇÃO
+
+Não criar outra Lumen. Toda implementação deve alterar a Lumen existente, usando o laboratório experimental do Evolution System quando a fase permitir.
+
+## CHECKPOINT DE CONTINUIDADE
+
+Após cada fase:
+- marcar status;
+- registrar evidência;
+- atualizar LUMEN_STATE;
+- atualizar docs/LUMEN_CONTINUITY_PHASES.md;
+- atualizar decisões/tarefas/handoff quando aplicável;
+- executar testes;
+- commit/push;
+- só então avançar.
