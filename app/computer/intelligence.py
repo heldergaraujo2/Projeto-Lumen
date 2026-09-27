@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.computer_control.actions import CCActionRequest
 from app.computer_control.verification import VerificationResult
@@ -23,7 +23,7 @@ class ComputerIntelligence:
     execution: ExecutionResolver
     verification: IntelligenceVerifier
     recovery_engine: IntelligenceRecovery
-    regression: RegressionDetector
+    regression: RegressionDetector = field(default_factory=RegressionDetector)
 
     @classmethod
     def from_provider(cls, provider, *, min_confidence: float = 0.80, max_recovery_attempts: int = 2):
