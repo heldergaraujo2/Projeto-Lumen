@@ -1,5 +1,47 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION: 🟩 CONCLUÍDA.**
+
+Validação final:
+- **1222 passed / 1 skipped / 0 failed**;
+- compile: SUCCESS;
+- Lumen Tests run **36355024494**: SUCCESS;
+- Lumen F0 Validation run **36355024497**: SUCCESS;
+- PR #9 mergeada em master;
+- merge commit: `ae170632138a72a5a3221c83f722bac2f622f2f1`.
+
+Entregas:
+- BuildEvidence;
+- CandidateBuilder;
+- BenchmarkSuite;
+- CandidateBenchmark;
+- PromotionAssessment;
+- PromotionGate;
+- validação de artefatos/testes de build;
+- benchmark com identidade e amostra mínima;
+- detecção de regressão;
+- revisão de componentes protegidos;
+- aprovação humana explícita;
+- ciclo bounded EXPERIMENTAL → PROMOTION_PENDING → PROMOTED;
+- rejeição → REJECTED;
+- promoção somente como mudança de estado de registro, sem deploy físico.
+
+Segurança:
+- F15 não executa compiladores/processos;
+- não faz deploy;
+- não chama drivers;
+- não concede Permission;
+- não altera Policy/Sandbox/Checkpoint/Audit;
+- não bypassa Security Core;
+- não infere aprovação humana;
+- rollback físico continua fora do F15 e permanece sob RollbackManager.
+
+**Próxima fase oficial: F16 — Continuous Evolution.**
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT: 🟩 CONCLUÍDA.**
 
 Validação final:
