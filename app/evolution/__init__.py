@@ -20,3 +20,8 @@ __all__ = [
 ]
 
 from .promotion import BenchmarkSuite, BuildEvidence, CandidateBenchmark, CandidateBuilder, PromotionAssessment, PromotionGate
+
+from .continuous import (
+    ContinuousEvolutionMonitor, ContinuousEvolutionPlanner, EvolutionTrigger,
+    MonitoringPolicy, MonitoringStatus, PostPromotionObservation, StabilityAssessment,
+)
