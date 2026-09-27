@@ -5,7 +5,7 @@
 Validação:
 - F9 implementada diretamente no master;
 - testes dedicados: tests/test_unreal_agent.py;
-- CI completa pós-implementação: aguardando resultado final nesta etapa;
+- CI final F9: run 36352773401 — **1132 passed / 1 skipped / 0 failed**.
 - CI Linux não constitui smoke test físico do Unreal Editor no Windows.
 
 Entregues:
