@@ -1,5 +1,21 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
+**F13 — EVOLUTION LABORATORY: 🟩 CONCLUÍDA**
+
+Evidência:
+- `Lumen Tests` run `36354454813`: **1191 passed / 1 skipped / 0 failed**;
+- `Lumen F0 Validation` run `36354454792`: SUCCESS;
+- PR #7 mergeada em master;
+- merge commit `5f2f89d9e49f9839a93e79a867b227d83dbf4bbd`.
+
+F13 fornece o ambiente experimental isolado do LES. Workspaces vivem sob `evolution-lab/`, não podem escapar por path traversal e não podem apontar para o runtime estável. Mudanças e experimentos são registrados, não executados.
+
+**Próxima fase oficial: F14 — Self-Diagnostics + Research for Improvement.**
+
+---
+
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
 **F12 — EVOLUTION FOUNDATION: 🟩 CONCLUÍDA**
 
 Evidência final:
