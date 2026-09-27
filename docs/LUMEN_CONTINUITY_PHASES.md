@@ -15,8 +15,8 @@
 - SafetyValidator e Human Approval para alto risco;
 - invariantes de identidade entre provider, modelo base, modelo candidato e métrica;
 - compile SUCCESS;
-- **1256 passed / 1 skipped / 0 failed** no Lumen Tests;
-- **1256 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
+- **1259 passed / 1 skipped / 0 failed** no Lumen Tests;
+- **1259 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
 - PR #12 pronta para merge.
 
 ## Limites de segurança
