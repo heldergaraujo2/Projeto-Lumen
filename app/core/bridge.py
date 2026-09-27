@@ -32,8 +32,6 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 
-from app.tools.protocol import ToolCall, ToolProtocolError
-
 logger = logging.getLogger("lumen.bridge")
 
 
@@ -139,10 +137,7 @@ class ToolCallingBridge:
     def process_tool_call(self, payload: ToolCall | dict) -> AgentOutcome:
         """Recebe uma intenção ToolCall e entrega-a ao gateway seguro."""
         try:
-            call = payload if isinstance(payload, ToolCall) else ToolCall.from_dict(payload)
-            result = self._controller.run_tool_call(call)
-        except ToolProtocolError as exc:
-            return AgentOutcome(RequestState.PLAN_INVALID, f"⚠ ToolCall inválido: {exc}")
+            result = self._controller.run_tool_call(payload)
         except Exception as exc:
             logger.exception("Falha controlada ao processar ToolCall.")
             return AgentOutcome(RequestState.FAILED, f"✖ Falha ao processar ToolCall: {exc}")
