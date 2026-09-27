@@ -10,6 +10,10 @@ explícita, denylist permanente, timeout, limite de saída e auditoria
 **explícito** (nada é registrado no startup).
 """
 
+from app.tools.protocol import (
+    ParameterDefinition, ToolCall, ToolDefinition, ToolExecutionResult,
+    ToolProtocol, ToolProtocolError,
+)
 from app.tools.base import (
     StructuredTool,
     Tool,
@@ -99,6 +103,12 @@ __all__ = [
     "TerminalStoreError",
     "ToolCorrectionStrategy",
     "build_proposal_validator",
+    "ParameterDefinition",
+    "ToolCall",
+    "ToolDefinition",
+    "ToolExecutionResult",
+    "ToolProtocol",
+    "ToolProtocolError",
     "Tool",
     "ToolCheckpoints",
     "ToolError",
