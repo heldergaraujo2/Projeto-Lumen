@@ -120,4 +120,4 @@ class EvolutionEngine:
 
     @staticmethod
     def identifier_is_valid(evolution_id: str) -> bool:
-        return bool(re.fullmatch(r"EVOLUTION-\\d{6}", evolution_id))
+        return bool(re.fullmatch(r"EVOLUTION-\d{6}", evolution_id))
