@@ -235,6 +235,18 @@ class ComputerControlService:
         start = monotonic()
         try:
             self._validate_execution_scope(scope, request)
+        except PermissionError as exc:
+            denied = CCDecision(False, "denied_scope_revalidation", scope.scope_id)
+            audit = make_cc_audit_event(
+                operation="computer_control",
+                scope_id=scope.scope_id,
+                action_type=request.action,
+                decision="denied",
+                denied_reason="denied_scope_revalidation",
+                duration_ms=int((monotonic() - start) * 1000),
+            )
+            return CCExecutionResult(False, denied, audit, str(exc), checkpoint)
+        try:
             self._execute_driver(scope, request)
             scope.consume_action(now=datetime.now(timezone.utc))
             audit = make_cc_audit_event(
