@@ -81,7 +81,7 @@ def test_planner_requires_degraded_diagnostic():
 
 
 def test_planner_preserves_research_sources():
-    d = SelfDiagnostics().diagnose(cap(), [meas(.4)])
+    d = SelfDiagnostics().diagnose(cap(), [meas(.2)])
     q = ResearchQuery("Q1", "cap-1", "improve")
     report = ResearchReport(q, (ResearchEvidence("E1", ResearchKind.PAPER, "paper://1", "x"),))
     p = ImprovementPlanner().create_plan(evolution_id="EVOLUTION-000001", diagnostic=d, baseline=meas(.2), objective="reach target", research=report)
