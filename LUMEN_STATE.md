@@ -19,6 +19,20 @@ Memory, 0.3.x Provider Expansion. Sobre a 0.6.8 concluíram-se, SEM
 bump de versão, as fases internas 9A×2, 9B, 10A, 10B, 11A, 11B, 11C,
 11D, 11E, 11F, 11G, 11H, 11I, 11J e 11K — ver "ESTADO ATUAL" a seguir)*
 
+## F0 — BASELINE / AUDITORIA / CONTRATOS — CONCLUÍDA
+
+- Estado: 🟩 CONCLUÍDA.
+- Evidência: CI workflow Lumen F0 Validation.
+- Validação: 1018 passed / 1 skipped / 0 failed em Python 3.12.
+- pip check: verde, sem dependências quebradas.
+- compileall: verde.
+- Capability Registry: app/core/capabilities.py, com testes dedicados.
+- Contratos: docs/LUMEN_CONTRACTS.md.
+- Threat model: docs/LUMEN_THREAT_MODEL.md.
+- Critérios de promoção: docs/LUMEN_PROMOTION_CRITERIA.md.
+- Auditoria/baseline: docs/LUMEN_F0_BASELINE_AUDIT.md.
+- Run CI de evidência: 36348740037, commit a33af8a598cab12b21194854bbf08d2da1fd15dd.
+
 ## STATUS
 
 **CONCLUÍDA ✅ (0.6.8 + fases internas 9A–11K)** *(atualizado em
