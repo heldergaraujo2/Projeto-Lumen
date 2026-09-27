@@ -1,5 +1,35 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F7 — SECURE COMPUTER CONTROL: 🟩 CONCLUÍDA.**
+
+Validação funcional:
+- última CI verde antes da documentação final: run 36351694127
+- commit: 7c681946e55a00efe908510c101a476def90c32c
+- pip check: OK
+- compileall: OK
+- suíte completa: **1104 passed / 1 skipped / 0 failed**
+
+Entregues:
+- PermissionManager + CC Policy + CCScope;
+- checkpoint one-shot CC-CP-XXXXXX;
+- fingerprint da requisição;
+- aprovação vinculada ao scope e à ação;
+- proteção contra replay;
+- revalidação de região/target no instante da execução;
+- auditoria metadata-only;
+- integração com GroundedTarget;
+- fail-closed para ações não suportadas;
+- testes de aprovação, recusa, replay, mismatch, escopo, orçamento, permissão e falhas;
+- docs/SECURE_COMPUTER_CONTROL_IMPLEMENTATION.md.
+
+Observação de validação: a CI é executada em ambiente Linux e, portanto, não constitui smoke test físico de mouse/teclado no Windows. O backend Windows permanece coberto por testes compatíveis/lazy; validação física Windows continua sendo necessária antes de declarar suporte operacional de produção.
+
+**Próxima fase oficial:** F8 — Verification + Recovery + Regression.
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F6 — GROUNDING ENGINE: 🟩 CONCLUÍDA.**
 
 Validação funcional antes da documentação:
