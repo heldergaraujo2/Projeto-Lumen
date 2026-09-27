@@ -17,8 +17,8 @@ Entregas:
 
 Validação F18 no PR #12:
 - compileall: SUCCESS;
-- Lumen Tests: **1256 passed / 1 skipped / 0 failed**;
-- Lumen F0 Validation: **1256 passed / 1 skipped / 0 failed**;
+- Lumen Tests: **1259 passed / 1 skipped / 0 failed**;
+- Lumen F0 Validation: **1259 passed / 1 skipped / 0 failed**;
 - ambos SUCCESS.
 
 O laboratório não treina, executa inferência, baixa modelos, acessa rede, faz deploy, concede permissões, altera Policy, desabilita Audit ou amplia Scope. A promoção continua sob o PromotionGate F15.
