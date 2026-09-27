@@ -25,14 +25,17 @@ Todas as fases desta trilha são inicialmente **🟥 PENDENTES**. A base 0.6.8 e
 # FASES
 
 ## F0 — BASELINE / AUDITORIA / CONTRATOS
-🟥 PENDENTE
+🟩 CONCLUÍDA
 
-- [ ] Auditoria completa da arquitetura atual.
-- [ ] Capability Registry.
-- [ ] Contratos de Provider/Tool/Memory/Research/Vision/Evolution.
-- [ ] Baseline de desempenho e confiabilidade.
-- [ ] Threat model.
-- [ ] Critérios de promoção definidos.
+- [x] Auditoria completa da arquitetura atual — registrada em docs/LUMEN_F0_BASELINE_AUDIT.md.
+- [x] Capability Registry — app/core/capabilities.py + tests/test_capabilities.py.
+- [x] Contratos de Provider/Tool/Memory/Research/Vision/Evolution — docs/LUMEN_CONTRACTS.md.
+- [x] Baseline de desempenho e confiabilidade — CI reproduzível; 1018 passed / 1 skipped / 0 failed.
+- [x] Threat model — docs/LUMEN_THREAT_MODEL.md.
+- [x] Critérios de promoção — docs/LUMEN_PROMOTION_CRITERIA.md.
+- [x] pip check e compileall validados na CI.
+
+Evidência final da F0: workflow Lumen F0 Validation, run 36348740037, commit a33af8a598cab12b21194854bbf08d2da1fd15dd.
 
 **Próximo desbloqueio:** F1.
 
