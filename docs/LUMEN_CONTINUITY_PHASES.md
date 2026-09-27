@@ -626,3 +626,8 @@ para:
 e finalmente para:
 
 `Agent capaz de descobrir limitações, pesquisar soluções, experimentar melhorias, provar resultados e evoluir continuamente sem colocar sua própria continuidade em risco.`
+
+
+## F20 — SELF-OPTIMIZING INTELLIGENCE — 🟨 EM VALIDAÇÃO
+
+Implementação presente no branch `f20-self-optimizing-intelligence`; aguardando CI final e merge.
