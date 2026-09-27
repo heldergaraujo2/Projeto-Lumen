@@ -1,5 +1,33 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F5 — VISION PROVIDER: 🟩 CONCLUÍDA.**
+
+Validação final da F5:
+- GitHub Actions run: 36350965147
+- commit da documentação final: 78f81f2136d6f0e4b88c285339069f7c831c62f2
+- pip check: OK
+- compileall: OK
+- suíte completa: **1084 passed / 1 skipped / 0 failed**
+- documentação: docs/VISION_PROVIDER_IMPLEMENTATION.md
+
+Entregues:
+- VisionProvider independente;
+- JsonVisionProvider com validação estruturada;
+- OllamaVisionProvider configurável, padrão qwen3-vl:8b;
+- limites de entrada/saída;
+- tratamento de erros de transporte/payload;
+- VisionProviderManager para múltiplos modelos;
+- testes determinísticos sem depender de Ollama real.
+
+A F5 produz percepção estruturada. Grounding continua separado e pertence à F6.
+Computer Control físico continua protegido pelas camadas posteriores.
+
+**Próxima fase oficial:** F6 — Grounding Engine.
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F4 — WINDOWS NATIVE INTELLIGENCE: 🟩 CONCLUÍDA.**
 
 Validação final da F4:
