@@ -1,3 +1,32 @@
+# F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION — 🟩 CONCLUÍDA
+
+**Data:** 2026-09-27
+
+## Evidência
+- BuildEvidence e CandidateBuilder;
+- BenchmarkSuite e CandidateBenchmark;
+- PromotionAssessment e PromotionGate;
+- regressão bloqueia promoção;
+- componentes protegidos bloqueiam promoção;
+- alto risco exige aprovação humana;
+- ciclo bounded de promoção;
+- rejeição registrada;
+- **1222 passed / 1 skipped / 0 failed**;
+- compile SUCCESS;
+- F0 Validation SUCCESS;
+- PR #9 mergeada;
+- merge commit `ae170632138a72a5a3221c83f722bac2f622f2f1`.
+
+## Limites
+F15 registra resultados de build e benchmark fornecidos pelo chamador. Não executa compilação, processos ou deploy e não altera o runtime estável. `promote_record` altera somente o estado do candidato no registry.
+
+## Próxima fase
+**F16 — Continuous Evolution.**
+
+F16 deverá fechar o ciclo contínuo de evolução: observar resultados pós-promoção, monitorar estabilidade, detectar oportunidades recorrentes, alimentar memória e iniciar novos ciclos de melhoria sem remover os gates de segurança.
+
+---
+
 # F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT — 🟩 CONCLUÍDA
 
 **Data:** 2026-09-27
