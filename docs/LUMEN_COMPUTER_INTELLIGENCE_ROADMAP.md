@@ -1,5 +1,20 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
+**F19 — LUMEN INTELLIGENCE LAB: 🟩 CONCLUÍDA**
+
+Evidência final:
+- **1278 passed / 1 skipped / 0 failed** no Lumen Tests;
+- **1278 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
+- compile SUCCESS;
+- PR #13 implementa a camada permanente de pesquisa/coordenação de inteligência;
+- F17 StackEvidence e F18 AdaptationEvidence podem ser registrados no ledger F19;
+- oportunidades e findings permanecem não-executores;
+- workspace continua isolado sob evolution-lab/.
+
+**Próxima fase oficial: F20 — Self-Optimizing Intelligence.**
+
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
 **F18 — MODEL ADAPTATION LABORATORY: 🟩 CONCLUÍDA**
 
 Evidência final:

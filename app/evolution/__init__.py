@@ -33,3 +33,10 @@ from .adaptation import (
     AdaptationAssessment, AdaptationCandidate, AdaptationEvaluator, AdaptationEvidence,
     AdaptationExperiment, AdaptationKind, AdaptationSpec, DatasetSpec, ModelAdaptationLab,
 )
+
+from .intelligence_lab import (
+    IntelligenceAssessment, IntelligenceBaseline, IntelligenceCapability,
+    IntelligenceEvidenceLedger, IntelligenceFinding, IntelligenceHypothesis,
+    IntelligenceOpportunity, IntelligenceResearch, IntelligenceTrack,
+    LumenIntelligenceLab,
+)

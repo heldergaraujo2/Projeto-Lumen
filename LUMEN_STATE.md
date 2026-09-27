@@ -1,5 +1,35 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F19 — LUMEN INTELLIGENCE LAB: 🟩 CONCLUÍDA.**
+
+Entregas:
+- IntelligenceCapability + IntelligenceTrack;
+- baselines versionados com proveniência;
+- IntelligenceResearch e integração ResearchReport;
+- hipóteses de evolução de inteligência;
+- IntelligenceEvidenceLedger bounded e determinístico;
+- integração de evidências do Intelligence Stack F17;
+- integração de evidências do Model Adaptation Laboratory F18;
+- findings com delta, confiança e detecção explícita de regressão;
+- oportunidades de melhoria ligadas a pesquisa;
+- workspace delegado ao Evolution/Adaptation Lab em evolution-lab/;
+- digest SHA-256 determinístico do estado de inteligência;
+- testes de invariantes, isolamento e ausência de superfície de execução.
+
+Validação F19:
+- compileall: SUCCESS;
+- Lumen Tests: **1278 passed / 1 skipped / 0 failed**;
+- Lumen F0 Validation: **1278 passed / 1 skipped / 0 failed**;
+- PR #13: validação verde.
+
+F19 não executa modelos, ferramentas, código, browser, rede ou drivers; não treina,
+faz inferência, download, deploy, concede permissões, altera Policy/Sandbox/Checkpoint/Audit,
+amplia Scope ou promove automaticamente.
+
+**Próxima fase oficial: F20 — Self-Optimizing Intelligence.**
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F18 — MODEL ADAPTATION LABORATORY: 🟩 CONCLUÍDA.**
 
 Entregas:
