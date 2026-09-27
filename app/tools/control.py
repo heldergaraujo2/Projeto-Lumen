@@ -997,6 +997,8 @@ class ToolsController:
         plano de uma tarefa e passa por run_plan; portanto permissões,
         sandbox, checkpoint, auditoria e verificação permanecem ativos.
         """
+        if not isinstance(call, ToolCall):
+            call = ToolCall.from_dict(call)
         definition = self.validate_tool_call(call)
         plan = Plan(
             id=f"PLN-TOOL-{uuid4().hex[:12].upper()}",
