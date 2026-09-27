@@ -1,3 +1,36 @@
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
+**F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA**
+**F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA**
+**Próxima fase oficial: F11 — AUTONOMOUS MULTI-STEP AGENT**
+
+### F10 — WORKFLOW LEARNING
+
+A Lumen agora possui uma camada própria para aprender workflows como conhecimento estruturado, sem conceder autoridade de execução.
+
+Entregas:
+- WorkflowDefinition/WorkflowStep versionados;
+- fingerprint determinístico;
+- WorkflowRegistry e evidências;
+- métricas de sucesso/falha/inconclusivo;
+- matcher determinístico;
+- adaptação por variáveis declaradas;
+- bloqueio após falha recente;
+- Human Approval para alto risco;
+- testes e documentação.
+
+Segurança:
+- F10 não chama drivers;
+- não concede Permission;
+- não cria Checkpoint;
+- não altera Policy/Sandbox/Audit;
+- toda execução continua na cadeia F7;
+- toda conclusão continua na cadeia F8.
+
+**Limitação:** CI Linux não é smoke test físico de Windows/Unreal.
+
+---
+
 # LUMEN — COMPUTER INTELLIGENCE ROADMAP
 
 **Documento:** Roadmap de evolução da Inteligência de Computador da Lumen  
