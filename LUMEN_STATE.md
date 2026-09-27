@@ -1,5 +1,46 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F12 — EVOLUTION FOUNDATION: 🟩 CONCLUÍDA.**
+
+Validação final:
+- primeira CI pós-merge encontrou 1 falha de contrato no validador de IDs;
+- suíte dessa primeira execução: **1176 passed / 1 skipped / 1 failed**;
+- correção aplicada: regex estrita para `EVOLUTION-000001...`;
+- PR #6 adicionou casos de regressão para IDs válidos/inválidos;
+- CI final `Lumen Tests` run **36354185197**: **1177 passed / 1 skipped / 0 failed**;
+- CI `Lumen F0 Validation` run **36354185342**: SUCCESS;
+- PR #6 mergeado em `master`;
+- merge commit: `cb4f3610efb0ab57c61fe3aa6f1059a81e84029c`.
+
+Entregas F12:
+- Capability Registry + Capability Measurement;
+- Self-Diagnostics + Improvement Planner;
+- Hypothesis Manager;
+- Experiment Manager com máquina de estados bounded;
+- Candidate Registry;
+- Benchmark Engine + Regression Detector;
+- Safety Validator;
+- Promotion Manager com Human Approval Gate;
+- Rollback Manager;
+- Evolution Memory;
+- IDs monotônicos `EVOLUTION-000001...`;
+- documentação e testes dedicados.
+
+Segurança:
+- F12 não executa experimentos;
+- não chama drivers;
+- não concede Permission;
+- não altera Policy/Sandbox/Checkpoint/Audit;
+- não enfraquece Security Core;
+- aprovação de alto risco permanece humana;
+- runtime estável permanece separado da futura camada experimental.
+
+**Próxima fase oficial: F13 — Evolution Laboratory.**
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F12 — EVOLUTION FOUNDATION: 🟨 IMPLEMENTAÇÃO CONCLUÍDA / CI PENDENTE.**
 
 Entregas implementadas:
