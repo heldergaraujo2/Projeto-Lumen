@@ -1,5 +1,22 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
+**F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT: 🟩 CONCLUÍDA**
+
+Evidência final:
+- **1205 passed / 1 skipped / 0 failed**;
+- Lumen Tests run `36354736385`: SUCCESS;
+- Lumen F0 Validation run `36354736453`: SUCCESS;
+- PR #8 mergeada;
+- merge commit `09ec80b500bf4b63efcc085dda2fce5cfeb8b132`.
+
+F14 conecta medições a diagnósticos, pesquisa estruturada, evidências rastreáveis, oportunidades e planos de melhoria. O provider de pesquisa é explicitamente fornecido pelo chamador; F14 não ganha autoridade de rede, browser ou execução.
+
+**Próxima fase oficial: F15 — Candidate Build + Benchmark + Promotion.**
+
+---
+
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
 **F13 — EVOLUTION LABORATORY: 🟩 CONCLUÍDA**
 
 Evidência:
