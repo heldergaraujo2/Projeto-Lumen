@@ -18,7 +18,7 @@ A Lumen deve evoluir dentro de sua própria arquitetura, usando ambientes experi
 
 ## ESTADO DESTE PLANO
 
-O estado acima é a referência operacional atual. F0–F5 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
+O estado acima é a referência operacional atual. F0–F6 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
 
 ---
 
@@ -74,7 +74,20 @@ Entregues:
 - [x] documentação em docs/VISION_PROVIDER_IMPLEMENTATION.md.
 
 ## F6 — GROUNDING ENGINE
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+Entregues:
+- [x] GroundingEngine com ordem estruturada-first.
+- [x] Elegibilidade validada antes da priorização de fonte.
+- [x] Validação de confiança, imagem, região e identidade de janela.
+- [x] Normalização determinística de labels.
+- [x] Adaptação de VisionObservation.
+- [x] Adaptação de NativeElement sem acoplamento ao backend Windows.
+- [x] Deduplicação de candidatos.
+- [x] Fallback seguro quando candidato prioritário é inválido.
+- [x] TargetingEngine integrado ao novo fluxo de elegibilidade.
+- [x] Testes focados + CI: 1094 passed / 1 skipped / 0 failed.
+- [x] Documentação em docs/GROUNDING_ENGINE_IMPLEMENTATION.md.
 
 ## F7 — SECURE COMPUTER CONTROL
 🟥 PENDENTE
