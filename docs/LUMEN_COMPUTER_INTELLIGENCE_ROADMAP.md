@@ -349,7 +349,7 @@ O modelo não deve controlar diretamente coordenadas ou drivers.
 
 Qualquer Tool deve possuir contrato estruturado, validação e resultado verificável.
 
-**Status:** 🟨 EM VALIDAÇÃO — implementação concluída; aguardando suíte CI final antes de marcar verde.
+**Status:** 🟩 CONCLUÍDA — ToolCall estruturado, validação fail-closed, gateway seguro e integração com o pipeline de execução validados pelo CI.
 
 ---
 
