@@ -61,3 +61,6 @@ Limites independentes:
 Testes focados em `tests/test_autonomous_multi_step.py` cobrem autorização, orçamento, ordem, retry, falhas de segurança, limite de recovery e integração não-executável com workflows.
 
 Smoke test físico Windows/Unreal continua dependente de ambiente Windows real.
+
+
+CI validation: F11 full-suite gate.
