@@ -124,6 +124,10 @@ class WorkflowEvidence:
             raise ValueError("workflow evidence attempt must be >= 1")
         if self.verification_status not in {"verified", "failed", "inconclusive"}:
             raise ValueError("invalid workflow verification status")
+        if self.outcome is WorkflowOutcome.SUCCESS and self.verification_status != "verified":
+            raise ValueError("successful workflow evidence requires verified status")
+        if self.outcome is WorkflowOutcome.FAILURE and self.verification_status == "verified":
+            raise ValueError("failed workflow evidence cannot be marked verified")
 
 
 @dataclass(frozen=True)
