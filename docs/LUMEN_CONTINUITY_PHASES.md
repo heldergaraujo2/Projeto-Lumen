@@ -1,3 +1,72 @@
+# CURRENT OFFICIAL CONTINUITY — 2026-09-27
+
+**F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA.**
+**F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA.**
+**Próxima fase oficial: F11 — AUTONOMOUS MULTI-STEP AGENT.**
+
+## F10 — EVIDÊNCIA E ENTREGAS
+
+- [x] WorkflowDefinition versionado.
+- [x] WorkflowStep com pós-condição e risco.
+- [x] fingerprint determinístico SHA-256.
+- [x] WorkflowRegistry.
+- [x] WorkflowMatcher determinístico.
+- [x] WorkflowLearner.
+- [x] WorkflowEvidence.
+- [x] estatísticas e elegibilidade.
+- [x] bloqueio após falha mais recente.
+- [x] adaptação somente por variáveis declaradas.
+- [x] Human Approval para workflows de alto risco.
+- [x] testes dedicados em tests/test_workflow_learning.py.
+- [x] documentação em docs/WORKFLOW_LEARNING_IMPLEMENTATION.md.
+- [x] CI reproduzível em .github/workflows/tests.yml.
+
+## REGRA DE EXECUÇÃO
+
+Workflow aprendido é conhecimento/plano, nunca autoridade. A cadeia obrigatória permanece:
+
+Workflow aprendido
+→ proposta/planejamento
+→ PermissionManager
+→ Policy
+→ Scope
+→ Checkpoint
+→ ComputerControlService
+→ Driver
+→ Audit
+→ Verification
+→ Recovery/Regression.
+
+A F10 não cria um caminho paralelo de execução.
+
+## O QUE A LUMEN JÁ CONSEGUE FAZER
+
+1. Observar/representar estado do computador com fingerprint determinístico.
+2. Resolver alvos usando grounding structured-first.
+3. Planejar ações sem executar diretamente o driver.
+4. Executar Computer Control somente pela barreira segura F7.
+5. Exigir checkpoint one-shot antes da execução física.
+6. Verificar pós-condições e classificar falhas.
+7. Fazer recovery bounded sem ampliar permissões ou escopo.
+8. Comparar regressões por evidência determinística.
+9. Planejar operações específicas do Unreal: foco, abrir asset/level, salvar, salvar tudo, Play e Stop Play.
+10. Registrar sequências observadas como workflows reutilizáveis.
+11. Medir histórico de sucesso/falha/inconclusivo.
+12. Bloquear reutilização de workflow cuja última execução falhou.
+13. Encontrar workflows compatíveis com um objetivo por matching determinístico.
+14. Adaptar somente parâmetros declarados, sem criar novos passos.
+15. Marcar workflows de alto risco para aprovação humana adicional.
+
+## LIMITAÇÕES ATUAIS
+
+- Matcher ainda é lexical, sem embeddings/semântica.
+- Registry F10 é em memória; persistência durável/Experience Memory integrada é futura.
+- Não existe execução automática de workflow.
+- Não existe ainda Agent multi-etapas autônomo completo; isso é F11.
+- Não houve smoke test físico Windows/Unreal no CI Linux.
+
+---
+
 # LUMEN — CONTINUIDADE POR FASES
 
 > **Arquivo oficial de continuidade da arquitetura de evolução.**
