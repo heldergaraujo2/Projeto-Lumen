@@ -1,0 +1,51 @@
+from app.computer.windows_native import FakeWindowsNativeBackend,NativeElement,NativeWindow,WindowsNativeIntelligence
+from app.computer_control.api import CCTarget,ScreenRegion
+from app.computer_control.grounding import GroundingSource
+
+def fixture():
+    w=NativeWindow(101,"Unreal Editor",ScreenRegion(0,0,1280,720),42,"UnrealEditor.exe")
+    b=NativeElement("Compile","button",ScreenRegion(900,40,100,32),"CompileButton","Button",True,w.target())
+    p=NativeElement("Play","button",ScreenRegion(800,40,80,32),window=w.target())
+    return w,b,FakeWindowsNativeBackend((w,),{101:(b,p)})
+
+def test_bounded_backend():
+    w,_,backend=fixture();i=WindowsNativeIntelligence(backend)
+    assert i.list_windows()==(w,)
+    assert len(i.inspect_window(w,max_depth=2,max_elements=1))==1
+    assert backend.calls==[("list_windows",0),("descendants",101)]
+
+def test_window_matching():
+    w,_,backend=fixture();i=WindowsNativeIntelligence(backend)
+    assert i.find_window(CCTarget(window_handle=101,window_title_pattern="Unreal",process_name="UnrealEditor.exe"))==w
+    assert i.find_window(CCTarget(window_handle=999)) is None
+
+def test_structured_element_lookup():
+    w,b,backend=fixture();assert WindowsNativeIntelligence(backend).find_element(w.target(),"Compile")==b
+
+def test_native_element_grounding():
+    _,b,_=fixture();t=b.grounded();assert t.source is GroundingSource.UI_AUTOMATION and t.center()==(950,56)
+
+def test_action_is_request_only():
+    _,b,backend=fixture();r=WindowsNativeIntelligence(backend).plan_action(b,reason="compile")
+    assert r.action=="invoke" and r.element is b and backend.calls==[]
+
+def test_limits_and_invalid_label():
+    w,_,backend=fixture();i=WindowsNativeIntelligence(backend)
+    try:i.find_element(w.target()," ")
+    except ValueError:pass
+    else:raise AssertionError("expected ValueError")
+    try:i.inspect_window(w,max_elements=0)
+    except ValueError:pass
+    else:raise AssertionError("expected ValueError")
+
+def test_invalid_element():
+    try:NativeElement("","button",None).validate()
+    except ValueError:pass
+    else:raise AssertionError("expected ValueError")
+
+def test_windows_backend_is_lazy_on_non_windows():
+    import os
+    if os.name!="nt":
+        try:__import__("app.computer.windows_uia",fromlist=["WindowsUIABackend"]).WindowsUIABackend()
+        except OSError:pass
+        else:raise AssertionError("expected Windows-only backend")
