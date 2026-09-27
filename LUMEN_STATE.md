@@ -1,5 +1,30 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA.**
+
+Validação implementada:
+- workflow knowledge versionado e com fingerprint determinístico;
+- registro de evidências de sucesso/falha/inconclusivo;
+- reutilização bloqueada quando a última execução falha;
+- matcher determinístico e fail-closed;
+- adaptação limitada a variáveis declaradas, sem inserir/remover passos;
+- workflows de alto risco marcados para Human Approval;
+- F10 não possui acesso a driver, não concede Permission, não cria Checkpoint e não altera Policy/Sandbox/Audit;
+- testes dedicados: tests/test_workflow_learning.py;
+- documentação: docs/WORKFLOW_LEARNING_IMPLEMENTATION.md;
+- CI reproduzível adicionada em .github/workflows/tests.yml;
+- última validação anterior preservada: F9 — 1132 passed / 1 skipped / 0 failed.
+
+**Resultado arquitetural:** a Lumen agora consegue aprender workflows como conhecimento/plano reutilizável a partir de sequências observadas, guardar evidências, localizar workflows compatíveis e gerar adaptações controladas. A execução futura continua obrigatoriamente na cadeia F7 e a confirmação do resultado na F8.
+
+**Limitação explícita:** a validação física Windows/Unreal continua pendente; CI Linux não constitui smoke test físico do Windows.
+
+**Próxima fase oficial:** F11 — Autonomous Multi-Step Agent.
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA.**
 
 Validação:
