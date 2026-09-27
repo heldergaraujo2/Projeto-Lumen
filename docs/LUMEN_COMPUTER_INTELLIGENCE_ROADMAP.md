@@ -275,7 +275,7 @@ Mapear o estado atual da Lumen e comparar capacidades com UFO², UI-TARS, Agent 
 
 Nenhuma grande implementação de Computer Control deve começar sem a matriz de integração revisada.
 
-**Status:** 🟩 CONCLUÍDA — CI final: 1073 passed / 1 skipped / 0 failed.
+**Status:** PENDENTE
 
 ---
 
@@ -421,7 +421,7 @@ Encontrou?
  └── NÃO → Vision/Grounding
 \`\`\`
 
-**Status:** PENDENTE
+**Status:** 🟩 CONCLUÍDA — CI final: 1073 passed / 1 skipped / 0 failed.
 
 ---
 
