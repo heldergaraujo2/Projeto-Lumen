@@ -323,7 +323,7 @@ Lumen → Ollama → Qwen Coder → Tool → Resultado → Lumen
 
 sem depender de API externa.
 
-**Status:** PENDENTE
+**Status:** CONCLUÍDA 🟩
 
 ---
 
@@ -2152,7 +2152,7 @@ O roadmap somente será considerado integralmente concluído quando a Lumen poss
 | Fase | Descrição | Status |
 |---|---|---|
 | F0 | Baseline, Auditoria e Contratos | 🟥 |
-| F1 | Local Provider / Ollama | 🟥 |
+| F1 | Local Provider / Ollama | 🟩 |
 | F2 | Research Engine | 🟥 |
 | F3 | Knowledge + Experience Memory | 🟥 |
 | F4 | Tool / Agent Protocol | 🟥 |
