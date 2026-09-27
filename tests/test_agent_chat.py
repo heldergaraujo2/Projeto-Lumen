@@ -161,3 +161,15 @@ def test_generic_provider_error_wrapped(tmp_path):
     with pytest.raises(AgentError) as exc:
         agent.send_message("oi")
     assert "sem rede" in str(exc.value)
+
+
+def test_ollama_provider_is_registered():
+    from app.ai import OLLAMA_DEFAULT_MODEL, OllamaProvider, available_providers, create_provider
+    from app.config.settings import Settings
+
+    settings = Settings(provider="ollama")
+    provider = create_provider(settings)
+
+    assert "ollama" in available_providers()
+    assert isinstance(provider, OllamaProvider)
+    assert provider.model_name == OLLAMA_DEFAULT_MODEL
