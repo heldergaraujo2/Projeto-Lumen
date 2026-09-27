@@ -163,13 +163,14 @@ class OllamaProvider(AIProvider):
         request = Request(url, data=body, method=method, headers={
             "Content-Type": "application/json", "Accept": "application/x-ndjson",
         })
-        try:
-            response = urlopen(request, timeout=timeout)
-        except (TimeoutError, HTTPError, URLError, OSError):
-            raise
-        with response:
-            for line in response:
-                yield line
+        response = urlopen(request, timeout=timeout)
+
+        def iterator() -> Iterator[bytes]:
+            with response:
+                for line in response:
+                    yield line
+
+        return iterator()
 
     @staticmethod
     def _map_api_error(message: str, status: int) -> ProviderError:
