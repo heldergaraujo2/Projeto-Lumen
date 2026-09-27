@@ -637,6 +637,26 @@ Success?
 
 # 15. FASE 9 — UNREAL ENGINE AGENT
 
+**Status: 🟩 CONCLUÍDA — implementação, testes e CI final validados.**
+
+Entregues:
+- [x] identidade de projeto Unreal;
+- [x] janela autorizada do Unreal Editor;
+- [x] UnrealAgent especializado;
+- [x] UnrealPlan e UnrealAction;
+- [x] operações FOCUS_EDITOR / OPEN_ASSET / OPEN_LEVEL / SAVE / SAVE_ALL / PLAY / STOP_PLAY;
+- [x] atalhos Unreal encapsulados como dados de planejamento;
+- [x] pós-condições F8 associadas às operações;
+- [x] conversão para ActionPlan;
+- [x] conversão para CCActionRequest sem execução direta;
+- [x] objetivos ambíguos rejeitados fail-closed;
+- [x] testes dedicados;
+- [x] documentação em docs/UNREAL_ENGINE_AGENT_IMPLEMENTATION.md.
+
+A execução física permanece exclusivamente no ComputerControlService. CI Linux não constitui smoke test físico do Unreal Editor no Windows.
+
+
+
 ## Objetivo
 
 Especializar a Lumen para trabalhar com Unreal Engine.
@@ -2163,7 +2183,7 @@ O roadmap somente será considerado integralmente concluído quando a Lumen poss
 | F8 | Grounding Engine / UI-TARS + Qwen3-VL candidates | 🟩 — implementado como Verification + Recovery + Regression conforme trilha oficial atual |
 | F9 | Secure Computer Control | 🟥 |
 | F10 | Verification + Recovery + Regression | 🟥 |
-| F11 | Unreal Engine Agent | 🟥 |
+| F11 | Unreal Engine Agent | 🟩 |
 | F12 | Workflow Learning | 🟥 |
 | F13 | Autonomous Multi-Step Agent | 🟥 |
 | F14 | Evolution Foundation | 🟥 |
