@@ -42,6 +42,7 @@ def test_save_and_play_plan():
     assert plan.actions[0].operation is UnrealOperation.FOCUS_EDITOR
     assert plan.actions[1].operation is UnrealOperation.SAVE
     assert plan.actions[1].operation is UnrealOperation.PLAY
+    assert plan.actions[1].operation is UnrealOperation.PLAY
 
 
 def test_goal_planner_is_fail_closed_for_ambiguous_free_text():
