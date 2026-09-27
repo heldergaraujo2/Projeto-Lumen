@@ -60,7 +60,7 @@ def test_start_monitoring_moves_candidate_to_monitored():
 
 def test_observation_below_sample_policy_is_rejected():
     monitor, _, candidate = setup_monitor()
-    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    candidate = monitor.start_monitoring(candidate, baseline=measurement(.9))
     with pytest.raises(ValueError):
         monitor.observe(candidate, measurement=CapabilityMeasurement("cap-1", .8, "accuracy", 1))
 
