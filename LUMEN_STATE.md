@@ -1,5 +1,34 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F6 — GROUNDING ENGINE: 🟩 CONCLUÍDA.**
+
+Validação funcional antes da documentação:
+- GitHub Actions run: 36351256417
+- CI: **1094 passed / 1 skipped / 0 failed**
+- pip check: OK
+- compileall: OK
+
+Entregues na F6:
+- GroundingEngine estruturado-first;
+- elegibilidade antes da priorização;
+- validação de confiança, screenshot, região e janela;
+- normalização determinística de labels;
+- adaptação de VisionObservation;
+- adaptação de NativeElement;
+- deduplicação;
+- fallback seguro entre fontes;
+- integração com TargetingEngine;
+- testes focados;
+- docs/GROUNDING_ENGINE_IMPLEMENTATION.md.
+
+A F6 não executa ações. O resultado é somente um GroundedTarget/TargetResolution. Permission, Policy, Checkpoint, Computer Control, Audit e Verification permanecem nas fases posteriores.
+
+**Próxima fase oficial:** F7 — Secure Computer Control.
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F5 — VISION PROVIDER: 🟩 CONCLUÍDA.**
 
 Validação final da F5:
