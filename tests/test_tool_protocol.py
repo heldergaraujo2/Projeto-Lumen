@@ -39,7 +39,22 @@ def protocol():
             (ParameterDefinition("text", "string", True),)),
         "broken": ToolDefinition("broken", "Falha controlada."),
     }
-    return ToolProtocol(registry, definitions)
+    def trusted_test_executor(call):
+        try:
+            import json
+            raw = registry.execute(call.tool, **dict(call.parameters))
+            decoded = json.loads(raw)
+            return ToolExecutionResult(
+                call_id=call.call_id, tool=call.tool,
+                ok=bool(decoded.get("ok", True)),
+                data=dict(decoded.get("data") or {}),
+                error=decoded.get("error"),
+            )
+        except Exception as exc:
+            return ToolExecutionResult(call_id=call.call_id, tool=call.tool,
+                                       ok=False, error=str(exc))
+
+    return ToolProtocol(registry, definitions, executor=trusted_test_executor)
 
 
 def test_tool_call_round_trip():
@@ -102,3 +117,14 @@ def test_definition_rejects_duplicate_parameters():
     with pytest.raises(ToolProtocolError):
         ToolDefinition("echo", "x", (
             ParameterDefinition("x", "string"), ParameterDefinition("x", "string")))
+
+
+def test_execution_without_gateway_fails_closed():
+    permissions = PermissionManager()
+    registry = ToolRegistry(permissions)
+    registry.register(EchoTool())
+    p = ToolProtocol(registry, {"echo": ToolDefinition(
+        "echo", "Repete um texto.",
+        (ParameterDefinition("text", "string", True),))})
+    with pytest.raises(ToolProtocolError):
+        p.execute(ToolCall("echo", {"text": "blocked"}))
