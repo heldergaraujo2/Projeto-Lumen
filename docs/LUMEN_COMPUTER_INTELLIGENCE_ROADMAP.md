@@ -520,7 +520,7 @@ A coordenada final deve ser validada contra:
 - ação permitida
 - orçamento de ações
 
-**Status:** PENDENTE
+**Status:** 🟩 CONCLUÍDA — CI final prevista após atualização de continuidade; última CI funcional: 1094 passed / 1 skipped / 0 failed.
 
 ---
 
