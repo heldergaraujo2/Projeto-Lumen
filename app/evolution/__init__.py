@@ -1,3 +1,4 @@
+from .diagnostics import ImprovementOpportunity, ImprovementPlanner, ResearchEngine, ResearchEvidence, ResearchKind, ResearchQuery, ResearchReport, SelfDiagnostics
 """Lumen Evolution System — F12 foundation.
 
 Contracts and registries only. F12 does not execute experiments, mutate runtime
