@@ -1,3 +1,28 @@
+# F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT — 🟩 CONCLUÍDA
+
+**Data:** 2026-09-27
+
+## Evidência
+- diagnóstico determinístico de capacidades;
+- pesquisa baseada em evidências fornecidas pelo chamador;
+- oportunidades de melhoria vinculadas a evidências;
+- ImprovementPlanner preservando baseline, risco e fontes;
+- **1205 passed / 1 skipped / 0 failed**;
+- compile SUCCESS;
+- F0 Validation SUCCESS;
+- PR #8 mergeada;
+- merge commit `09ec80b500bf4b63efcc085dda2fce5cfeb8b132`.
+
+## Limites
+F14 não executa pesquisa externa por conta própria, não executa experimentos, não chama drivers, não concede permissões e não altera Security Core.
+
+## Próxima fase
+**F15 — Candidate Build + Benchmark + Promotion.**
+
+F15 deverá transformar propostas em candidatos avaliáveis, executar benchmarks controlados e aplicar os gates de segurança e aprovação humana antes de qualquer promoção.
+
+---
+
 # F13 — EVOLUTION LABORATORY — 🟩 CONCLUÍDA
 
 **Data:** 2026-09-27
