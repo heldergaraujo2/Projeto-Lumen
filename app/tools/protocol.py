@@ -9,7 +9,7 @@ sandbox/checkpoint.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from app.tools.base import ToolRegistry
 
@@ -130,9 +130,13 @@ class ToolExecutionResult:
 
 class ToolProtocol:
     """Validador + executor de ToolCalls através de uma ToolRegistry."""
-    def __init__(self, registry: ToolRegistry, definitions: Mapping[str, ToolDefinition]):
+    def __init__(self, registry: ToolRegistry, definitions: Mapping[str, ToolDefinition],
+                 executor: Callable[[ToolCall], ToolExecutionResult] | None = None):
         self._registry = registry
         self._definitions = dict(definitions)
+        # Execução de produção deve ser injetada pela camada que preserva
+        # checkpoint/sandbox. Sem executor, o protocolo só valida.
+        self._executor = executor
 
     @property
     def definitions(self) -> tuple[ToolDefinition, ...]:
@@ -147,17 +151,16 @@ class ToolProtocol:
         return definition
 
     def execute(self, call: ToolCall) -> ToolExecutionResult:
+        """Executa somente através de um executor confiável injetado.
+
+        O protocolo deliberadamente não chama ToolRegistry diretamente:
+        registry.execute() não conhece checkpoint de plano. Isso evita que
+        uma ToolCall válida vire um bypass da cadeia de segurança.
+        """
         self.validate(call)
-        try:
-            raw = self._registry.execute(call.tool, **dict(call.parameters))
-        except Exception as exc:
-            return ToolExecutionResult(call_id=call.call_id, tool=call.tool, ok=False, error=str(exc))
-        try:
-            import json
-            decoded = json.loads(raw)
-        except (TypeError, ValueError):
-            return ToolExecutionResult(call_id=call.call_id, tool=call.tool, ok=True, data={"result": raw})
-        if isinstance(decoded, dict) and "ok" in decoded:
-            return ToolExecutionResult(call_id=call.call_id, tool=call.tool, ok=bool(decoded.get("ok")),
-                                       data=dict(decoded.get("data") or {}), error=decoded.get("error"))
-        return ToolExecutionResult(call_id=call.call_id, tool=call.tool, ok=True, data={"result": decoded})
+        if self._executor is None:
+            raise ToolProtocolError(
+                "Nenhum executor seguro foi configurado; ToolProtocol apenas valida "
+                "chamadas quando usado sem um gateway de execução."
+            )
+        return self._executor(call)
