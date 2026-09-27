@@ -582,7 +582,7 @@ Verification
 
 O modelo nunca recebe acesso irrestrito ao computador.
 
-**Status:** PENDENTE
+**Status: 🟩 CONCLUÍDA — CI final: 1104 passed / 1 skipped / 0 failed.
 
 ---
 
