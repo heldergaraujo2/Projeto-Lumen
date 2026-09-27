@@ -40,7 +40,26 @@ class TargetingEngine:
                 for item in all_candidates
             )
             if had_matching_candidate:
-                reason = "target_not_eligible"
+                matching = tuple(
+                    item for item in all_candidates
+                    if self.grounding.engine.normalize_label(item.label) == normalized
+                )
+                scope_failed = False
+                for item in matching:
+                    try:
+                        self.grounding.engine.validate_for_scope(
+                            item,
+                            scope_region=observation.allowed_region,
+                            screenshot_width=observation.width,
+                            screenshot_height=observation.height,
+                            expected_window=observation.active_window,
+                        )
+                    except PermissionError as exc:
+                        if "outside" in str(exc):
+                            scope_failed = True
+                    except ValueError:
+                        pass
+                reason = "target_outside_scope" if scope_failed else "target_not_eligible"
             return TargetResolution(
                 label.strip(),
                 None,
