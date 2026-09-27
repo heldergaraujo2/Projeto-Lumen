@@ -65,8 +65,8 @@ class Settings:
     """Configurações da Lumen, imutáveis após o carregamento.
 
     Atributos:
-        provider: nome do provedor de IA (``LUMEN_PROVIDER``; ``mock`` ou
-            ``openai``).
+        provider: nome do provedor de IA (``LUMEN_PROVIDER``; ``mock``,
+            ``ollama``, ``openai`` e demais Providers registrados).
         model: identificador de modelo (``LUMEN_MODEL``) — obrigatório
             para provedores reais.
         api_key: chave de API (``LUMEN_API_KEY``) — nunca vai para logs.
