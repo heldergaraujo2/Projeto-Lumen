@@ -1,5 +1,32 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F18 — MODEL ADAPTATION LABORATORY: 🟩 CONCLUÍDA.**
+
+Entregas:
+- DatasetSpec com versionamento, splits e limites;
+- AdaptationSpec para LoRA, fine-tuning, distillation, pruning, quantization, datasets, curriculum, tool-use, domain adaptation e inference optimization;
+- AdaptationExperiment com seed, configuração e limites declarativos;
+- workspace experimental isolado sob evolution-lab/;
+- AdaptationEvidence com artefatos, testes e chave de reprodutibilidade;
+- digest SHA-256 determinístico da evidência;
+- AdaptationCandidate compatível com CandidateRegistry/F15;
+- benchmark + RegressionDetector;
+- SafetyValidator + Human Approval para alto risco;
+- invariantes de provider/model/base/target/métrica;
+- testes explícitos contra execução, deploy e bypass de segurança.
+
+Validação F18 no PR #12:
+- compileall: SUCCESS;
+- Lumen Tests: **1256 passed / 1 skipped / 0 failed**;
+- Lumen F0 Validation: **1256 passed / 1 skipped / 0 failed**;
+- ambos SUCCESS.
+
+O laboratório não treina, executa inferência, baixa modelos, acessa rede, faz deploy, concede permissões, altera Policy, desabilita Audit ou amplia Scope. A promoção continua sob o PromotionGate F15.
+
+**Próxima fase oficial: F19 — Lumen Intelligence Lab.**
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F17 — INTELLIGENCE STACK EVOLUTION: 🟩 CONCLUÍDA.**
 
 F16 permanece concluída. F17 adicionou ProviderProfile, ModelProfile, roteamento determinístico, evidência de stack e propostas isoladas de adaptação.

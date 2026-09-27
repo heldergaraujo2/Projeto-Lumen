@@ -1,5 +1,24 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
+**F18 — MODEL ADAPTATION LABORATORY: 🟩 CONCLUÍDA**
+
+Evidência final:
+- **1256 passed / 1 skipped / 0 failed** no Lumen Tests;
+- **1256 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
+- compile SUCCESS;
+- PR #12 implementa o laboratório de adaptação;
+- contratos de dataset/adaptação/experimento/evidência/candidato;
+- benchmark, regressão, segurança e Human Approval preservados.
+
+F18 cria um laboratório para investigar adaptações da camada de modelos sem
+alterar diretamente o runtime estável. O componente é deliberadamente
+record/validation oriented: treinamento, inferência, downloads, rede e deploy
+não fazem parte de sua superfície de autoridade.
+
+**Próxima fase oficial: F19 — Lumen Intelligence Lab.**
+
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
 **F16 — CONTINUOUS EVOLUTION: 🟩 CONCLUÍDA**
 
 Evidência final:

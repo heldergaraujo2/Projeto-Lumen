@@ -27,3 +27,9 @@ from .continuous import (
 )
 
 from .intelligence_stack import (AdapterKind, IntelligenceStack, IntelligenceStackEvolution, ModelProfile, ProviderProfile, RoutingDecision, StackAdaptation, StackEvidence, StackEvaluator, StackLayer, StackRequest)
+
+
+from .adaptation import (
+    AdaptationAssessment, AdaptationCandidate, AdaptationEvaluator, AdaptationEvidence,
+    AdaptationExperiment, AdaptationKind, AdaptationSpec, DatasetSpec, ModelAdaptationLab,
+)

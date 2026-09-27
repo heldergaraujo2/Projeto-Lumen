@@ -1,3 +1,39 @@
+# F18 — MODEL ADAPTATION LABORATORY — 🟩 CONCLUÍDA
+
+**Data:** 2026-09-27
+
+## Evidência final
+
+- laboratório de adaptação de modelos isolado;
+- contratos para datasets, adaptações, experimentos, evidências e candidatos;
+- suporte contratual a LoRA, fine-tuning, distillation, pruning, quantization,
+  dataset curation, synthetic data, curriculum, tool-use, domain adaptation e
+  inference optimization;
+- seed e chave de reprodutibilidade obrigatórios;
+- artefatos e testes obrigatórios antes do candidato;
+- benchmark e RegressionDetector;
+- SafetyValidator e Human Approval para alto risco;
+- invariantes de identidade entre provider, modelo base, modelo candidato e métrica;
+- compile SUCCESS;
+- **1256 passed / 1 skipped / 0 failed** no Lumen Tests;
+- **1256 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
+- PR #12 pronta para merge.
+
+## Limites de segurança
+
+F18 é uma camada de laboratório/validação. Não executa treinamento, inferência,
+processos, rede, download ou deploy. Não concede Permission, altera Policy,
+Sandbox, Checkpoint ou Audit, não amplia Scope e não promove automaticamente.
+O candidato permanece isolado e a promoção continua delegada ao F15
+PromotionGate.
+
+## Próxima fase
+
+**F19 — Lumen Intelligence Lab.**
+
+F19 deverá unificar Evolution Lab + Model Adaptation Lab em um ambiente permanente
+de pesquisa de inteligência, mantendo a separação entre Stable Runtime,
+Experimental Workspace e Candidate.
 # F16 — CONTINUOUS EVOLUTION — 🟩 CONCLUÍDA
 
 **Data:** 2026-09-27
