@@ -109,7 +109,17 @@ Entregues:
 - [x] documentação em docs/SECURE_COMPUTER_CONTROL_IMPLEMENTATION.md.
 
 ## F8 — VERIFICATION + RECOVERY + REGRESSION
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+Entregues:
+- [x] pós-condições explícitas de verification;
+- [x] estados VERIFIED / FAILED / INCONCLUSIVE;
+- [x] classificação de falhas;
+- [x] recovery bounded, com segurança terminal;
+- [x] RegressionDetector determinístico;
+- [x] integração com ComputerIntelligence;
+- [x] testes dedicados + CI da PR;
+- [x] documentação em docs/VERIFICATION_RECOVERY_REGRESSION_IMPLEMENTATION.md.
 
 ## F9 — UNREAL ENGINE AGENT
 🟥 PENDENTE
