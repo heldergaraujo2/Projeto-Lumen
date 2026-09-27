@@ -19,6 +19,14 @@ class ActionPlanner:
             raise TypeError("text must be a string")
         return ActionIntent(CCActionType.KEY_TYPE.value, parameters={"text": text}, rationale=rationale)
 
+    def key_press(self, key: str, *, rationale: str = "") -> ActionIntent:
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("key must be a non-empty string")
+        return ActionIntent(CCActionType.KEY_PRESS.value, parameters={"keys": (key,)}, rationale=rationale)
+
+    def window_focus(self, *, rationale: str = "") -> ActionIntent:
+        return ActionIntent(CCActionType.WINDOW_FOCUS.value, rationale=rationale)
+
     def key_combo(self, *keys: str, rationale: str = "") -> ActionIntent:
         if not keys or any(not isinstance(key, str) or not key for key in keys):
             raise ValueError("at least one non-empty key is required")
