@@ -1,7 +1,7 @@
 # Lumen F0 — Baseline, Auditoria e Critérios de Conclusão
 
 Fase: F0 — Baseline / Auditoria / Contratos  
-Estado: PENDENTE até a validação final da suíte e CI  
+Estado: 🟩 CONCLUÍDA, validada pela CI  
 Base auditada: e2944011d37ccfa363b5adf2fcd654a7746aefd7
 
 ## Escopo
