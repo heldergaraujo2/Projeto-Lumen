@@ -1,7 +1,14 @@
 # CURRENT OFFICIAL CONTINUITY — 2026-09-27
 
 **F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA.**
-**F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA.**
+**F10 — WORKFLOW LEARNING: 🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FOCADA CONCLUÍDA.**
+
+Evidência:
+- 18 testes focados definidos;
+- validação comportamental dos contratos centrais: OK;
+- workflow de CI reproduzível adicionado;
+- o conector desta sessão não retornou execução/status do GitHub Actions para F10; não há contagem CI nova a declarar;
+- última CI comprovada: F9, 1132 passed / 1 skipped / 0 failed.
 **Próxima fase oficial: F11 — AUTONOMOUS MULTI-STEP AGENT.**
 
 ## F10 — EVIDÊNCIA E ENTREGAS
