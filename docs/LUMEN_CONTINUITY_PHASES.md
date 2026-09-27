@@ -18,7 +18,7 @@ A Lumen deve evoluir dentro de sua própria arquitetura, usando ambientes experi
 
 ## ESTADO DESTE PLANO
 
-O estado acima é a referência operacional atual. F0–F3 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
+O estado acima é a referência operacional atual. F0–F4 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
 
 ---
 
@@ -49,7 +49,17 @@ Entregues:
 - [x] Documentação em docs/COMPUTER_INTELLIGENCE_IMPLEMENTATION.md.
 
 ## F4 — WINDOWS NATIVE INTELLIGENCE
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+Entregues:
+- [x] Enumeração e correspondência de janelas por handle/título/processo/aplicação.
+- [x] Backend Windows UI Automation com imports COM lazy.
+- [x] Árvore UIA limitada por profundidade e quantidade.
+- [x] Propriedades estruturadas de controles.
+- [x] Conversão NativeElement → GroundedTarget.
+- [x] NativeActionRequest sem execução física/bypass de segurança.
+- [x] Testes focados + CI completa: 1073 passed / 1 skipped / 0 failed.
+- [x] Documentação em docs/WINDOWS_NATIVE_INTELLIGENCE.md.
 
 ## F5 — VISION PROVIDER
 🟥 PENDENTE
