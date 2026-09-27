@@ -157,3 +157,25 @@ def test_planner_rejects_wrong_capability():
     report = ResearchReport(ResearchQuery("Q1", "other", "x"), ())
     with pytest.raises(ValueError):
         ContinuousEvolutionPlanner().create_opportunity(trigger, report=report)
+
+
+def test_monitoring_syncs_existing_evolution_memory():
+    from app.evolution import EvolutionMemory, EvolutionRecord
+
+    monitor, _, candidate = setup_monitor()
+    memory = EvolutionMemory()
+    memory.record(
+        EvolutionRecord(
+            evolution_id="EVOLUTION-000001",
+            capability_id="cap-1",
+            problem="improve grounding",
+        )
+    )
+    monitor.memory = memory
+    monitor.start_monitoring(candidate, baseline=measurement(.9))
+    monitor.observe(candidate, measurement=measurement(.8))
+    result = monitor.observe(candidate, measurement=measurement(.79))
+    monitor.sync_memory(result)
+    record = memory.get("EVOLUTION-000001")
+    assert record.state is EvolutionState.MONITORED
+    assert "repeated post-promotion regression" in record.regressions
