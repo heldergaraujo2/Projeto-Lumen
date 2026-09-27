@@ -27,6 +27,7 @@ class PermissionLevel(IntEnum):
     WRITE = 30
     TERMINAL = 40
     COMPUTER_CONTROL = 50
+    VISION_PROVIDER = 60
 
 
 PERMISSION_DESCRIPTIONS: dict[PermissionLevel, str] = {

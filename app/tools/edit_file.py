@@ -127,7 +127,7 @@ class EditFileTool(FilesystemTool):
         new_content = text[:index] + new_text + text[index + len(old_text):]
         bytes_before = len(payload)
         bytes_after = len(new_content.encode("utf-8"))
-        resolved.write_text(new_content, encoding="utf-8")
+        resolved.write_text(new_content, encoding="utf-8", newline="")
 
         line = text.count("\n", 0, index) + 1
         column = index - (text.rfind("\n", 0, index) + 1) + 1

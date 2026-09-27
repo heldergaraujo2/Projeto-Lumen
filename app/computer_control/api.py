@@ -18,6 +18,8 @@ class CCActionType(str, Enum):
     SCROLL = "scroll"
     KEY_TYPE = "key_type"
     KEY_COMBO = "key_combo"
+    WINDOW_FOCUS = "window_focus"
+    WINDOW_WAIT = "window_wait"
 
 
 @dataclass(frozen=True)
@@ -51,3 +53,28 @@ class ComputerControlDriver(Protocol):
     """
 
     def screenshot(self, *, target: Optional[CCTarget] = None) -> ScreenshotInfo: ...
+
+
+    def mouse_move(
+        self, *, dx: int, dy: int, target: Optional[CCTarget] = None
+    ) -> tuple[int, int]: ...
+
+
+    def mouse_click(
+        self, *, button: str = "left", target: Optional[CCTarget] = None
+    ) -> tuple[int, int]: ...
+
+
+    def mouse_click_at(
+        self, *, dx: int, dy: int, button: str = "left", target: Optional[CCTarget] = None
+    ) -> tuple[int, int]: ...
+
+
+    def key_type(
+        self, *, text: str, target: Optional[CCTarget] = None
+    ) -> int: ...
+
+
+    def focus_window(self, *, target: CCTarget) -> bool: ...
+
+    def wait_for_window(self, *, target: CCTarget, timeout_s: int) -> bool: ...

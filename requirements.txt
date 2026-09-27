@@ -23,3 +23,11 @@ keyring>=25.0,<26.0
 
 # Desenvolvimento, para executar os testes:
 pytest>=8.0
+
+# Windows Computer Control (screenshot real). O mss só é importado pelo
+# driver Windows (app/computer_control/windows/driver.py) e a dependência
+# é instalada apenas no Windows; nos demais SOs usa-se o FakeDriver.
+mss>=9.0,<10.0; platform_system=="Windows"
+
+# Local computer vision (offline):
+opencv-python>=4.10,<5.0; platform_system=="Windows"

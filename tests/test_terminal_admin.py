@@ -76,11 +76,71 @@ def test_grant_and_revoke_terminal_explicit(tmp_path):
     assert not permissions.is_granted("TERMINAL")
 
 
-def test_computer_control_has_no_dedicated_path(tmp_path):
-    controller = make_controller(tmp_path)
-    assert not hasattr(controller, "grant_computer_control")
+def test_generic_grant_permission_still_rejects_computer_control(tmp_path):
+    """O caminho genérico NÃO concede COMPUTER_CONTROL (sem concessão
+    silenciosa) — mesmo com o caminho dedicado existindo."""
+    permissions = PermissionManager()
+    controller = make_controller(tmp_path, permissions)
     with pytest.raises(ToolsControlError):
         controller.grant_permission("COMPUTER_CONTROL")
+    with pytest.raises(ToolsControlError):
+        controller.revoke_permission("COMPUTER_CONTROL")
+    assert not permissions.is_granted("COMPUTER_CONTROL")
+
+
+def test_grant_and_revoke_computer_control_explicit(tmp_path):
+    permissions = PermissionManager()
+    controller = make_controller(tmp_path, permissions)
+    controller.grant_computer_control()
+    assert permissions.is_granted("COMPUTER_CONTROL")
+    controller.revoke_computer_control()
+    assert not permissions.is_granted("COMPUTER_CONTROL")
+
+
+def test_computer_control_grant_toggles_planning_catalog(tmp_path, monkeypatch):
+    """CC-3: o planner só vê ferramentas CC quando a permissão foi
+    explicitamente concedida (paridade com include_terminal)."""
+    captured = {}
+
+    def fake_build_catalog(*, include_terminal, include_computer_control=False):
+        captured["include_terminal"] = include_terminal
+        captured["include_computer_control"] = include_computer_control
+        return {"_witness": include_computer_control}
+
+    monkeypatch.setattr(
+        "app.planner.catalog.build_catalog", fake_build_catalog
+    )
+
+    controller = make_controller(tmp_path)
+    catalog = controller.planning_catalog()
+    assert captured["include_computer_control"] is False
+    assert catalog == {"_witness": False}
+
+    controller.grant_computer_control()
+    catalog = controller.planning_catalog()
+    assert captured["include_computer_control"] is True
+    assert catalog == {"_witness": True}
+
+    controller.revoke_computer_control()
+    controller.planning_catalog()
+    assert captured["include_computer_control"] is False
+
+
+def test_computer_control_grant_and_revoke_are_audited(tmp_path):
+    controller = make_controller(tmp_path)
+    controller.grant_computer_control()
+    controller.revoke_computer_control()
+    records = controller.audit_records()
+    operations = [r["operation"] for r in records]
+    assert "cc_grant" in operations and "cc_revoke" in operations
+    admin = [r for r in records if r["tool"] == "cc_admin"]
+    assert {r["operation"] for r in admin} == {"cc_grant", "cc_revoke"}
+    assert all(r["success"] for r in admin)
+    # as ações de terminal continuam com tool próprio (sem vazamento)
+    controller.grant_terminal()
+    term = [r for r in controller.audit_records()
+            if r["operation"] == "terminal_grant"]
+    assert term and all(r["tool"] == "terminal_admin" for r in term)
 
 
 def test_terminal_grant_and_revoke_are_audited(tmp_path):
