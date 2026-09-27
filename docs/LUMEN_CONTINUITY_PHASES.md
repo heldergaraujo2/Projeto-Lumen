@@ -18,7 +18,7 @@ A Lumen deve evoluir dentro de sua própria arquitetura, usando ambientes experi
 
 ## ESTADO DESTE PLANO
 
-O estado acima é a referência operacional atual. F0–F6 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
+O estado acima é a referência operacional atual. F0–F7 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
 
 ---
 
@@ -90,7 +90,23 @@ Entregues:
 - [x] Documentação em docs/GROUNDING_ENGINE_IMPLEMENTATION.md.
 
 ## F7 — SECURE COMPUTER CONTROL
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+Entregues:
+- [x] PermissionManager(COMPUTER_CONTROL) como autoridade explícita.
+- [x] CC Policy fail-closed.
+- [x] CCScope com ações, expiração, orçamento e região.
+- [x] checkpoint one-shot CC-CP-XXXXXX antes da execução.
+- [x] fingerprint vinculado ao scope e à requisição.
+- [x] aprovação não reutilizável.
+- [x] revalidação do scope imediatamente antes do driver.
+- [x] regiões de screenshot revalidadas contra o scope.
+- [x] GroundedTarget revalidado antes da ação.
+- [x] auditoria metadata-only.
+- [x] ações não suportadas falham de forma controlada.
+- [x] testes de negação, aprovação, replay, mismatch, recusa, escopo, orçamento e falha.
+- [x] CI completa: 1104 passed / 1 skipped / 0 failed.
+- [x] documentação em docs/SECURE_COMPUTER_CONTROL_IMPLEMENTATION.md.
 
 ## F8 — VERIFICATION + RECOVERY + REGRESSION
 🟥 PENDENTE
