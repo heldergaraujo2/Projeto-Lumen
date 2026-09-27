@@ -1,5 +1,22 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
+**F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION: 🟩 CONCLUÍDA**
+
+Evidência:
+- **1222 passed / 1 skipped / 0 failed**;
+- Lumen Tests `36355024494`: SUCCESS;
+- Lumen F0 Validation `36355024497`: SUCCESS;
+- PR #9 mergeada;
+- merge commit `ae170632138a72a5a3221c83f722bac2f622f2f1`.
+
+F15 fecha o caminho controlado entre candidato experimental e decisão de promoção, exigindo build evidence, benchmark, ausência de regressão, revisão de segurança e aprovação humana explícita. A promoção implementada é apenas estado de registro; não há deploy automático.
+
+**Próxima fase oficial: F16 — Continuous Evolution.**
+
+---
+
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
 **F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT: 🟩 CONCLUÍDA**
 
 Evidência final:
