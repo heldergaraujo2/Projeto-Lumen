@@ -1,19 +1,20 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
-**F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION: 🟩 CONCLUÍDA**
+**F16 — CONTINUOUS EVOLUTION: 🟩 CONCLUÍDA**
 
-Evidência:
-- **1222 passed / 1 skipped / 0 failed**;
-- Lumen Tests `36355024494`: SUCCESS;
-- Lumen F0 Validation `36355024497`: SUCCESS;
-- PR #9 mergeada;
-- merge commit `ae170632138a72a5a3221c83f722bac2f622f2f1`.
+Evidência final:
+- **1236 passed / 1 skipped / 0 failed**;
+- Lumen Tests run 36355972633: SUCCESS;
+- Lumen F0 Validation run 36355972659: SUCCESS;
+- compile SUCCESS;
+- PR #10 contém a implementação e a atualização da continuidade.
 
-F15 fecha o caminho controlado entre candidato experimental e decisão de promoção, exigindo build evidence, benchmark, ausência de regressão, revisão de segurança e aprovação humana explícita. A promoção implementada é apenas estado de registro; não há deploy automático.
+F16 fecha o ciclo pós-promoção com observação bounded, medição de estabilidade,
+detecção de degradação/regressão, Evolution Trigger e integração com EvolutionMemory.
+O trigger apenas inicia uma nova investigação; ele não executa correções, não faz
+deploy e não bypassa os gates F7/F12-F15.
 
-**Próxima fase oficial: F16 — Continuous Evolution.**
-
----
+**Próxima fase oficial: F17 — Intelligence Stack Evolution.**
 
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 

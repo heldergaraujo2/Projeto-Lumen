@@ -1,44 +1,61 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
-**F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION: 🟩 CONCLUÍDA.**
+**F16 — CONTINUOUS EVOLUTION: 🟩 CONCLUÍDA.**
 
-Validação final:
-- **1222 passed / 1 skipped / 0 failed**;
+Validação final da implementação F16:
+- primeira CI encontrou 9 falhas na fixture dos testes;
+- causa: Candidate é imutável e os testes mantinham a instância PROMOTED após start_monitoring() retornar a instância MONITORED;
+- fixture corrigida;
+- **1236 passed / 1 skipped / 0 failed**;
+- Lumen Tests run **36355972633**: SUCCESS;
+- Lumen F0 Validation run **36355972659**: SUCCESS;
 - compile: SUCCESS;
-- Lumen Tests run **36355024494**: SUCCESS;
-- Lumen F0 Validation run **36355024497**: SUCCESS;
-- PR #9 mergeada em master;
-- merge commit: `ae170632138a72a5a3221c83f722bac2f622f2f1`.
+- documentação e continuidade atualizadas;
+- PR #10 preparada para merge.
 
 Entregas:
-- BuildEvidence;
-- CandidateBuilder;
-- BenchmarkSuite;
-- CandidateBenchmark;
-- PromotionAssessment;
-- PromotionGate;
-- validação de artefatos/testes de build;
-- benchmark com identidade e amostra mínima;
-- detecção de regressão;
-- revisão de componentes protegidos;
-- aprovação humana explícita;
-- ciclo bounded EXPERIMENTAL → PROMOTION_PENDING → PROMOTED;
-- rejeição → REJECTED;
-- promoção somente como mudança de estado de registro, sem deploy físico.
+- MonitoringPolicy;
+- PostPromotionObservation;
+- ContinuousEvolutionMonitor;
+- StabilityAssessment;
+- detecção determinística de estabilidade/degradação/regressão;
+- histórico bounded;
+- EvolutionTrigger para iniciar novo ciclo sem executar mudanças;
+- ContinuousEvolutionPlanner;
+- sincronização de evidências com EvolutionMemory;
+- testes de segurança, limites, regressão, recuperação e memória.
 
 Segurança:
-- F15 não executa compiladores/processos;
+- F16 não executa código/processos;
 - não faz deploy;
 - não chama drivers;
 - não concede Permission;
 - não altera Policy/Sandbox/Checkpoint/Audit;
-- não bypassa Security Core;
-- não infere aprovação humana;
-- rollback físico continua fora do F15 e permanece sob RollbackManager.
+- não executa rollback físico;
+- não promove automaticamente;
+- triggers de melhoria exigem novo ciclo F12–F15;
+- alto risco continua exigindo Human Approval.
 
-**Próxima fase oficial: F16 — Continuous Evolution.**
+## O QUE A LUMEN JÁ CONSEGUE FAZER
 
----
+A trilha oficial já permite à Lumen:
+1. representar e observar estado do computador com fingerprint determinístico;
+2. identificar alvos por grounding estruturado, priorizando fontes nativas;
+3. planejar ações sem entregar o driver diretamente ao modelo;
+4. executar Computer Control pela cadeia segura de Permission/Policy/Scope/Checkpoint/Driver/Audit;
+5. verificar pós-condições e classificar falhas;
+6. realizar recovery bounded sem ampliar permissões ou escopo;
+7. detectar regressões;
+8. operar objetivos estruturados do Unreal Engine: foco, abrir asset/level, salvar, salvar tudo, Play e Stop;
+9. aprender workflows versionados, medir evidências e propor adaptações controladas;
+10. orquestrar tarefas multi-etapas dentro de orçamento e aprovação;
+11. diagnosticar capacidades, pesquisar evidências fornecidas pelo chamador e gerar planos de melhoria;
+12. isolar experimentos em Evolution Laboratory;
+13. construir/avaliar candidatos por evidências de build e benchmark;
+14. exigir revisão de segurança e aprovação humana antes de promoção;
+15. monitorar candidatos promovidos, detectar degradação/regressão pós-promoção e abrir um novo ciclo de melhoria baseado em evidências.
+
+**Limitação física:** CI Linux não é smoke test físico de Windows/Unreal. A validação real de mouse/teclado/UIA/Unreal em uma máquina Windows continua sendo uma etapa de ambiente, não declarada como concluída por esta CI.
 
 # CURRENT OFFICIAL TRACK — 2026-09-27
 

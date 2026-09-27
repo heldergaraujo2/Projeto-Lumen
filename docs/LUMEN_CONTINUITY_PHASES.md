@@ -1,31 +1,35 @@
-# F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION — 🟩 CONCLUÍDA
+# F16 — CONTINUOUS EVOLUTION — 🟩 CONCLUÍDA
 
 **Data:** 2026-09-27
 
-## Evidência
-- BuildEvidence e CandidateBuilder;
-- BenchmarkSuite e CandidateBenchmark;
-- PromotionAssessment e PromotionGate;
-- regressão bloqueia promoção;
-- componentes protegidos bloqueiam promoção;
-- alto risco exige aprovação humana;
-- ciclo bounded de promoção;
-- rejeição registrada;
-- **1222 passed / 1 skipped / 0 failed**;
-- compile SUCCESS;
-- F0 Validation SUCCESS;
-- PR #9 mergeada;
-- merge commit `ae170632138a72a5a3221c83f722bac2f622f2f1`.
+## Evidência final
 
-## Limites
-F15 registra resultados de build e benchmark fornecidos pelo chamador. Não executa compilação, processos ou deploy e não altera o runtime estável. `promote_record` altera somente o estado do candidato no registry.
+- monitoramento pós-promoção bounded;
+- estabilidade, degradação e regressão determinísticas;
+- histórico de observações limitado;
+- Evolution Trigger para novo ciclo;
+- integração de evidências com EvolutionMemory;
+- planner de oportunidade baseado em pesquisa;
+- primeira CI: 9 falhas de fixture, corrigidas;
+- validação final: **1236 passed / 1 skipped / 0 failed**;
+- Lumen Tests run 36355972633: SUCCESS;
+- Lumen F0 Validation run 36355972659: SUCCESS;
+- compile SUCCESS;
+- PR #10 preparada para merge.
+
+## Limites de segurança
+
+F16 é observacional/propositiva. Não executa código, processos, drivers ou deploy,
+não concede Permission, não altera Policy/Sandbox/Checkpoint/Audit, não faz rollback
+físico e não promove automaticamente. Um trigger de degradação apenas inicia novo
+ciclo F12–F15, preservando benchmark, security review e Human Approval.
 
 ## Próxima fase
-**F16 — Continuous Evolution.**
 
-F16 deverá fechar o ciclo contínuo de evolução: observar resultados pós-promoção, monitorar estabilidade, detectar oportunidades recorrentes, alimentar memória e iniciar novos ciclos de melhoria sem remover os gates de segurança.
+**F17 — Intelligence Stack Evolution.**
 
----
+F17 deverá evoluir a pilha de inteligência da Lumen mantendo Provider ≠ Lumen,
+modelos substituíveis, isolamento experimental e evidência mensurável.
 
 # F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT — 🟩 CONCLUÍDA
 
@@ -375,100 +379,91 @@ Entregues:
 - [x] documentação em docs/VERIFICATION_RECOVERY_REGRESSION_IMPLEMENTATION.md.
 
 ## F9 — UNREAL ENGINE AGENT
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+- foco, Open Asset, Open Level, Save, Save All, Play e Stop;
+- planos convertíveis para a cadeia segura;
+- objetivos ambíguos rejeitados;
+- CI final: 1132 passed / 1 skipped / 0 failed.
 
 ## F10 — WORKFLOW LEARNING
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+- workflows versionados e fingerprint determinístico;
+- evidências de sucesso/falha/inconclusivo;
+- matcher e adaptação bounded;
+- alto risco exige aprovação;
+- execução continua na cadeia F7/F8.
 
 ## F11 — AUTONOMOUS MULTI-STEP AGENT
-🟥 PENDENTE
+🟩 CONCLUÍDA
+
+- tarefas multi-etapas sequenciais;
+- orçamento de passos/recovery/tentativas;
+- approval explícito;
+- terminalidade para falhas de segurança;
+- CI final: 1160 passed / 1 skipped / 0 failed.
 
 # LUMEN EVOLUTION SYSTEM
 
-## F14 — EVOLUTION FOUNDATION
+## F12 — EVOLUTION FOUNDATION
+🟩 CONCLUÍDA
+
+Capability Registry, Measurement, Diagnostics, Improvement Planner, Hypothesis Manager,
+Experiment Manager, Candidate Registry, Benchmark/Regression, Safety Validator,
+Promotion Manager, Rollback Manager e Evolution Memory.
+
+## F13 — EVOLUTION LABORATORY
+🟩 CONCLUÍDA
+
+Laboratório isolado, path safety, separação de runtime estável e registro bounded de
+experimentos/mudanças/candidatos.
+
+## F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT
+🟩 CONCLUÍDA
+
+Diagnóstico determinístico, pesquisa baseada em evidências fornecidas pelo chamador,
+oportunidades e planos de melhoria. CI final: 1205 passed / 1 skipped / 0 failed.
+
+## F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION
+🟩 CONCLUÍDA
+
+Build evidence, benchmark, regression gate, safety review, Human Approval Gate e
+promoção metadata-only. CI final: 1222 passed / 1 skipped / 0 failed.
+
+## F16 — CONTINUOUS EVOLUTION
+🟨 IMPLEMENTAÇÃO CONCLUÍDA / CI EM VALIDAÇÃO
+
+Entregas:
+- [x] Post-promotion monitoring.
+- [x] Stability assessment.
+- [x] Degradation/regression detection.
+- [x] Bounded monitoring history.
+- [x] Evolution trigger para novo ciclo.
+- [x] Research-to-opportunity planner.
+- [x] Integração de evidência de monitoramento com EvolutionMemory.
+- [x] testes dedicados.
+- [x] documentação.
+- [ ] CI completa e F0 Validation.
+- [ ] merge em master e atualização final da evidência.
+
+## F17 — INTELLIGENCE STACK EVOLUTION
 🟥 PENDENTE
 
-- [ ] Evolution Engine.
-- [ ] Capability Registry.
-- [ ] Capability Measurement.
-- [ ] Self-Diagnostics.
-- [ ] Improvement Planner.
-- [ ] Hypothesis Manager.
-- [ ] Experiment Manager.
-- [ ] Candidate Registry.
-- [ ] Benchmark Engine.
-- [ ] Regression Detector.
-- [ ] Safety Validator.
-- [ ] Promotion Manager.
-- [ ] Rollback Manager.
-- [ ] Evolution Memory.
-
-## F15 — EVOLUTION LABORATORY
+## F18 — MODEL ADAPTATION LABORATORY
 🟥 PENDENTE
 
-- [ ] Stable runtime separado.
-- [ ] Experimental workspace.
-- [ ] Candidate workspace.
-- [ ] Experiments.
-- [ ] Benchmarks.
-- [ ] Reports.
-- [ ] Rejected candidates.
-- [ ] Approved candidates.
-- [ ] Checkpoint antes de alterações relevantes.
-- [ ] Rollback independente do candidato.
-
-## F16 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT
+## F19 — LUMEN INTELLIGENCE LAB
 🟥 PENDENTE
 
-A Lumen deverá aceitar solicitações como:
-
-> "Seu Computer Control e Visão estão ruins. Melhore."
-
-E executar:
-
-- [ ] Diagnóstico.
-- [ ] Baseline.
-- [ ] Pesquisa.
-- [ ] Avaliação das fontes.
-- [ ] Hipóteses.
-- [ ] Plano de melhoria.
-- [ ] Experimento.
-
-## F17 — CANDIDATE / BENCHMARK / PROMOTION
+## F20 — SELF-OPTIMIZING INTELLIGENCE
 🟥 PENDENTE
 
-- [ ] Build candidato.
-- [ ] Unit tests.
-- [ ] Integration tests.
-- [ ] Regression tests.
-- [ ] Security tests.
-- [ ] Capability tests.
-- [ ] Benchmark.
-- [ ] Comparação contra baseline.
-- [ ] Promotion Gate.
-- [ ] Human Approval Gate quando necessário.
-- [ ] Rejeição rastreável.
-- [ ] Promoção rastreável.
-- [ ] Monitoramento pós-promoção.
-
-## F18 — CONTINUOUS EVOLUTION
+## F21 — PROVIDER INDEPENDENCE
 🟥 PENDENTE
 
-- [ ] Observe.
-- [ ] Measure.
-- [ ] Diagnose.
-- [ ] Research.
-- [ ] Hypothesize.
-- [ ] Experiment.
-- [ ] Implement.
-- [ ] Test.
-- [ ] Benchmark.
-- [ ] Verify.
-- [ ] Promote/Reject.
-- [ ] Learn.
-- [ ] Measure again.
-
----
+## F22 — CONTINUOUS INTELLIGENCE EVOLUTION
+🟥 PENDENTE
 
 # BOUNDARY DE SEGURANÇA — NÃO NEGOCIÁVEL
 
