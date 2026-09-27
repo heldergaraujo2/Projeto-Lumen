@@ -163,3 +163,27 @@ def test_legacy_no_checkpoint_mode_is_explicit_opt_out():
     )
     assert result.success
     assert driver.calls == [("click", 10, 10, "left")]
+
+
+def test_screenshot_region_cannot_escape_scope():
+    svc = service()
+    scope = make_scope(CCActionType.SCREENSHOT, region=ScreenRegion(0, 0, 50, 50))
+    request = CCActionRequest(
+        CCActionType.SCREENSHOT, region=ScreenRegion(40, 40, 20, 20)
+    )
+    pending = svc.execute(scope=scope, request=request)
+    result = svc.approve(pending.checkpoint.id, scope=scope, request=request)
+    assert not result.success
+    assert result.error == "execution_failed"
+    assert svc.driver.calls == []
+
+
+def test_unsupported_driver_action_fails_closed_after_approval():
+    svc = service()
+    scope = make_scope(CCActionType.MOUSE_DRAG)
+    request = CCActionRequest(CCActionType.MOUSE_DRAG, x=10, y=10)
+    pending = svc.execute(scope=scope, request=request)
+    result = svc.approve(pending.checkpoint.id, scope=scope, request=request)
+    assert not result.success
+    assert "mouse_drag" in (result.error or "")
+    assert svc.driver.calls == []
