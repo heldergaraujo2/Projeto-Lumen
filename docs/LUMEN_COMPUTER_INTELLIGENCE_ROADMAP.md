@@ -7,7 +7,7 @@ Evidência final:
 - Lumen Tests run 36355972633: SUCCESS;
 - Lumen F0 Validation run 36355972659: SUCCESS;
 - compile SUCCESS;
-- PR #10 contém a implementação e a atualização da continuidade.
+- PR #10 mergeada em master; merge commit 01a2d08881a3537ab3ddf96491b0c64a0998ec0d.
 
 F16 fecha o ciclo pós-promoção com observação bounded, medição de estabilidade,
 detecção de degradação/regressão, Evolution Trigger e integração com EvolutionMemory.
