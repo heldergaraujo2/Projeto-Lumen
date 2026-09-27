@@ -1,6 +1,13 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
-**F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA.**
+**F10 — WORKFLOW LEARNING: 🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FOCADA CONCLUÍDA.**
+
+Validação desta fase:
+- 18 testes focados em tests/test_workflow_learning.py;
+- validação comportamental independente dos contratos centrais: OK;
+- CI reproduzível adicionada em .github/workflows/tests.yml;
+- o conector GitHub disponível nesta sessão não retornou workflow run/status para os commits F10; portanto nenhum número de pytest CI é inventado;
+- a última suíte CI comprovada antes da F10 permanece F9: 1132 passed / 1 skipped / 0 failed.
 
 Validação implementada:
 - workflow knowledge versionado e com fingerprint determinístico;
