@@ -18,8 +18,8 @@ class ComputerGrounding:
         supplied = tuple(candidates or ())
         for target in supplied:
             target.validate()
-        vision = tuple(t for t in observation.elements if t.source is GroundingSource.VISION)
-        return supplied + vision
+        observed = tuple(observation.elements)
+        return supplied + observed
 
     def validate_target(self, observation: ComputerObservation, target: GroundedTarget):
         return self.engine.validate_for_scope(
