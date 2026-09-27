@@ -458,7 +458,7 @@ VisionProvider
 
 `qwen2.5-coder:7b-instruct-q8_0` permanece como modelo textual/código; não deve ser tratado como Vision Model.
 
-**Status:** PENDENTE
+**Status:** 🟩 CONCLUÍDA — CI final: 1084 passed / 1 skipped / 0 failed.
 
 ---
 
