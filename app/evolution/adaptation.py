@@ -293,8 +293,14 @@ class ModelAdaptationLab:
             raise KeyError("unknown adaptation experiment")
         if experiment.adaptation.adaptation_id != evidence.adaptation_id:
             raise ValueError("evidence belongs to another adaptation")
+        if evidence.provider_id != experiment.adaptation.base_provider:
+            raise ValueError("evidence provider does not match experiment")
         if evidence.base_model != experiment.adaptation.base_model:
             raise ValueError("evidence base model does not match experiment")
+        if evidence.candidate_model != experiment.adaptation.target_model:
+            raise ValueError("evidence candidate model does not match experiment")
+        if evidence.metric != experiment.adaptation.objective_metric:
+            raise ValueError("evidence metric does not match experiment objective")
         if evidence.seed != experiment.adaptation.seed:
             raise ValueError("evidence seed does not match experiment")
         self._evidence[evidence.experiment_id].append(evidence)
@@ -317,6 +323,12 @@ class ModelAdaptationLab:
             raise ValueError("candidate does not match a known adaptation")
         if candidate.workspace_id != experiment.adaptation.workspace_id:
             raise ValueError("candidate workspace does not match experiment")
+        if candidate.provider_id != experiment.adaptation.base_provider:
+            raise ValueError("candidate provider does not match experiment")
+        if candidate.base_model != experiment.adaptation.base_model:
+            raise ValueError("candidate base model does not match experiment")
+        if candidate.candidate_model != experiment.adaptation.target_model:
+            raise ValueError("candidate model does not match experiment")
         if not self.evidence(experiment.experiment_id):
             raise ValueError("candidate requires adaptation evidence")
         result = candidate.as_evolution_candidate()
@@ -364,10 +376,22 @@ class ModelAdaptationLab:
             raise ValueError("candidate requires adaptation evidence")
         if not benchmarks:
             raise ValueError("benchmarks are required")
+        expected_metric = next(
+            (
+                experiment.adaptation.objective_metric
+                for experiment in self._experiments.values()
+                if experiment.adaptation.adaptation_id == candidate.adaptation_id
+            ),
+            None,
+        )
+        if expected_metric is None:
+            raise ValueError("candidate does not match a known adaptation")
         for item in benchmarks:
             item.validate()
             if item.candidate_id != candidate.candidate_id:
                 raise ValueError("benchmark belongs to another candidate")
+            if item.metric != expected_metric:
+                raise ValueError("benchmark metric does not match adaptation objective")
         report = self.regression.detect(
             candidate_id=candidate.candidate_id,
             benchmarks=benchmarks,
