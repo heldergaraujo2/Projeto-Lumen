@@ -6,6 +6,8 @@ from app.ai.groq_provider import DEFAULT_MODEL as GROQ_DEFAULT_MODEL
 from app.ai.groq_provider import GroqProvider
 from app.ai.mock import MockProvider
 from app.ai.openai_provider import OpenAIProvider
+from app.ai.ollama_provider import DEFAULT_MODEL as OLLAMA_DEFAULT_MODEL
+from app.ai.ollama_provider import OllamaProvider
 from app.ai.together_provider import DEFAULT_MODEL as TOGETHER_DEFAULT_MODEL
 from app.ai.together_provider import TogetherProvider
 from app.ai.provider import (
@@ -46,6 +48,8 @@ __all__ = [
     "MockProvider",
     "ModelNotConfiguredError",
     "OpenAIProvider",
+    "OLLAMA_DEFAULT_MODEL",
+    "OllamaProvider",
     "ProviderAuthError",
     "ProviderDependencyError",
     "ProviderError",
