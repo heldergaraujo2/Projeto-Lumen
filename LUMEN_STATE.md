@@ -1,5 +1,32 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F4 — WINDOWS NATIVE INTELLIGENCE: 🟩 CONCLUÍDA.**
+
+Validação final da F4:
+- GitHub Actions run: 36350720539
+- commit de implementação/documentação: 8a665b26a493cb7374ed8dd68ac5cc6ab6df19b9
+- pip check: OK
+- compileall: OK
+- suíte completa: **1073 passed / 1 skipped / 0 failed**
+- documentação: docs/WINDOWS_NATIVE_INTELLIGENCE.md
+
+Entregues:
+- app/computer/windows_native.py
+- app/computer/windows_uia.py
+- enumeração e correspondência de janelas;
+- UI Automation estruturada e traversal limitado;
+- NativeElement → GroundedTarget;
+- NativeActionRequest sem execução física.
+
+A F4 não cria autoridade paralela: não concede permissões nem executa mouse,
+teclado ou Invoke. A execução física permanece na cadeia segura planejada para F7.
+
+**Próxima fase oficial:** F5 — Vision Provider.
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F3 — COMPUTER INTELLIGENCE: 🟩 CONCLUÍDA.**
 
 Última validação da F3:
