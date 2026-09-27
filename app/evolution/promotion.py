@@ -170,6 +170,19 @@ class PromotionGate:
         assessment.validate()
         return assessment
 
+    def submit_for_promotion(self, assessment: PromotionAssessment) -> Candidate:
+        assessment.validate()
+        if not assessment.eligible:
+            raise ValueError("candidate is not eligible for promotion")
+        candidate = self.candidates.get(assessment.candidate_id)
+        if candidate.state not in {
+            EvolutionState.EXPERIMENTAL, EvolutionState.BUILDING,
+            EvolutionState.TESTING, EvolutionState.BENCHMARKING,
+            EvolutionState.SECURITY_REVIEW,
+        }:
+            raise ValueError("candidate is not in an evolvable pre-promotion state")
+        return self.candidates.update_state(candidate.candidate_id, EvolutionState.PROMOTION_PENDING)
+
     def approve(
         self,
         assessment: PromotionAssessment,
@@ -194,6 +207,7 @@ class PromotionGate:
             assessment.candidate_id, Decision.REJECTED, reason, human_approved=False
         )
         self.promotions.decide(decision)
+        self.candidates.update_state(assessment.candidate_id, EvolutionState.REJECTED)
         return decision
 
     def promote_record(self, candidate_id: str) -> Candidate:
