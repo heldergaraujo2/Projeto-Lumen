@@ -39,7 +39,8 @@ def test_open_level_is_explicit_and_verifiable():
 def test_save_and_play_plan():
     plan = UnrealAgent().save_and_play(project=project())
     assert len(plan.actions) == 2
-    assert plan.actions[0].operation is UnrealOperation.SAVE
+    assert plan.actions[0].operation is UnrealOperation.FOCUS_EDITOR
+    assert plan.actions[1].operation is UnrealOperation.SAVE
     assert plan.actions[1].operation is UnrealOperation.PLAY
 
 
@@ -105,3 +106,18 @@ def test_documented_shortcuts_are_present():
 
 def test_verification_status_is_fail_closed():
     assert VerificationStatus.INCONCLUSIVE.value == "inconclusive"
+
+
+def test_focus_editor_is_a_non_executing_authority_boundary():
+    action = UnrealAgent().focus_editor()
+    assert action.operation is UnrealOperation.FOCUS_EDITOR
+    assert action.expected is not None
+    assert action.expected.value == "UnrealEditor"
+
+
+def test_goal_plan_starts_with_explicit_editor_focus():
+    plan = UnrealAgent().plan(project=project(), goal="salvar projeto")
+    assert [a.operation for a in plan.actions] == [
+        UnrealOperation.FOCUS_EDITOR,
+        UnrealOperation.SAVE,
+    ]
