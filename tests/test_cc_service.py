@@ -16,7 +16,7 @@ class FakeActionDriver(FakeComputerControlDriver):
  def type_text(self,text):self.calls.append(("type",text))
  def focus_window(self,target):self.calls.append(("focus",target.app_name))
 def make_scope():
- n=datetime(2026,1,1,tzinfo=timezone.utc);return CCScope("s",n,n+timedelta(minutes=1),CCTarget(app_name="Lumen"),frozenset({CCActionType.MOUSE_CLICK}),CCLimits(2,10))
+ n=datetime.now(timezone.utc);return CCScope("s",n,n+timedelta(minutes=1),CCTarget(app_name="Lumen"),frozenset({CCActionType.MOUSE_CLICK}),CCLimits(2,10))
 def test_service_denies_without_permission():
  d=FakeActionDriver();r=ComputerControlService(permissions=PermissionManager(),driver=d).execute(scope=make_scope(),request=CCActionRequest(CCActionType.MOUSE_CLICK,x=10,y=10));assert not r.success and d.calls==[]
 def test_service_executes_after_permission():
