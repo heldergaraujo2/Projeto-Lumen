@@ -147,6 +147,47 @@ def test_reproducibility_digest_is_deterministic():
     assert evaluator.reproducibility_digest(a) == evaluator.reproducibility_digest(a)
 
 
+def test_evidence_identity_must_match_provider_target_and_metric():
+    lab, spec = make_experiment()
+    with pytest.raises(ValueError):
+        lab.record_evidence(dataclasses.replace(
+            make_evidence(spec), provider_id="other-provider"
+        ))
+    with pytest.raises(ValueError):
+        lab.record_evidence(dataclasses.replace(
+            make_evidence(spec), candidate_model="other-model"
+        ))
+    with pytest.raises(ValueError):
+        lab.record_evidence(dataclasses.replace(
+            make_evidence(spec), metric="latency"
+        ))
+
+
+def test_candidate_identity_must_match_adaptation():
+    lab, spec = make_experiment()
+    lab.record_evidence(make_evidence(spec))
+    with pytest.raises(ValueError):
+        lab.register_candidate(dataclasses.replace(
+            make_candidate(spec), candidate_model="other-model"
+        ))
+    with pytest.raises(ValueError):
+        lab.register_candidate(dataclasses.replace(
+            make_candidate(spec), provider_id="other-provider"
+        ))
+
+
+def test_benchmark_metric_must_match_adaptation_objective():
+    lab, spec = make_experiment()
+    lab.record_evidence(make_evidence(spec))
+    candidate = make_candidate(spec)
+    lab.register_candidate(candidate)
+    result = lab.benchmark(
+        candidate, metric="latency", baseline=.70, candidate_score=.82,
+        sample_size=20, evidence=("benchmark://1",)
+    )
+    with pytest.raises(ValueError):
+        lab.assess(candidate, benchmarks=(result,))
+
 def test_no_execution_or_security_bypass_surface():
     names = set(dir(ModelAdaptationLab))
     forbidden = {
