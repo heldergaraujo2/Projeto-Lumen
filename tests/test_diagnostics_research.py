@@ -1,7 +1,7 @@
 import pytest
 from app.evolution.diagnostics import (
     ImprovementPlanner, ResearchEngine, ResearchEvidence, ResearchKind,
-    ResearchQuery, SelfDiagnostics,
+    ResearchQuery, ResearchReport, SelfDiagnostics,
 )
 from app.evolution.models import Capability, CapabilityMeasurement, EvolutionRisk, Diagnostic
 
