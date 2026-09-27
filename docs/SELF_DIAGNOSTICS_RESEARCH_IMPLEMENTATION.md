@@ -40,3 +40,6 @@ Research is evidence, not authority. A research claim cannot directly change the
 ## Scope
 
 F14 provides deterministic diagnostics and evidence-to-improvement planning. Actual experimental execution remains in future phases and must use the isolated F13 laboratory and existing security gates.
+
+
+F14 validation note: high-risk classification is strictly below half the configured threshold; boundary values remain medium risk.
