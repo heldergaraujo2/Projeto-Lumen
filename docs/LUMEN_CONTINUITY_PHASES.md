@@ -1,3 +1,39 @@
+# F12 — EVOLUTION FOUNDATION — 🟩 CONCLUÍDA
+
+**Data:** 2026-09-27
+
+## Evidência
+
+- Capability Registry e Measurement;
+- Self-Diagnostics e Improvement Planner;
+- Hypothesis Manager;
+- Experiment Manager com transições bounded;
+- Candidate Registry;
+- Benchmark Engine;
+- Regression Detector;
+- Safety Validator;
+- Promotion Manager com Human Approval Gate;
+- Rollback Manager;
+- Evolution Memory;
+- IDs `EVOLUTION-000001...`;
+- testes dedicados;
+- primeira CI detectou e permitiu corrigir 1 falha de regex;
+- CI final: **1177 passed / 1 skipped / 0 failed**;
+- Lumen F0 Validation: SUCCESS;
+- PR #6 mergeado em master.
+
+## Limites
+
+F12 é fundação de contratos e governança. Ela não executa experimentos nem altera automaticamente o runtime estável. Permission, Policy, Sandbox, Checkpoint, Audit, Secrets, Security Core e regras de promoção permanecem protegidos.
+
+## Próxima fase
+
+**F13 — Evolution Laboratory.**
+
+F13 deve construir o ambiente isolado de experimentação sobre esta fundação, mantendo Stable Runtime separado de Experimental Workspace e Candidate.
+
+---
+
 # CURRENT OFFICIAL CONTINUITY — 2026-09-27
 
 **F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA.**
