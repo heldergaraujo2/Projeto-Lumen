@@ -100,9 +100,22 @@ def test_permission_still_has_authority():
     permissions = PermissionManager()
     registry = ToolRegistry(permissions)
     registry.register(EchoTool())
+    def gateway(call):
+        try:
+            import json
+            raw = registry.execute(call.tool, **dict(call.parameters))
+            decoded = json.loads(raw)
+            return ToolExecutionResult(
+                call_id=call.call_id, tool=call.tool, ok=bool(decoded.get("ok", True)),
+                data=dict(decoded.get("data") or {}), error=decoded.get("error"),
+            )
+        except Exception as exc:
+            return ToolExecutionResult(call_id=call.call_id, tool=call.tool,
+                                       ok=False, error=str(exc))
+
     p = ToolProtocol(registry, {"echo": ToolDefinition(
         "echo", "Repete um texto.",
-        (ParameterDefinition("text", "string", True),))})
+        (ParameterDefinition("text", "string", True),))}, executor=gateway)
     result = p.execute(ToolCall("echo", {"text": "bloqueado"}))
     assert result.ok is False
     assert "READ" in (result.error or "")
