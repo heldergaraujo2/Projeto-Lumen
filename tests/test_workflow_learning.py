@@ -132,3 +132,20 @@ def test_workflow_fingerprint_changes_when_version_changes():
     first = workflow()
     second = WorkflowDefinition(first.workflow_id, first.name, first.goal, first.steps, version=2)
     assert first.fingerprint != second.fingerprint
+
+
+def test_learning_can_capture_unreal_plan_without_execution():
+    from app.computer_control.api import CCTarget
+    from app.unreal.agent import UnrealAgent
+    from app.unreal.models import UnrealProject
+
+    project = UnrealProject(name="AgeOfAether", root="C:/Games/AgeOfAether", editor_window=CCTarget(app_name="UnrealEditor"))
+    plan = UnrealAgent().save_and_play(project=project)
+    proposal = WorkflowLearner().learn_unreal_plan(
+        plan=plan,
+        workflow_id="unreal.save.play",
+        name="Unreal Save and Play",
+    )
+    assert proposal.workflow.source == "unreal_agent"
+    assert len(proposal.workflow.steps) == len(plan.actions)
+    assert proposal.workflow.steps[0].action == "save"
