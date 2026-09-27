@@ -8,9 +8,11 @@
 
 ## MARCO ATUAL — F2 TOOL / AGENT PROTOCOL
 
-**Status: 🟨 EM VALIDAÇÃO — 2026-09-27.**
+**Status: 🟩 CONCLUÍDA — 2026-09-27.**
 
-Última validação CI encontrou 3 falhas de integração; corrigidas: bridge voltou a permanecer agnóstico de app.tools e o teste de permissão passou a usar gateway explícito. Nova execução CI pendente.
+A F2 foi finalizada após correção das falhas encontradas durante a validação. CI final: 1052 passed, 1 skipped, 0 failed; pip check OK; compileall OK. O bridge permanece agnóstico de app.tools e a execução de ToolCall em produção passa pelo gateway que converte a intenção em Plan, preservando permissões, sandbox, checkpoint, auditoria e verificação.
+
+Próxima fase oficial: **F3 — Computer Intelligence**.
 
 A F2 está implementada diretamente no repositório oficial. Foi criado o contrato estruturado ToolCall/ToolDefinition/ToolExecutionResult/ToolProtocol, com validação fail-closed de ferramenta, campos, parâmetros, tipos e obrigatoriedade. A execução de produção não chama ToolRegistry diretamente: o gateway transforma ToolCall em Plan e usa ToolsController.run_plan, preservando PermissionManager, sandbox, checkpoint, auditoria e verificação. O bridge agora aceita ToolCall estruturado e entrega ao gateway seguro.
 
