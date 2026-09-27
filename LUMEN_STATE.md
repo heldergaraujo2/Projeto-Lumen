@@ -6,6 +6,25 @@
 
 ---
 
+## MARCO ATUAL — F1 OLLAMA PROVIDER
+
+**Status: 🟩 CONCLUÍDA** — 2026-09-27.
+
+A F1 foi implementada diretamente no repositório oficial:
+- Provider local Ollama registrado no factory de AI Providers;
+- API HTTP local via /api/chat com streaming NDJSON;
+- histórico + system prompt normalizados para AIResponse;
+- uso de tokens e finish_reason quando fornecidos pelo daemon;
+- health_check() e list_models();
+- timeout e classificação de falhas de rede, timeout, servidor e modelo;
+- configuração LUMEN_OLLAMA_BASE_URL e LUMEN_OLLAMA_KEEP_ALIVE;
+- modelo padrão qwen2.5-coder:7b-instruct-q8_0;
+- nenhum pull automático de modelo e nenhuma API key necessária;
+- testes unitários do Provider, streaming, usage, health, erros, registro e configuração;
+- documentação em docs/OLLAMA_PROVIDER.md.
+
+**Evidência de validação:** suíte CI do GitHub é a autoridade para o teste completo. A validação do daemon/modelo real continua sendo um teste de ambiente que requer Ollama instalado e o modelo disponível na máquina Windows do projeto.
+
 ## VERSION
 
 **0.6.8** *(base oficial da fase atual — Persistência opt-in do
