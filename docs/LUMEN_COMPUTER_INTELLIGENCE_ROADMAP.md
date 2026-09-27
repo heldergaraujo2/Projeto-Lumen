@@ -3,8 +3,8 @@
 **F18 — MODEL ADAPTATION LABORATORY: 🟩 CONCLUÍDA**
 
 Evidência final:
-- **1256 passed / 1 skipped / 0 failed** no Lumen Tests;
-- **1256 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
+- **1259 passed / 1 skipped / 0 failed** no Lumen Tests;
+- **1259 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
 - compile SUCCESS;
 - PR #12 implementa o laboratório de adaptação;
 - contratos de dataset/adaptação/experimento/evidência/candidato;
