@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.computer.actions import ActionPlanner
 from app.computer.models import ActionPlan, ComputerObservation, ExecutionMechanism
@@ -23,7 +23,7 @@ from .shortcuts import (
 class UnrealAgent:
     """Plans Unreal Editor workflows; physical execution remains in F7 ComputerControlService."""
 
-    planner: ActionPlanner = ActionPlanner()
+    planner: ActionPlanner = field(default_factory=ActionPlanner)
 
     def plan(self, *, project: UnrealProject, goal: str, observation: ComputerObservation | None = None) -> UnrealPlan:
         project.validate()
