@@ -1609,6 +1609,221 @@ A evolução deverá ser baseada em evidência, não em autoavaliação subjetiv
 
 ---
 
+
+
+---
+
+## 24.7 FASE 19 — INTELLIGENCE STACK EVOLUTION
+**Status: 🟥 PENDENTE**
+
+Esta fase inaugura explicitamente a ambição de tornar a Lumen progressivamente menos dependente de um Provider específico.
+
+Objetivo:
+
+> A Lumen deverá aprender a avaliar, selecionar, combinar, adaptar e otimizar sua própria infraestrutura de inteligência, mantendo o Provider como componente substituível e não como identidade da Lumen.
+
+Capacidades:
+- Model Registry;
+- Provider Registry;
+- capability-to-model mapping;
+- model routing;
+- specialist selection;
+- prompt/context optimization;
+- inference strategy optimization;
+- latency/quality/cost optimization;
+- local model benchmarking;
+- fallback e degradação controlada;
+- comparação entre modelos;
+- seleção baseada em evidências;
+- gerenciamento de adapters;
+- versionamento de modelos e configurações.
+
+Fluxo:
+
+```text
+Capability → Measure → Select Model / Strategy → Experiment → Benchmark → Promote → Monitor → Learn → repetir
+```
+
+Princípio:
+
+**A Lumen não deve depender de um Provider específico; deve depender dos próprios contratos e da própria arquitetura.**
+
+---
+
+## 24.8 FASE 20 — MODEL ADAPTATION LABORATORY
+**Status: 🟥 PENDENTE**
+
+Criar um laboratório específico para investigar se e como a própria camada de inteligência pode ser adaptada.
+
+O laboratório poderá pesquisar, quando tecnicamente viável:
+- LoRA/adapters;
+- fine-tuning;
+- distillation;
+- pruning;
+- quantization;
+- dataset curation;
+- synthetic data;
+- curriculum generation;
+- tool-use training;
+- domain adaptation;
+- specialist models;
+- model compression;
+- inference optimization;
+- routing entre modelos especializados.
+
+Pipeline:
+
+```text
+Observed Limitation → Research → Training / Adaptation Hypothesis → Dataset / Experiment Design → Candidate Model or Adapter → Evaluation → Regression + Security Review → Promotion Gate → Monitor
+```
+
+Regra:
+
+A Lumen não poderá assumir que treinar ou adaptar um modelo melhora a inteligência. Toda alteração deverá ser comprovada por benchmarks reproduzíveis.
+
+---
+
+## 24.9 FASE 21 — LUMEN INTELLIGENCE LAB
+**Status: 🟥 PENDENTE**
+
+Unificar Evolution Lab + Model Adaptation Lab em um ambiente permanente de pesquisa de inteligência.
+
+Objetivo:
+
+**Permitir que a Lumen investigue continuamente como ficar mais capaz sem precisar alterar diretamente o runtime estável.**
+
+Componentes:
+- Model Registry;
+- Dataset Registry;
+- Experiment Registry;
+- Benchmark Registry;
+- Adapter Registry;
+- Prompt/Context Registry;
+- Routing Strategies;
+- Training Experiments;
+- Inference Experiments;
+- Capability Benchmarks;
+- Regression Detection;
+- Safety Validation;
+- Promotion Manager;
+- Evolution Memory.
+
+A Lumen poderá comparar modelos, adapters, estratégias de prompt/contexto, routing e estratégias de ferramentas para uma capacidade específica.
+
+---
+
+## 24.10 FASE 22 — SELF-OPTIMIZING INTELLIGENCE
+**Status: 🟥 PENDENTE**
+
+Esta é a fase que materializa a ambição de longo prazo do projeto.
+
+A Lumen deverá ser capaz de identificar que uma capacidade está limitada e pesquisar sistematicamente como melhorar o próprio stack de inteligência utilizado para aquela capacidade.
+
+Exemplo:
+
+```text
+"Lumen, você está ruim em Unreal C++."
+        ↓
+Capability Diagnosis
+        ↓
+Baseline
+        ↓
+Research
+        ↓
+Model Evaluation
+        ↓
+Prompt / Context Experiments
+        ↓
+Routing Experiments
+        ↓
+Adapter / Fine-Tuning Experiments
+        ↓
+Tool Strategy Experiments
+        ↓
+Benchmark
+        ↓
+Security / Regression Review
+        ↓
+Promotion
+        ↓
+Post-Promotion Monitoring
+```
+
+A evolução poderá ocorrer em diferentes níveis:
+
+1. **Uso do modelo:** prompts, contexto, memória, ferramentas e decomposição de tarefas.
+2. **Orquestração:** routing, especialistas, ensembles, seleção dinâmica e estratégias de inferência.
+3. **Adaptação:** adapters, LoRA, fine-tuning e datasets especializados.
+4. **Infraestrutura:** quantização, caching, batching, contexto e eficiência de inferência.
+5. **Novos modelos:** pesquisar, avaliar, testar, promover e substituir candidatos anteriores quando houver evidência.
+
+A Lumen deverá continuar funcionando mesmo quando um experimento falhar.
+
+---
+
+## 24.11 FASE 23 — PROVIDER INDEPENDENCE
+**Status: 🟥 PENDENTE**
+
+Objetivo final da arquitetura de Providers:
+
+```text
+LUMEN
+  ↓
+Intelligence Contracts
+  ↓
+Provider Abstraction
+  ↓
+Local A / Local B / External
+  ↓
+Evidence-based Routing
+```
+
+A Lumen deverá conseguir continuar operando quando:
+- um Provider externo estiver indisponível;
+- um modelo local estiver indisponível;
+- um modelo for substituído;
+- uma versão apresentar regressão;
+- uma VisionProvider falhar;
+- uma estratégia experimental for rejeitada.
+
+A dependência deverá estar na **interface e nos contratos da Lumen**, não na identidade de um fornecedor específico.
+
+---
+
+## 24.12 FASE 24 — CONTINUOUS INTELLIGENCE EVOLUTION
+**Status: 🟥 PENDENTE**
+
+Ciclo de longo prazo:
+
+```text
+WORLD → RESEARCH → KNOWLEDGE → EXPERIENCE → MEASURE CAPABILITIES
+→ IDENTIFY LIMITATIONS → RESEARCH IMPROVEMENTS → EXPERIMENT
+→ ADAPT / OPTIMIZE / REPLACE → BENCHMARK → PROMOTE
+→ USE → OBSERVE → LEARN → repetir
+```
+
+O objetivo não é permitir uma alteração irrestrita e imprevisível do sistema.
+
+O objetivo é criar uma **linha de engenharia evolutiva contínua**, onde cada melhoria precisa produzir evidência, permanecer auditável e atravessar as barreiras de segurança.
+
+---
+
+# 24.13 CONSTITUIÇÃO DE EVOLUÇÃO DA LUMEN
+
+1. **Provider não é a Lumen.**
+2. **Modelo não é a inteligência completa da Lumen.**
+3. **A Lumen pode trocar o modelo sem perder sua identidade arquitetural.**
+4. **A Lumen pode pesquisar como melhorar sua própria inteligência.**
+5. **A Lumen pode experimentar adaptações do stack de modelos em ambiente isolado.**
+6. **Nenhuma melhoria é aceita sem evidência mensurável.**
+7. **Experimentos fracassados são memória de engenharia.**
+8. **A Lumen não pode remover unilateralmente suas próprias barreiras de segurança.**
+9. **O runtime estável permanece separado do laboratório experimental.**
+10. **Quanto mais poderosa a evolução, maior deve ser a exigência de validação.**
+11. **A autonomia deve crescer através de competência comprovada, não através da remoção de controles.**
+12. **A evolução da inteligência deve ser contínua, incremental, mensurável e reversível.**
+
+
 # 25. ARQUITETURA DE SEGURANÇA DO LUMEN EVOLUTION SYSTEM
 
 ## 25.1 O que a Lumen pode modificar
@@ -1911,6 +2126,12 @@ O roadmap somente será considerado integralmente concluído quando a Lumen poss
 - Skill Evidence;
 - métricas de evolução;
 - monitoramento pós-promoção;
+- Intelligence Stack Evolution;
+- Model Adaptation Laboratory;
+- Lumen Intelligence Lab;
+- Self-Optimizing Intelligence;
+- Provider Independence;
+- Continuous Intelligence Evolution;
 - Human Approval Gates para alto risco;
 - testes automatizados;
 - testes reais de Windows;
@@ -1949,5 +2170,11 @@ O roadmap somente será considerado integralmente concluído quando a Lumen poss
 | F16 | Self-Diagnostics + Research for Improvement | 🟥 |
 | F17 | Candidate Build + Benchmark + Promotion | 🟥 |
 | F18 | Continuous Evolution | 🟥 |
+| F19 | Intelligence Stack Evolution | 🟥 |
+| F20 | Model Adaptation Laboratory | 🟥 |
+| F21 | Lumen Intelligence Lab | 🟥 |
+| F22 | Self-Optimizing Intelligence | 🟥 |
+| F23 | Provider Independence | 🟥 |
+| F24 | Continuous Intelligence Evolution | 🟥 |
 
 **Regra operacional:** ao concluir uma fase, atualizar este checklist, o `LUMEN_STATE.md`, os testes e o handoff antes de iniciar a seguinte.
