@@ -17,10 +17,10 @@ class FakeExecutor:
         return outcome
 
 
-def task(*steps):
+def task(count):
     return MultiStepTask(
         "task-1", "complete test task",
-        tuple(MultiStep(f"s{i}", f"step {i}", object()) for i in range(steps))
+        tuple(MultiStep(f"s{i}", f"step {i}", object()) for i in range(count))
     )
 
 
