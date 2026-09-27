@@ -1,5 +1,21 @@
 # CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
 
+**F12 — EVOLUTION FOUNDATION: 🟨 IMPLEMENTAÇÃO CONCLUÍDA / CI PENDENTE.**
+
+A F12 estabelece a fundação do Lumen Evolution System (LES): Capability Registry, Measurement, Self-Diagnostics, Improvement Planner, Hypothesis Manager, Experiment Manager, Candidate Registry, Benchmark Engine, Regression Detector, Safety Validator, Promotion Manager, Rollback Manager e Evolution Memory.
+
+A evolução é identificada por `EVOLUTION-000001`, `EVOLUTION-000002` etc. O pipeline é rastreável e bounded. Aprovação de promoção não é inferida por benchmark; mudanças de alto risco exigem Human Approval.
+
+A F12 não executa experimentos, não altera automaticamente o runtime estável e não pode enfraquecer Permission, Policy, Sandbox, Checkpoint, Audit, Secrets ou Security Core.
+
+**Validação final:** pendente do GitHub Actions após a implementação.
+
+**Próxima fase, somente após F12 verde:** F13 — Evolution Laboratory.
+
+---
+
+# CURRENT OFFICIAL ROADMAP TRACK — 2026-09-27
+
 **F11 — AUTONOMOUS MULTI-STEP AGENT: 🟩 CONCLUÍDA**
 
 A F11 unifica a infraestrutura anterior em uma camada de orquestração multi-etapas limitada.
