@@ -10,6 +10,8 @@
 
 **Status: 🟨 EM VALIDAÇÃO — 2026-09-27.**
 
+Última validação CI encontrou 3 falhas de integração; corrigidas: bridge voltou a permanecer agnóstico de app.tools e o teste de permissão passou a usar gateway explícito. Nova execução CI pendente.
+
 A F2 está implementada diretamente no repositório oficial. Foi criado o contrato estruturado ToolCall/ToolDefinition/ToolExecutionResult/ToolProtocol, com validação fail-closed de ferramenta, campos, parâmetros, tipos e obrigatoriedade. A execução de produção não chama ToolRegistry diretamente: o gateway transforma ToolCall em Plan e usa ToolsController.run_plan, preservando PermissionManager, sandbox, checkpoint, auditoria e verificação. O bridge agora aceita ToolCall estruturado e entrega ao gateway seguro.
 
 Arquivos principais: app/tools/protocol.py, app/tools/control.py, app/core/bridge.py, tests/test_tool_protocol.py, tests/test_tool_call_gateway.py, docs/TOOL_AGENT_PROTOCOL.md.
