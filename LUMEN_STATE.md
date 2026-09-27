@@ -1,6 +1,10 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
-**F16 — CONTINUOUS EVOLUTION: 🟩 CONCLUÍDA.**
+**F17 — INTELLIGENCE STACK EVOLUTION: 🟩 CONCLUÍDA.**
+
+F16 permanece concluída. F17 adicionou ProviderProfile, ModelProfile, roteamento determinístico, evidência de stack e propostas isoladas de adaptação.
+
+Validação F17: **1244 passed / 1 skipped / 0 failed**; Lumen Tests run 36357083721 SUCCESS; Lumen F0 Validation run 36357083708 SUCCESS; compile SUCCESS.
 
 Validação final da implementação F16:
 - primeira CI encontrou 9 falhas na fixture dos testes;
