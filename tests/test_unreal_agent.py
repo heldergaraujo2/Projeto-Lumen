@@ -39,9 +39,7 @@ def test_open_level_is_explicit_and_verifiable():
 def test_save_and_play_plan():
     plan = UnrealAgent().save_and_play(project=project())
     assert len(plan.actions) == 2
-    assert plan.actions[0].operation is UnrealOperation.FOCUS_EDITOR
-    assert plan.actions[1].operation is UnrealOperation.SAVE
-    assert plan.actions[1].operation is UnrealOperation.PLAY
+    assert plan.actions[0].operation is UnrealOperation.SAVE
     assert plan.actions[1].operation is UnrealOperation.PLAY
 
 
@@ -52,7 +50,8 @@ def test_goal_planner_is_fail_closed_for_ambiguous_free_text():
 
 def test_goal_planner_accepts_known_safe_goal():
     plan = UnrealAgent().plan(project=project(), goal="salvar projeto")
-    assert plan.actions[0].operation is UnrealOperation.SAVE
+    assert plan.actions[0].operation is UnrealOperation.FOCUS_EDITOR
+    assert plan.actions[1].operation is UnrealOperation.SAVE
 
 
 def test_to_action_plan_does_not_execute():
