@@ -1,31 +1,35 @@
-# F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION — 🟩 CONCLUÍDA
+# F16 — CONTINUOUS EVOLUTION — 🟩 CONCLUÍDA
 
 **Data:** 2026-09-27
 
-## Evidência
-- BuildEvidence e CandidateBuilder;
-- BenchmarkSuite e CandidateBenchmark;
-- PromotionAssessment e PromotionGate;
-- regressão bloqueia promoção;
-- componentes protegidos bloqueiam promoção;
-- alto risco exige aprovação humana;
-- ciclo bounded de promoção;
-- rejeição registrada;
-- **1222 passed / 1 skipped / 0 failed**;
-- compile SUCCESS;
-- F0 Validation SUCCESS;
-- PR #9 mergeada;
-- merge commit `ae170632138a72a5a3221c83f722bac2f622f2f1`.
+## Evidência final
 
-## Limites
-F15 registra resultados de build e benchmark fornecidos pelo chamador. Não executa compilação, processos ou deploy e não altera o runtime estável. `promote_record` altera somente o estado do candidato no registry.
+- monitoramento pós-promoção bounded;
+- estabilidade, degradação e regressão determinísticas;
+- histórico de observações limitado;
+- Evolution Trigger para novo ciclo;
+- integração de evidências com EvolutionMemory;
+- planner de oportunidade baseado em pesquisa;
+- primeira CI: 9 falhas de fixture, corrigidas;
+- validação final: **1236 passed / 1 skipped / 0 failed**;
+- Lumen Tests run 36355972633: SUCCESS;
+- Lumen F0 Validation run 36355972659: SUCCESS;
+- compile SUCCESS;
+- PR #10 preparada para merge.
+
+## Limites de segurança
+
+F16 é observacional/propositiva. Não executa código, processos, drivers ou deploy,
+não concede Permission, não altera Policy/Sandbox/Checkpoint/Audit, não faz rollback
+físico e não promove automaticamente. Um trigger de degradação apenas inicia novo
+ciclo F12–F15, preservando benchmark, security review e Human Approval.
 
 ## Próxima fase
-**F16 — Continuous Evolution.**
 
-F16 deverá fechar o ciclo contínuo de evolução: observar resultados pós-promoção, monitorar estabilidade, detectar oportunidades recorrentes, alimentar memória e iniciar novos ciclos de melhoria sem remover os gates de segurança.
+**F17 — Intelligence Stack Evolution.**
 
----
+F17 deverá evoluir a pilha de inteligência da Lumen mantendo Provider ≠ Lumen,
+modelos substituíveis, isolamento experimental e evidência mensurável.
 
 # F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT — 🟩 CONCLUÍDA
 
