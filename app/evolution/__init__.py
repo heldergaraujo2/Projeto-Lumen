@@ -52,3 +52,9 @@ from .provider_independence import (
     ProviderFallbackPolicy, ProviderIndependenceAssessment, ProviderIndependenceLab,
     ProviderMigrationPlan,
 )
+
+from .continuous_intelligence import (
+    ContinuousIntelligenceEvolution, ContinuousIntelligencePlan,
+    IntelligenceCycle, IntelligenceCycleState, IntelligenceObservation,
+    IntelligenceTrigger,
+)
