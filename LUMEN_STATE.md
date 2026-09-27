@@ -1,5 +1,41 @@
 # CURRENT OFFICIAL TRACK — 2026-09-27
 
+**F11 — AUTONOMOUS MULTI-STEP AGENT: 🟩 CONCLUÍDA.**
+
+Evidência final:
+- implementação em app/autonomy/;
+- testes dedicados em tests/test_autonomous_multi_step.py;
+- primeira CI detectou 7 falhas exclusivamente na fixture dos testes;
+- fixture corrigida;
+- segunda validação GitHub Actions: **1160 passed / 1 skipped / 0 failed**;
+- runs finais: 36353694093 (Lumen F0 Validation) e 36353694099 (Lumen Tests), ambos SUCCESS;
+- PR #4 mergeado em master;
+- merge commit: fc8b2cfa76edbf69469e26e9ce023fc59f7c5ab9.
+
+Entregas F11:
+- AutonomyLimits: orçamento de passos, recoveries e tentativas;
+- AutonomyGrant: aprovação humana explícita + scope + orçamento;
+- MultiStepTask / MultiStep;
+- estado por passo e estado global da execução;
+- execução sequencial através de StepExecutor;
+- retry/recovery bounded;
+- falhas de Permission/Scope terminais;
+- bloqueio de passos que exigem aprovação humana adicional;
+- descoberta opcional de workflows F10;
+- nenhum acesso direto a driver;
+- nenhum grant automático de Permission;
+- nenhum bypass de Policy, Scope, Checkpoint, Audit ou Verification.
+
+O que a Lumen consegue agora: executar/orquestrar tarefas multi-etapas dentro de um orçamento autorizado, avançar somente após sucesso de cada etapa, interromper em falhas de segurança, aplicar recovery limitado e reutilizar conhecimento de workflows como sugestão.
+
+Limitação: a execução física Windows/Unreal continua sem smoke test no ambiente CI Linux. A F11 valida o orquestrador e seus contratos; não declara hardware Windows testado.
+
+Próxima fase oficial: F12 — Evolution Foundation.
+
+---
+
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
 **F10 — WORKFLOW LEARNING: 🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FOCADA CONCLUÍDA.**
 
 Validação desta fase:
