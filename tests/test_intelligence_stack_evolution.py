@@ -18,7 +18,7 @@ def test_provider_model_contract():
 
 def test_provider_rejects_foreign_model():
     with pytest.raises(ValueError):
-        ProviderProfile("local", AdapterKind.LOCAL, (profile("remote", "model-a", [StackLayer.REASONING]),))
+        ProviderProfile("local", AdapterKind.LOCAL, (profile("remote", "model-a", [StackLayer.REASONING]),)).validate()
 
 
 def test_route_is_deterministic_and_provider_neutral():
