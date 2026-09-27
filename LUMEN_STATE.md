@@ -3,7 +3,8 @@
 **F8 — VERIFICATION + RECOVERY + REGRESSION: 🟩 CONCLUÍDA.**
 
 Validação:
-- CI da PR F8: executar e registrar antes da promoção para master.
+- CI final pós-merge: run 36352198604 — **1116 passed / 1 skipped / 0 failed**.
+- pip check: OK; compileall: OK.
 - testes dedicados: `tests/test_verification_recovery_regression.py`.
 - validação física Windows permanece pendente por ausência de runner Windows na CI.
 
