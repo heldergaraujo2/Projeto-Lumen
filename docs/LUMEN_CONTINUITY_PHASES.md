@@ -18,177 +18,59 @@ A Lumen deve evoluir dentro de sua própria arquitetura, usando ambientes experi
 
 ## ESTADO DESTE PLANO
 
-Todas as fases desta trilha são inicialmente **🟥 PENDENTES**. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
+O estado acima é a referência operacional atual. F0–F3 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
 
 ---
 
-# FASES
+# FASES — ESTADO OFICIAL 2026-09-27
 
 ## F0 — BASELINE / AUDITORIA / CONTRATOS
 🟩 CONCLUÍDA
 
-- [x] Auditoria completa da arquitetura atual — registrada em docs/LUMEN_F0_BASELINE_AUDIT.md.
-- [x] Capability Registry — app/core/capabilities.py + tests/test_capabilities.py.
-- [x] Contratos de Provider/Tool/Memory/Research/Vision/Evolution — docs/LUMEN_CONTRACTS.md.
-- [x] Baseline de desempenho e confiabilidade — CI reproduzível; 1018 passed / 1 skipped / 0 failed.
-- [x] Threat model — docs/LUMEN_THREAT_MODEL.md.
-- [x] Critérios de promoção — docs/LUMEN_PROMOTION_CRITERIA.md.
-- [x] pip check e compileall validados na CI.
+## F1 — LOCAL PROVIDER / OLLAMA
+🟩 CONCLUÍDA
 
-Evidência final da F0: workflow Lumen F0 Validation, run 36348809797, commit d0488f7ac4c788719f894df3efdf508e9816daa5, 1018 passed / 1 skipped / 0 failed.
+## F2 — TOOL / AGENT PROTOCOL
+🟩 CONCLUÍDA
 
-**Próximo desbloqueio:** F1.
+## F3 — COMPUTER INTELLIGENCE
+🟩 CONCLUÍDA
 
-## F1 — LOCAL PROVIDER
+Entregues:
+- [x] Perception estruturada.
+- [x] State fingerprint determinístico.
+- [x] Targeting com prioridade native-first.
+- [x] Grounding vinculado à observação.
+- [x] ActionIntent / ActionPlan.
+- [x] Resolução para CCActionRequest sem execução direta.
+- [x] Verification de alvo e mudança de estado.
+- [x] Recovery limitado.
+- [x] Testes focados + CI completa: 1065 passed / 1 skipped / 0 failed.
+- [x] Documentação em docs/COMPUTER_INTELLIGENCE_IMPLEMENTATION.md.
+
+## F4 — WINDOWS NATIVE INTELLIGENCE
 🟥 PENDENTE
 
-- [ ] Ollama Provider.
-- [ ] `qwen2.5-coder:7b-instruct-q8_0`.
-- [ ] Health check.
-- [ ] Timeout.
-- [ ] Observabilidade.
-- [ ] Testes.
-- [ ] ProviderManager isolado.
-
-## F2 — RESEARCH ENGINE
+## F5 — VISION PROVIDER
 🟥 PENDENTE
 
-- [ ] Web search.
-- [ ] Coleta de fontes.
-- [ ] GitHub/docs/PDF.
-- [ ] Extração.
-- [ ] Deduplicação.
-- [ ] Comparação de fontes.
-- [ ] Verificação.
-- [ ] Proveniência.
-- [ ] Proteção contra prompt injection em conteúdo externo.
-
-## F3 — KNOWLEDGE + EXPERIENCE MEMORY
+## F6 — GROUNDING ENGINE
 🟥 PENDENTE
 
-- [ ] Knowledge Engine.
-- [ ] Experience Memory.
-- [ ] Failure Memory.
-- [ ] Success Memory.
-- [ ] Strategy Memory.
-- [ ] Skill Evidence.
-- [ ] Índice semântico/Qdrant quando apropriado.
-- [ ] Proveniência e confiança.
-
-## F4 — TOOL / AGENT PROTOCOL
+## F7 — SECURE COMPUTER CONTROL
 🟥 PENDENTE
 
-- [ ] Intenção estruturada.
-- [ ] Planner.
-- [ ] Tool contract.
-- [ ] Validation.
-- [ ] Permission.
-- [ ] Checkpoint.
-- [ ] Audit.
-- [ ] Verification.
-- [ ] Nenhum acesso direto do LLM aos drivers.
-
-## F5 — COMPUTER INTELLIGENCE
+## F8 — VERIFICATION + RECOVERY + REGRESSION
 🟥 PENDENTE
 
-- [ ] Perception.
-- [ ] State understanding.
-- [ ] Targeting.
-- [ ] Action resolution.
-- [ ] Observation.
-- [ ] Verification.
-- [ ] Recovery.
-
-## F6 — WINDOWS NATIVE INTELLIGENCE
+## F9 — UNREAL ENGINE AGENT
 🟥 PENDENTE
 
-- [ ] UIA.
-- [ ] Accessibility/UI Tree.
-- [ ] Win32.
-- [ ] WinCOM quando necessário.
-- [ ] Window/focus handling.
-- [ ] Structured actions.
-
-## F7 — VISION PROVIDER
+## F10 — WORKFLOW LEARNING
 🟥 PENDENTE
 
-- [ ] VisionProvider.
-- [ ] LLaVA como Provider visual inicial/candidato.
-- [ ] Arquitetura para Qwen-VL/Qwen3-VL/outros.
-- [ ] Screenshot understanding.
-- [ ] OCR.
-- [ ] Element detection.
-- [ ] Structured visual output.
-
-## F8 — GROUNDING ENGINE
+## F11 — AUTONOMOUS MULTI-STEP AGENT
 🟥 PENDENTE
-
-- [ ] Native-first resolution.
-- [ ] Template matching.
-- [ ] Vision grounding.
-- [ ] Confidence.
-- [ ] Window bounds.
-- [ ] Region bounds.
-- [ ] DPI/scale.
-- [ ] Action validation.
-
-## F9 — SECURE COMPUTER CONTROL
-🟥 PENDENTE
-
-- [ ] Mouse.
-- [ ] Keyboard.
-- [ ] Clipboard.
-- [ ] Windows.
-- [ ] Screenshot.
-- [ ] Backend abstraction.
-- [ ] PyAutoGUI/PyDirectInput/MSS somente como adaptadores.
-- [ ] Permission/Policy/Checkpoint/Audit/Verification.
-
-## F10 — VERIFICATION / RECOVERY / REGRESSION
-🟥 PENDENTE
-
-- [ ] Result verification.
-- [ ] Failure classification.
-- [ ] Controlled retry.
-- [ ] Alternative strategy.
-- [ ] Recovery.
-- [ ] Regression suite.
-- [ ] Action/time/cost budgets.
-
-## F11 — UNREAL ENGINE AGENT
-🟥 PENDENTE
-
-- [ ] Unreal Python/API.
-- [ ] Project/filesystem.
-- [ ] C++.
-- [ ] Blueprint.
-- [ ] Build.
-- [ ] Test.
-- [ ] Computer Control somente quando necessário.
-- [ ] Verification.
-
-## F12 — WORKFLOW LEARNING
-🟥 PENDENTE
-
-- [ ] Trajectory recording.
-- [ ] Successful workflow extraction.
-- [ ] Failure/correction recording.
-- [ ] Deterministic workflow execution.
-- [ ] Verification obrigatório.
-
-## F13 — AUTONOMOUS MULTI-STEP AGENT
-🟥 PENDENTE
-
-- [ ] Goal decomposition.
-- [ ] Research.
-- [ ] Plan.
-- [ ] Execute.
-- [ ] Observe.
-- [ ] Verify.
-- [ ] Correct.
-- [ ] Test.
-- [ ] Report.
-- [ ] Remember.
 
 # LUMEN EVOLUTION SYSTEM
 

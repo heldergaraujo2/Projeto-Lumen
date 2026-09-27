@@ -384,10 +384,11 @@ app/
 - verificação
 - recuperação
 
-**Status:** PENDENTE
+**Status:** 🟩 CONCLUÍDA — implementação F3 validada pela CI (1065 passed / 1 skipped / 0 failed).
 
 ---
 
+ 
 # 10. FASE 4 — WINDOWS NATIVE CONTROL
 
 ## Objetivo

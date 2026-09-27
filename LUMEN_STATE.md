@@ -1,3 +1,27 @@
+# CURRENT OFFICIAL TRACK — 2026-09-27
+
+**F3 — COMPUTER INTELLIGENCE: 🟩 CONCLUÍDA.**
+
+Última validação da F3:
+- GitHub Actions run: 36350436470
+- commit validado: f96c4004f066f9612d2239ba7062a69f81e49dd0
+- pip check: OK
+- compileall: OK
+- suíte completa: **1065 passed / 1 skipped / 0 failed**
+- documentação: docs/COMPUTER_INTELLIGENCE_IMPLEMENTATION.md
+
+A F3 adiciona app/computer/ com percepção estruturada, fingerprint de estado,
+targeting/grounding, ActionIntent/ActionPlan, resolução para CCActionRequest,
+verification e recovery limitado. A camada não possui PermissionManager,
+drivers ou autoridade para ampliar escopo; execução permanece fora desta camada.
+
+**Próxima fase oficial:** F4 — Windows Native Intelligence.
+
+> Este bloco é a referência de estado atual desta trilha. O restante deste
+> arquivo preserva o histórico técnico legado e registros anteriores.
+
+---
+
 # LUMEN STATE
 
 > **Estado oficial do projeto Lumen.** Este arquivo descreve exatamente onde o
