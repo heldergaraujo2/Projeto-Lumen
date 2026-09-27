@@ -2,7 +2,7 @@
 
 **F19 — LUMEN INTELLIGENCE LAB: 🟩 CONCLUÍDA.
 
-**F20 — SELF-OPTIMIZING INTELLIGENCE: 🟨 EM VALIDAÇÃO.****
+**F20 — SELF-OPTIMIZING INTELLIGENCE: 🟩 CONCLUÍDA.****
 
 Entregas:
 - IntelligenceCapability + IntelligenceTrack;
@@ -2606,3 +2606,9 @@ Após cada fase:
 - executar testes;
 - commit/push;
 - só então avançar.
+
+
+F20 validação final: **1292 passed / 1 skipped / 0 failed**; compile SUCCESS; F0 Validation SUCCESS; PR #14 merged (`8c19f7644896c9382ded9af799a262c53eccdbb5`).
+
+
+**Próxima fase oficial: F21 — Provider Independence.**
