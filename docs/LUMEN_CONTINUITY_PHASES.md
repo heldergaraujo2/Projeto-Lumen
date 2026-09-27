@@ -35,7 +35,7 @@ Todas as fases desta trilha são inicialmente **🟥 PENDENTES**. A base 0.6.8 e
 - [x] Critérios de promoção — docs/LUMEN_PROMOTION_CRITERIA.md.
 - [x] pip check e compileall validados na CI.
 
-Evidência final da F0: workflow Lumen F0 Validation, run 36348740037, commit a33af8a598cab12b21194854bbf08d2da1fd15dd.
+Evidência final da F0: workflow Lumen F0 Validation, run 36348809797, commit d0488f7ac4c788719f894df3efdf508e9816daa5, 1018 passed / 1 skipped / 0 failed.
 
 **Próximo desbloqueio:** F1.
 
