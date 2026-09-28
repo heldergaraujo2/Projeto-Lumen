@@ -27,6 +27,7 @@ class PermissionLevel(IntEnum):
     WRITE = 30
     TERMINAL = 40
     COMPUTER_CONTROL = 50
+    WEB_ACCESS = 60
 
 
 PERMISSION_DESCRIPTIONS: dict[PermissionLevel, str] = {
@@ -35,6 +36,7 @@ PERMISSION_DESCRIPTIONS: dict[PermissionLevel, str] = {
     PermissionLevel.WRITE: "Criar, modificar ou apagar arquivos",
     PermissionLevel.TERMINAL: "Executar comandos no terminal",
     PermissionLevel.COMPUTER_CONTROL: "Controlar mouse, teclado e aplicações",
+    PermissionLevel.WEB_ACCESS: "Acessar recursos externos via HTTP/HTTPS",
 }
 
 
