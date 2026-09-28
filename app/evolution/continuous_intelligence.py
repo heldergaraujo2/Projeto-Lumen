@@ -151,13 +151,17 @@ class ContinuousIntelligenceEvolution:
 
     def assess(self, cycle_id: str, observation: IntelligenceObservation) -> IntelligenceCycle:
         cycle = self._cycles[cycle_id]
-        if observation.observation_id not in self._observations:
-            self.observe(observation)
+        observation.validate()
+        if observation.sample_size < self.min_samples:
+            raise ValueError("observation sample is below minimum")
         if observation.capability_id != cycle.capability_id:
             raise ValueError("observation targets another capability")
         if observation.baseline_score != cycle.baseline_score:
             raise ValueError("observation baseline differs from cycle baseline")
-        degraded = observation.score < cycle.baseline_score - self.degradation_threshold
+        if observation.observation_id not in self._observations:
+            self.observe(observation)
+        threshold_floor = cycle.baseline_score - self.degradation_threshold
+        degraded = observation.score + 1e-12 < threshold_floor
         state = IntelligenceCycleState.TRIGGERED if degraded else IntelligenceCycleState.ASSESSED
         reason = "continuous intelligence degradation detected" if degraded else "observation remains within baseline tolerance"
         updated = IntelligenceCycle(cycle.cycle_id, cycle.capability_id, state, cycle.baseline_score, observation.score, cycle.observation_ids + (observation.observation_id,), reason, EvolutionRisk.HIGH if degraded else EvolutionRisk.MEDIUM)
@@ -169,6 +173,8 @@ class ContinuousIntelligenceEvolution:
         cycle = self._cycles[cycle_id]
         if cycle.state is not IntelligenceCycleState.TRIGGERED:
             return None
+        if any(t.cycle_id == cycle_id for t in self._triggers.values()):
+            raise ValueError("cycle already has a trigger")
         trigger = IntelligenceTrigger(self._id("CI-TRIGGER-"), cycle.cycle_id, cycle.capability_id, MonitoringStatus.REGRESSED, cycle.trigger_reason, cycle.risk, cycle.observation_ids)
         trigger.validate()
         self._triggers[trigger.trigger_id] = trigger
@@ -178,6 +184,8 @@ class ContinuousIntelligenceEvolution:
         trigger.validate()
         if trigger.trigger_id not in self._triggers:
             raise KeyError("unknown trigger")
+        if any(p.source_trigger_id == trigger.trigger_id for p in self._plans.values()):
+            raise ValueError("trigger already has a plan")
         plan = ContinuousIntelligencePlan(self._id("CI-PLAN-"), trigger.trigger_id, trigger.capability_id, actions, trigger.evidence_ids)
         plan.validate()
         self._plans[plan.plan_id] = plan
