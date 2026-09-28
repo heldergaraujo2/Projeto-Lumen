@@ -1,7 +1,8 @@
 import pytest
 from app.evolution.closed_loop import ClosedLoopEvolution, ClosedLoopState, PersistentClosedLoopEvolution
 from app.evolution.continuous_intelligence import IntelligenceObservation
-from app.evolution.models import EvolutionRisk
+from app.evolution.models import Capability, CapabilityMeasurement, EvolutionRisk
+from app.evolution.orchestrator import EvolutionRuntimeOrchestrator
 
 def observation(observation_id="CI-EV-000001", score=.8):
     return IntelligenceObservation(observation_id, "reasoning", score, 5, "fixture", .8)
@@ -32,7 +33,10 @@ def test_plan_cannot_use_unrelated_evidence():
         loop.plan(record.loop_id, actions=("research",), evidence_ids=("OTHER",))
 
 def test_evolution_gate_is_explicit_and_nonexecuting():
-    loop = ClosedLoopEvolution()
+    orchestrator = EvolutionRuntimeOrchestrator()
+    orchestrator.evolution.register_capability(Capability("reasoning", "Reasoning"))
+    orchestrator.evolution.baseline(CapabilityMeasurement("reasoning", .8, "quality", 5))
+    loop = ClosedLoopEvolution(orchestrator=orchestrator)
     record = loop.start("reasoning", .8)
     loop.observe(record.loop_id, observation(score=.6))
     trigger = loop.trigger(record.loop_id)
@@ -45,7 +49,10 @@ def test_evolution_gate_is_explicit_and_nonexecuting():
     assert not hasattr(loop, "deploy")
 
 def test_approval_and_promotion_states_are_sequential():
-    loop = ClosedLoopEvolution()
+    orchestrator = EvolutionRuntimeOrchestrator()
+    orchestrator.evolution.register_capability(Capability("reasoning", "Reasoning"))
+    orchestrator.evolution.baseline(CapabilityMeasurement("reasoning", .8, "quality", 5))
+    loop = ClosedLoopEvolution(orchestrator=orchestrator)
     record = loop.start("reasoning", .8)
     loop.observe(record.loop_id, observation(score=.6))
     trigger = loop.trigger(record.loop_id)
