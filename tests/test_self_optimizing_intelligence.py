@@ -129,3 +129,27 @@ def test_counts():
     lab = make_lab()
     lab.record_evidence(evidence("OPT-EV-000001", "OPT-VAR-000001", .82))
     assert lab.counts() == {"objectives": 1, "variants": 2, "evidence": 1}
+
+
+def test_minimization_uses_reversed_target_delta_and_selection():
+    lab = SelfOptimizingIntelligence(policy=OptimizationPolicy(min_samples=2, min_improvement=.05))
+    lab.register_objective(OptimizationObjective("OPT-OBJ-000010", "latency", OptimizationDimension.LATENCY, .40, maximize=False))
+    lab.register_variant(StrategyVariant("OPT-VAR-000010", "latency", (("x", "a"),)))
+    lab.register_variant(StrategyVariant("OPT-VAR-000011", "latency", (("x", "b"),)))
+    lab.record_evidence(OptimizationEvidence("OPT-EV-000010", "OPT-VAR-000010", "OPT-OBJ-000010", .30, 2, "fixture"))
+    lab.record_evidence(OptimizationEvidence("OPT-EV-000011", "OPT-VAR-000011", "OPT-OBJ-000010", .35, 2, "fixture"))
+    assessment = lab.assess("OPT-VAR-000010", "OPT-OBJ-000010")
+    assert assessment.delta_to_target == pytest.approx(.10)
+    assert assessment.meets_target
+    assert lab.recommend("latency", "OPT-OBJ-000010").selected_variant_id == "OPT-VAR-000010"
+
+
+def test_objective_weight_is_exposed_in_weighted_score():
+    lab = make_lab()
+    objective = OptimizationObjective("OPT-OBJ-000020", "reasoning", OptimizationDimension.QUALITY, .80, weight=.50)
+    lab = SelfOptimizingIntelligence()
+    lab.register_objective(objective)
+    lab.register_variant(StrategyVariant("OPT-VAR-000020", "reasoning", (("x", "1"),)))
+    lab.record_evidence(OptimizationEvidence("OPT-EV-000020", "OPT-VAR-000020", "OPT-OBJ-000020", .90, 2, "fixture"))
+    assessment = lab.assess("OPT-VAR-000020", "OPT-OBJ-000020")
+    assert assessment.weighted_score == pytest.approx(.45)
