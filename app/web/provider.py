@@ -8,6 +8,9 @@ redirect. Respostas são limitadas por bytes e tempo.
 from __future__ import annotations
 from dataclasses import dataclass
 from html.parser import HTMLParser
+from io import BytesIO
+import gzip
+import re
 import socket
 import urllib.error
 import urllib.request
@@ -98,6 +101,7 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         sources=[]
         for title,href in parser.items:
             absolute=urljoin(endpoint, href)
+            absolute = _normalize_search_url(absolute)
             parsed=urlsplit(absolute)
             if parsed.hostname in {"duckduckgo.com", "www.duckduckgo.com"} and parsed.path == "/l/":
                 target = parse_qs(parsed.query).get("uddg", [None])[0]
@@ -140,16 +144,32 @@ class SafeHttpClient:
     def get(self,url:str)->_HttpResult:
         current=self.policy.validate_url(url)
         for _ in range(self.policy.max_redirects+1):
-            request=urllib.request.Request(current,headers={"User-Agent":self.user_agent,"Accept":"text/html,text/plain;q=0.9,*/*;q=0.1"},method="GET")
+            request=urllib.request.Request(
+                current,
+                headers={
+                    "User-Agent": self.user_agent,
+                    "Accept": "text/html,text/plain;q=0.9,*/*;q=0.1",
+                    "Accept-Encoding": "identity",
+                },
+                method="GET",
+            )
             try:
                 with self._opener.open(request,timeout=self.timeout_s) as response:
                     final=response.geturl()
                     safe_final=self.policy.validate_url(final)
                     content_type=response.headers.get_content_type()
                     charset=response.headers.get_content_charset() or "utf-8"
-                    body=response.read(self.max_bytes+1)
-                    truncated=len(body)>self.max_bytes
-                    return _HttpResult(url,safe_final,content_type,charset,body[:self.max_bytes],truncated)
+                    raw_body = response.read(self.max_bytes + 1)
+                    body, decompressed_truncated = _decode_response_body(
+                        raw_body,
+                        response.headers.get("Content-Encoding", ""),
+                        self.max_bytes,
+                    )
+                    truncated = len(raw_body) > self.max_bytes or decompressed_truncated
+                    return _HttpResult(
+                        url, safe_final, content_type, charset,
+                        body, truncated,
+                    )
             except urllib.error.HTTPError as exc:
                 if exc.code in (301,302,303,307,308):
                     location=exc.headers.get("Location")
@@ -160,3 +180,36 @@ class SafeHttpClient:
             except (urllib.error.URLError, TimeoutError, socket.timeout, OSError) as exc:
                 raise WebProviderError(f"Falha de conexão Web: {exc}") from exc
         raise WebProviderError("Número máximo de redirects excedido.")
+
+
+def _normalize_search_url(value: str) -> str:
+    """Extrai uma URL HTTP/HTTPS quando o mecanismo a devolve como Markdown."""
+    text = value.strip()
+    match = re.fullmatch(r"\[[^\]]+\]\((https?://[^)]+)\)", text)
+    return match.group(1) if match else text
+
+
+def _decode_response_body(
+    body: bytes, content_encoding: str, max_bytes: int
+) -> tuple[bytes, bool]:
+    """Decodifica respostas comprimidas com limite de saída."""
+    encoding = (content_encoding or "").strip().lower()
+    if not encoding or encoding == "identity":
+        return body[:max_bytes], len(body) > max_bytes
+
+    try:
+        if encoding in {"gzip", "x-gzip"}:
+            with gzip.GzipFile(fileobj=BytesIO(body)) as decoder:
+                decoded = decoder.read(max_bytes + 1)
+            return decoded[:max_bytes], len(decoded) > max_bytes
+        if encoding == "deflate":
+            import zlib
+            decoder = zlib.decompressobj()
+            decoded = decoder.decompress(body, max_bytes + 1)
+            return decoded[:max_bytes], len(decoded) > max_bytes or bool(decoder.unconsumed_tail)
+    except Exception as exc:
+        raise WebProviderError(
+            f"Resposta Web comprimida inválida ({encoding})."
+        ) from exc
+
+    return body[:max_bytes], len(body) > max_bytes
