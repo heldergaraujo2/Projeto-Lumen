@@ -139,7 +139,11 @@ Entregas:
 - testes negativos e de segurança em tests/test_provider_runtime.py;
 - documentação em docs/F25_PROVIDER_RUNTIME_INDEPENDENCE.md.
 
-Validação:
+Validação final:
+- compileall: SUCCESS;
+- Lumen Tests: **1366 passed / 1 skipped / 0 failed**;
+- Lumen F0 Validation: SUCCESS;
+- Lumen F23 Validation: SUCCESS;
 - implementação e testes dedicados adicionados ao repositório;
 - F25 não duplica nem substitui o OllamaProvider;
 - F25 não concede Permission, altera Policy/Sandbox/Checkpoint/Audit, executa tools/drivers/browser/processos ou promove automaticamente;
