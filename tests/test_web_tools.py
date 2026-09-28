@@ -491,3 +491,24 @@ def test_duckduckgo_lite_skips_private_redirect_targets():
     result = provider.search(__import__("app.web.provider", fromlist=["WebSearchRequest"]).WebSearchRequest("teste", 5))
 
     assert result.sources == ()
+
+
+class EmptySearch:
+    def search(self, request):
+        return WebSearchResponse(request.query, ())
+
+
+def test_web_research_handles_empty_search_results():
+    permissions = PermissionManager([PermissionLevel.CHAT, PermissionLevel.WEB_ACCESS])
+    registry = ToolRegistry(permissions)
+    registry.register(
+        WebResearchTool(search_provider=EmptySearch(), fetch_provider=FakeFetch())
+    )
+
+    result = json.loads(
+        registry.execute("web_research", query="teste", max_results=5, max_sources=3)
+    )
+
+    assert result["ok"] is True
+    assert result["data"]["sources"] == []
+    assert result["data"]["source_count"] == 0
