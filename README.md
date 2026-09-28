@@ -516,6 +516,7 @@ nenhum teste toca API real nem arquivos fora de `tmp`.
 | `LUMEN_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
 | `LUMEN_MAX_CONTEXT_MESSAGES` | `50` | Máximo de mensagens de histórico enviadas ao modelo. |
 | `LUMEN_REQUEST_TIMEOUT` | `60` | Timeout (segundos) por chamada ao provedor. |
+| `LUMEN_OLLAMA_THINK` | `0` | Habilita/desabilita reasoning/thinking no Ollama (`0` padrão, `1` habilitado). |
 | `LUMEN_MAX_RETRIES` | `2` | Retries extras para erros temporários (rate limit, timeout, rede, 5xx). |
 | `LUMEN_MAX_MEMORY_RECORDS` | `12` | Máximo de registros da memória estruturada selecionados como contexto para um pedido (0.3). |
 
