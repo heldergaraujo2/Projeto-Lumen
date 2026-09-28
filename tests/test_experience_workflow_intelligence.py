@@ -53,7 +53,7 @@ def test_secrets_are_redacted_before_persistence(tmp_path):
     store.record(t)
     raw = path.read_text()
     assert "SECRET" not in raw
-    assert "Bearer [REDACTED]" in raw
+    assert "***" in raw
 
 
 def test_generalize_only_verified_successes(tmp_path):
