@@ -203,6 +203,9 @@ class RunPytestTool(StructuredTool):
         env = dict(build_safe_environment())
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["PYTHONPYCACHEPREFIX"] = str(basetemp / "pycache")
+        # Deterministic verification: workspace test runs must not inherit
+        # arbitrary third-party pytest plugins from the host environment.
+        env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
 
         started = time.monotonic()
         try:
