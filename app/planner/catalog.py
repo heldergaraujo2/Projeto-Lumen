@@ -327,7 +327,7 @@ def validate_task_tool(
             if pname == "url" and name == "web_fetch":
                 from app.web.security import WebSecurityError, WebSecurityPolicy
                 try:
-                    WebSecurityPolicy().validate_url(value)
+                    WebSecurityPolicy().validate_url(value, resolve_dns=False)
                 except WebSecurityError as exc:
                     return f"URL Web rejeitada pela política de segurança: {exc}"
             if pname == "path" and _path_suspect(value):
