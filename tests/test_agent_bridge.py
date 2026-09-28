@@ -415,6 +415,15 @@ def test_injection_cannot_escalate_permissions(env, ws):
 
 
 # ============================================ terminal (FASE 2/17)
+def test_web_research_is_always_in_catalog(env):
+    _, controller, _ = env
+    catalog = controller.planning_catalog()
+    assert "web_search" in catalog
+    assert "web_fetch" in catalog
+    assert "web_research" in catalog
+    assert catalog["web_research"]["parameters"][0]["name"] == "query"
+
+
 def test_run_command_absent_from_catalog_when_terminal_disabled(env):
     _, controller, _ = env
     assert "run_command" not in controller.planning_catalog()
