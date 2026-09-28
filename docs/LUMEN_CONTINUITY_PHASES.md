@@ -1,618 +1,369 @@
-# CURRENT OFFICIAL CONTINUITY — 2026-09-27
+# LUMEN — CONTINUIDADE OFICIAL DO PROJETO
 
-F22 — Continuous Intelligence Evolution: 🟩 CONCLUÍDA
-F21 — Provider Independence: 🟩 CONCLUÍDA
-F20 — Self-Optimizing Intelligence: 🟩 CONCLUÍDA
-F19 — Lumen Intelligence Lab: 🟩 CONCLUÍDA
+**Data de atualização:** 2026-09-27  
+**Branch oficial:** `master`  
+**Fonte de verdade:** GitHub + `LUMEN_STATE.md` + este documento  
+**Estado global:** 🟩 **F0–F22 CONCLUÍDAS**
 
-## F22 — CONTINUOUS INTELLIGENCE EVOLUTION — 🟩 CONCLUÍDA
-
-**Evidência final**
-
-- ciclo contínuo OBSERVE → ASSESS → DETECT → TRIGGER → PLAN;
-- observações com sample mínimo e histórico bounded;
-- detecção explícita de degradação;
-- trigger e plan isolados e one-shot;
-- proteção contra erro numérico no limiar;
-- compile SUCCESS;
-- **1329 passed / 1 skipped / 0 failed** no Lumen Tests;
-- **1329 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
-- PR #18 mergeado;
-- merge commit 3c862af35ca1cf152051b1a20f1bf686db14f2e9.
-
-## Segurança
-
-F22 permanece não-executora. Não executa modelos, ferramentas, código, processos, browser, rede ou drivers. Não concede Permission, altera Policy/Sandbox/Checkpoint/Audit, amplia Scope, faz deploy ou promove automaticamente. Plans exigem isolamento e aprovação humana.
-
-## Estado oficial
-
-**F0–F22: 🟩 CONCLUÍDAS.**
-
-
-F22 — Continuous Intelligence Evolution: 🟨 IMPLEMENTAÇÃO CONCLUÍDA / CI PENDENTE
-F21 — Provider Independence: 🟩 CONCLUÍDA
-
-PR #17 mergeado; validação automatizada final ainda pendente.
-
-# CURRENT OFFICIAL CONTINUITY — 2026-09-27
-
-F21 — Provider Independence: 🟩 CONCLUÍDA
-F22 — Continuous Intelligence Evolution: ⬜ PRÓXIMA
-
-F21 mantém Provider ≠ Model ≠ Lumen e adiciona contratos de capacidade, compatibilidade,
-fallback e migração reversível sem conceder autoridade de execução.
-
-Validação final: **1312 passed / 1 skipped / 0 failed**; F0 Validation SUCCESS;
-compile SUCCESS; PR #16 mergeado em master.
-
-
-# F19 — LUMEN INTELLIGENCE LAB — 🟩 CONCLUÍDA
-
-**Data:** 2026-09-27
-
-## Evidência final
-
-- camada permanente de pesquisa/coordenação de inteligência;
-- IntelligenceCapability e IntelligenceTrack;
-- baseline com medição e proveniência;
-- pesquisa e hipóteses;
-- ledger bounded de evidências;
-- integração F17 StackEvidence;
-- integração F18 AdaptationEvidence;
-- findings, delta e regressão;
-- oportunidades ligadas a pesquisa;
-- workspace isolado em evolution-lab/;
-- digest determinístico;
-- compile SUCCESS;
-- **1278 passed / 1 skipped / 0 failed** no Lumen Tests;
-- **1278 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
-- PR #13 pronta para merge.
-
-## Segurança
-
-F19 é research state/evidence coordination. Não executa modelos, ferramentas,
-processos, browser, rede ou drivers. Não treina, não faz inferência, download,
-deploy, Permission, Policy/Sandbox/Checkpoint/Audit, Scope widening ou promoção.
-
-## Próxima fase
-
-**F20 — Self-Optimizing Intelligence.**
-
-F20 deverá transformar evidências e avaliações acumuladas em otimizações
-bounded da própria inteligência, sempre mantendo isolamento, benchmark,
-regressão, segurança e aprovação humana.
-# F18 — MODEL ADAPTATION LABORATORY — 🟩 CONCLUÍDA
-
-**Data:** 2026-09-27
-
-## Evidência final
-
-- laboratório de adaptação de modelos isolado;
-- contratos para datasets, adaptações, experimentos, evidências e candidatos;
-- suporte contratual a LoRA, fine-tuning, distillation, pruning, quantization,
-  dataset curation, synthetic data, curriculum, tool-use, domain adaptation e
-  inference optimization;
-- seed e chave de reprodutibilidade obrigatórios;
-- artefatos e testes obrigatórios antes do candidato;
-- benchmark e RegressionDetector;
-- SafetyValidator e Human Approval para alto risco;
-- invariantes de identidade entre provider, modelo base, modelo candidato e métrica;
-- compile SUCCESS;
-- **1259 passed / 1 skipped / 0 failed** no Lumen Tests;
-- **1259 passed / 1 skipped / 0 failed** no Lumen F0 Validation;
-- PR #12 pronta para merge.
-
-## Limites de segurança
-
-F18 é uma camada de laboratório/validação. Não executa treinamento, inferência,
-processos, rede, download ou deploy. Não concede Permission, altera Policy,
-Sandbox, Checkpoint ou Audit, não amplia Scope e não promove automaticamente.
-O candidato permanece isolado e a promoção continua delegada ao F15
-PromotionGate.
-
-## Próxima fase
-
-**F19 — Lumen Intelligence Lab.**
-
-F19 deverá unificar Evolution Lab + Model Adaptation Lab em um ambiente permanente
-de pesquisa de inteligência, mantendo a separação entre Stable Runtime,
-Experimental Workspace e Candidate.
-# F16 — CONTINUOUS EVOLUTION — 🟩 CONCLUÍDA
-
-**Data:** 2026-09-27
-
-## Evidência final
-
-- monitoramento pós-promoção bounded;
-- estabilidade, degradação e regressão determinísticas;
-- histórico de observações limitado;
-- Evolution Trigger para novo ciclo;
-- integração de evidências com EvolutionMemory;
-- planner de oportunidade baseado em pesquisa;
-- primeira CI: 9 falhas de fixture, corrigidas;
-- validação final: **1236 passed / 1 skipped / 0 failed**;
-- Lumen Tests run 36355972633: SUCCESS;
-- Lumen F0 Validation run 36355972659: SUCCESS;
-- compile SUCCESS;
-- PR #10 mergeada em master; merge commit 01a2d08881a3537ab3ddf96491b0c64a0998ec0d.
-
-## Limites de segurança
-
-F16 é observacional/propositiva. Não executa código, processos, drivers ou deploy,
-não concede Permission, não altera Policy/Sandbox/Checkpoint/Audit, não faz rollback
-físico e não promove automaticamente. Um trigger de degradação apenas inicia novo
-ciclo F12–F15, preservando benchmark, security review e Human Approval.
-
-## Próxima fase
-
-**F17 — Intelligence Stack Evolution.**
-
-F17 deverá evoluir a pilha de inteligência da Lumen mantendo Provider ≠ Lumen,
-modelos substituíveis, isolamento experimental e evidência mensurável.
-
-# F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT — 🟩 CONCLUÍDA
-
-**Data:** 2026-09-27
-
-## Evidência
-- diagnóstico determinístico de capacidades;
-- pesquisa baseada em evidências fornecidas pelo chamador;
-- oportunidades de melhoria vinculadas a evidências;
-- ImprovementPlanner preservando baseline, risco e fontes;
-- **1205 passed / 1 skipped / 0 failed**;
-- compile SUCCESS;
-- F0 Validation SUCCESS;
-- PR #8 mergeada;
-- merge commit `09ec80b500bf4b63efcc085dda2fce5cfeb8b132`.
-
-## Limites
-F14 não executa pesquisa externa por conta própria, não executa experimentos, não chama drivers, não concede permissões e não altera Security Core.
-
-## Próxima fase
-**F15 — Candidate Build + Benchmark + Promotion.**
-
-F15 deverá transformar propostas em candidatos avaliáveis, executar benchmarks controlados e aplicar os gates de segurança e aprovação humana antes de qualquer promoção.
+> Este arquivo é o estado operacional consolidado. Snapshots históricos antigos não devem ser mantidos aqui quando contradizem o estado atual. Evidências históricas detalhadas permanecem no GitHub, changelog e documentação específica de cada fase.
 
 ---
 
-# F13 — EVOLUTION LABORATORY — 🟩 CONCLUÍDA
+# 1. ESTADO OFICIAL ATUAL
 
-**Data:** 2026-09-27
+| Fase | Nome | Estado |
+|---|---|---|
+| F0 | Baseline / Auditoria / Contratos | 🟩 CONCLUÍDA |
+| F1 | Local Provider / Ollama | 🟩 CONCLUÍDA |
+| F2 | Tool / Agent Protocol | 🟩 CONCLUÍDA |
+| F3 | Computer Intelligence | 🟩 CONCLUÍDA |
+| F4 | Windows Native Intelligence | 🟩 CONCLUÍDA |
+| F5 | Vision Provider | 🟩 CONCLUÍDA |
+| F6 | Grounding Engine | 🟩 CONCLUÍDA |
+| F7 | Secure Computer Control | 🟩 CONCLUÍDA |
+| F8 | Verification + Recovery + Regression | 🟩 CONCLUÍDA |
+| F9 | Unreal Engine Agent | 🟩 CONCLUÍDA |
+| F10 | Workflow Learning | 🟩 CONCLUÍDA |
+| F11 | Autonomous Multi-Step Agent | 🟩 CONCLUÍDA |
+| F12 | Evolution Foundation | 🟩 CONCLUÍDA |
+| F13 | Evolution Laboratory | 🟩 CONCLUÍDA |
+| F14 | Self-Diagnostics + Research | 🟩 CONCLUÍDA |
+| F15 | Candidate Build + Benchmark + Promotion | 🟩 CONCLUÍDA |
+| F16 | Continuous Evolution | 🟩 CONCLUÍDA |
+| F17 | Intelligence Stack Evolution | 🟩 CONCLUÍDA |
+| F18 | Model Adaptation Laboratory | 🟩 CONCLUÍDA |
+| F19 | Lumen Intelligence Lab | 🟩 CONCLUÍDA |
+| F20 | Self-Optimizing Intelligence | 🟩 CONCLUÍDA |
+| F21 | Provider Independence | 🟩 CONCLUÍDA |
+| F22 | Continuous Intelligence Evolution | 🟩 CONCLUÍDA |
 
-## Evidência
-- laboratório isolado sob `evolution-lab/`;
-- workspace por evolução;
-- path traversal e stable-runtime targeting bloqueados;
-- experimentos e mudanças apenas registrados;
-- candidatos vinculados ao workspace correto;
-- lifecycle F12 reutilizado;
-- **1191 passed / 1 skipped / 0 failed**;
-- Lumen F0 Validation: SUCCESS;
-- PR #7 mergeada;
-- merge commit: `5f2f89d9e49f9839a93e79a867b227d83dbf4bbd`.
-
-## Limites
-F13 não executa código, não chama drivers, não concede permissões, não altera Policy/Sandbox/Checkpoint/Audit e não promove candidatos.
-
-## Próxima fase
-**F14 — Self-Diagnostics + Research for Improvement.**
-
-F14 deverá conectar diagnóstico estruturado, pesquisa de evidências e geração de propostas de melhoria, preservando a separação entre conhecimento/evidência e execução.
+**Não existe fase F23 definida neste roadmap.**  
+A próxima evolução do projeto deve ser definida por uma nova decisão arquitetural antes de qualquer implementação.
 
 ---
 
-# F12 — EVOLUTION FOUNDATION — 🟩 CONCLUÍDA
+# 2. EVIDÊNCIA FINAL POR BLOCO
 
-**Data:** 2026-09-27
+## F0–F11 — COMPUTER INTELLIGENCE / AGENT
 
-## Evidência
+As fases F0–F11 estabeleceram a fundação de Agent, Computer Intelligence, execução segura, Unreal, aprendizado de workflows e autonomia multi-etapas.
 
-- Capability Registry e Measurement;
-- Self-Diagnostics e Improvement Planner;
+Principais capacidades acumuladas:
+
+- percepção e representação determinística de estado;
+- grounding structured-first;
+- Windows Native/UI Automation;
+- Vision Provider desacoplado;
+- Computer Control protegido;
+- Permission / Policy / Scope / Checkpoint / Driver / Audit;
+- Verification / Recovery / Regression;
+- Unreal Engine Agent;
+- Workflow Learning;
+- Autonomous Multi-Step Agent.
+
+Validações históricas relevantes incluem:
+
+- F3: **1065 passed / 1 skipped / 0 failed**;
+- F4: **1073 passed / 1 skipped / 0 failed**;
+- F5: **1084 passed / 1 skipped / 0 failed**;
+- F6: **1094 passed / 1 skipped / 0 failed**;
+- F7: **1104 passed / 1 skipped / 0 failed**;
+- F9: **1132 passed / 1 skipped / 0 failed**;
+- F11: **1160 passed / 1 skipped / 0 failed**.
+
+---
+
+# 3. EVOLUTION SYSTEM — F12–F16
+
+## F12 — Evolution Foundation 🟩
+
+Fundação do sistema de evolução:
+
+- Capability Registry / Measurement;
+- Self-Diagnostics / Improvement Planner;
 - Hypothesis Manager;
-- Experiment Manager com transições bounded;
+- bounded Experiment Manager;
 - Candidate Registry;
-- Benchmark Engine;
-- Regression Detector;
+- Benchmark / Regression Detection;
 - Safety Validator;
-- Promotion Manager com Human Approval Gate;
+- Promotion Manager;
+- Human Approval Gate;
 - Rollback Manager;
-- Evolution Memory;
-- IDs `EVOLUTION-000001...`;
-- testes dedicados;
-- primeira CI detectou e permitiu corrigir 1 falha de regex;
-- CI final: **1177 passed / 1 skipped / 0 failed**;
-- Lumen F0 Validation: SUCCESS;
-- PR #6 mergeado em master.
+- Evolution Memory.
 
-## Limites
+Validação final:
 
-F12 é fundação de contratos e governança. Ela não executa experimentos nem altera automaticamente o runtime estável. Permission, Policy, Sandbox, Checkpoint, Audit, Secrets, Security Core e regras de promoção permanecem protegidos.
+**1177 passed / 1 skipped / 0 failed**
 
-## Próxima fase
+Merge:
 
-**F13 — Evolution Laboratory.**
+`cb4f3610efb0ab57c61fe3aa6f1059a81e84029c`
 
-F13 deve construir o ambiente isolado de experimentação sobre esta fundação, mantendo Stable Runtime separado de Experimental Workspace e Candidate.
+## F13 — Evolution Laboratory 🟩
 
----
+- laboratório isolado;
+- workspaces em `evolution-lab/`;
+- proteção contra path traversal;
+- bloqueio de alteração do runtime estável;
+- registro de experimentos/mudanças/candidatos sem execução.
 
-# CURRENT OFFICIAL CONTINUITY — 2026-09-27
+Validação:
 
-**F10 — WORKFLOW LEARNING: 🟩 CONCLUÍDA.**
-**F11 — AUTONOMOUS MULTI-STEP AGENT: 🟩 CONCLUÍDA.**
-**Próxima fase oficial: F12 — EVOLUTION FOUNDATION.**
+**1191 passed / 1 skipped / 0 failed**
 
-## F11 — EVIDÊNCIA FINAL
+Merge:
 
-- [x] AutonomyLimits.
-- [x] AutonomyGrant com aprovação humana explícita.
-- [x] MultiStepTask / MultiStep.
-- [x] execução sequencial.
-- [x] estado por etapa.
-- [x] estado global da execução.
-- [x] retry/recovery bounded.
-- [x] terminalidade para Permission/Scope.
-- [x] orçamento máximo de passos.
-- [x] orçamento máximo de recoveries.
-- [x] orçamento máximo de tentativas.
-- [x] bloqueio de etapas que exigem aprovação humana adicional.
-- [x] integração opcional com WorkflowMatcher.
-- [x] testes dedicados.
-- [x] documentação F11.
-- [x] CI completa: **1160 passed / 1 skipped / 0 failed**.
-- [x] PR #4 mergeado no master.
+`5f2f89d9e49f9839a93e79a867b227d83dbf4bbd`
 
-## CADEIA OFICIAL
+## F14 — Self-Diagnostics + Research 🟩
 
-Goal
- ↓
-Workflow / MultiStepTask
- ↓
-AutonomousMultiStepAgent
- ↓
-Autorização humana + orçamento
- ↓
-StepExecutor seguro
- ↓
-F7 Permission / Policy / Scope / Checkpoint / Driver / Audit
- ↓
-F8 Verification / Recovery / Regression
- ↓
-Próximo passo
+- diagnóstico determinístico;
+- pesquisa baseada em evidências;
+- oportunidades de melhoria;
+- Improvement Planner;
+- rastreabilidade entre diagnóstico, evidência, baseline, risco e plano.
 
-A F11 não cria uma autoridade de execução paralela.
+Validação:
 
-## CAPACIDADES ACUMULADAS
+**1205 passed / 1 skipped / 0 failed**
 
-A Lumen agora consegue perceber/groundear estado, planejar ações, controlar o computador pela barreira F7, verificar resultados, recuperar falhas limitadas, detectar regressões, planejar operações do Unreal, aprender workflows e orquestrar tarefas com múltiplas etapas sob orçamento e aprovação explícita.
+Merge:
 
-## LIMITAÇÕES
+`09ec80b500bf4b63efcc085dda2fce5cfeb8b132`
 
-- autonomia não é ilimitada;
-- Permission/Scope não podem ser recuperados automaticamente;
-- etapas de alto risco continuam exigindo aprovação;
-- matcher F10 ainda é lexical;
-- registry F10 é em memória;
-- não houve smoke test físico Windows/Unreal no CI Linux.
+## F15 — Candidate Build + Benchmark + Promotion 🟩
+
+- Build Evidence;
+- Benchmark;
+- Regression Gate;
+- Safety Review;
+- Human Approval;
+- Promotion metadata-only;
+- integração com Candidate Registry.
+
+Validação:
+
+**1222 passed / 1 skipped / 0 failed**
+
+## F16 — Continuous Evolution 🟩
+
+- pós-promotion monitoring;
+- estabilidade;
+- degradação/regressão;
+- histórico bounded;
+- Evolution Trigger;
+- novo ciclo baseado em evidências;
+- integração com Evolution Memory.
+
+Validação:
+
+**1236 passed / 1 skipped / 0 failed**
+
+Merge:
+
+`01a2d08881a3537ab3ddf96491b0c64a0998ec0d`
 
 ---
 
-# CURRENT OFFICIAL CONTINUITY — 2026-09-27
+# 4. INTELLIGENCE EVOLUTION — F17–F22
 
-**F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA.**
-**F10 — WORKFLOW LEARNING: 🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FOCADA CONCLUÍDA.**
+## F17 — Intelligence Stack Evolution 🟩
 
-Evidência:
-- 18 testes focados definidos;
-- validação comportamental dos contratos centrais: OK;
-- workflow de CI reproduzível adicionado;
-- o conector desta sessão não retornou execução/status do GitHub Actions para F10; não há contagem CI nova a declarar;
-- última CI comprovada: F9, 1132 passed / 1 skipped / 0 failed.
-**Próxima fase oficial: F11 — AUTONOMOUS MULTI-STEP AGENT.**
+- ProviderProfile;
+- ModelProfile;
+- roteamento determinístico;
+- StackEvidence;
+- StackEvaluator;
+- propostas isoladas de adaptação;
+- Provider ≠ Model ≠ Lumen.
 
-## F10 — EVIDÊNCIA E ENTREGAS
+Validação:
 
-- [x] WorkflowDefinition versionado.
-- [x] WorkflowStep com pós-condição e risco.
-- [x] fingerprint determinístico SHA-256.
-- [x] WorkflowRegistry.
-- [x] WorkflowMatcher determinístico.
-- [x] WorkflowLearner.
-- [x] WorkflowEvidence.
-- [x] estatísticas e elegibilidade.
-- [x] bloqueio após falha mais recente.
-- [x] adaptação somente por variáveis declaradas.
-- [x] Human Approval para workflows de alto risco.
-- [x] testes dedicados em tests/test_workflow_learning.py.
-- [x] documentação em docs/WORKFLOW_LEARNING_IMPLEMENTATION.md.
-- [x] CI reproduzível em .github/workflows/tests.yml.
+**1244 passed / 1 skipped / 0 failed**
 
-## REGRA DE EXECUÇÃO
+## F18 — Model Adaptation Laboratory 🟩
 
-Workflow aprendido é conhecimento/plano, nunca autoridade. A cadeia obrigatória permanece:
+- DatasetSpec;
+- AdaptationSpec;
+- AdaptationExperiment;
+- seed e reprodutibilidade;
+- laboratório isolado;
+- AdaptationEvidence;
+- AdaptationCandidate;
+- benchmark;
+- regression detection;
+- SafetyValidator;
+- Human Approval;
+- invariantes provider/model/base/target/métrica.
 
-Workflow aprendido
-→ proposta/planejamento
-→ PermissionManager
-→ Policy
-→ Scope
-→ Checkpoint
-→ ComputerControlService
-→ Driver
-→ Audit
-→ Verification
-→ Recovery/Regression.
+Validação:
 
-A F10 não cria um caminho paralelo de execução.
+**1259 passed / 1 skipped / 0 failed**
 
-## O QUE A LUMEN JÁ CONSEGUE FAZER
+Merge:
 
-1. Observar/representar estado do computador com fingerprint determinístico.
-2. Resolver alvos usando grounding structured-first.
-3. Planejar ações sem executar diretamente o driver.
-4. Executar Computer Control somente pela barreira segura F7.
-5. Exigir checkpoint one-shot antes da execução física.
-6. Verificar pós-condições e classificar falhas.
-7. Fazer recovery bounded sem ampliar permissões ou escopo.
-8. Comparar regressões por evidência determinística.
-9. Planejar operações específicas do Unreal: foco, abrir asset/level, salvar, salvar tudo, Play e Stop Play.
-10. Registrar sequências observadas como workflows reutilizáveis.
-11. Medir histórico de sucesso/falha/inconclusivo.
-12. Bloquear reutilização de workflow cuja última execução falhou.
-13. Encontrar workflows compatíveis com um objetivo por matching determinístico.
-14. Adaptar somente parâmetros declarados, sem criar novos passos.
-15. Marcar workflows de alto risco para aprovação humana adicional.
+`deef5888ccb97e9039c55ba30acb18d570d9ed43`
 
-## LIMITAÇÕES ATUAIS
+## F19 — Lumen Intelligence Lab 🟩
 
-- Matcher ainda é lexical, sem embeddings/semântica.
-- Registry F10 é em memória; persistência durável/Experience Memory integrada é futura.
-- Não existe execução automática de workflow.
-- Não existe ainda Agent multi-etapas autônomo completo; isso é F11.
-- Não houve smoke test físico Windows/Unreal no CI Linux.
+Camada permanente de pesquisa e coordenação de inteligência:
+
+- IntelligenceCapability;
+- IntelligenceTrack;
+- baselines com proveniência;
+- IntelligenceResearch;
+- hipóteses;
+- bounded IntelligenceEvidenceLedger;
+- integração com F17 StackEvidence;
+- integração com F18 AdaptationEvidence;
+- findings;
+- delta/confiança/regressão;
+- oportunidades;
+- digest determinístico;
+- workspace isolado.
+
+Validação:
+
+**1278 passed / 1 skipped / 0 failed**
+
+## F20 — Self-Optimizing Intelligence 🟩
+
+- otimização baseada em evidências;
+- avaliação e seleção bounded;
+- isolamento experimental;
+- benchmark/regressão;
+- proteção dos gates existentes.
+
+Validação registrada:
+
+**1292 passed / 1 skipped / 0 failed**
+
+Merge:
+
+`8c19f7644896c9382ded9af799a262c53eccdbb5`
+
+## F21 — Provider Independence 🟩
+
+- Provider ≠ Model ≠ Lumen;
+- contratos de capacidade;
+- compatibilidade;
+- fallback;
+- migração reversível;
+- redução de dependência de Provider específico.
+
+Validação:
+
+**1312 passed / 1 skipped / 0 failed**
+
+Lumen Tests:
+
+`36359332055`
+
+F0 Validation:
+
+`36359332009`
+
+Merge:
+
+`afcfd3cc2ac97471a043a1fdaeb4a74e9d253583`
+
+## F22 — Continuous Intelligence Evolution 🟩
+
+F22 fecha o ciclo contínuo:
+
+```
+OBSERVE
+   ↓
+ASSESS
+   ↓
+DETECT
+   ↓
+TRIGGER
+   ↓
+PLAN
+   ↓
+RESEARCH / ADAPT / STACK
+   ↓
+BENCHMARK
+   ↓
+SECURITY
+   ↓
+HUMAN APPROVAL
+   ↓
+PROMOTION
+   ↓
+MONITORING
+   ↓
+NEW BASELINE
+   ↺
+```
+
+Correções finais incluíram:
+
+- assessment atômico;
+- trigger one-shot;
+- plan one-shot;
+- limiar de degradação numericamente estável;
+- testes de atomicidade;
+- testes de limites;
+- testes de repetição.
+
+Validação final:
+
+**1329 passed / 1 skipped / 0 failed**
+
+Lumen Tests:
+
+`36360593948`
+
+F0 Validation:
+
+`36360593944`
+
+Merge:
+
+`3c862af35ca1cf152051b1a20f1bf686db14f2e9`
 
 ---
 
-# LUMEN — CONTINUIDADE POR FASES
+# 5. ESTADO GLOBAL DO SISTEMA
 
-> **Arquivo oficial de continuidade da arquitetura de evolução.**
-> Complementa `LUMEN_STATE.md` sem substituir o histórico técnico existente.
-> O estado real deve sempre ser atualizado com evidência; nunca marcar uma fase como concluída apenas por intenção.
+A arquitetura oficial agora representa:
 
-## REGRA PRINCIPAL
+```
+USER
+ ↓
+LUMEN AGENT
+ ↓
+REASONING / PLANNING / MEMORY / RESEARCH
+ ↓
+INTELLIGENCE STACK
+ ↓
+COMPUTER INTELLIGENCE
+ ↓
+SECURE EXECUTION
+ ↓
+VERIFICATION / RECOVERY
+ ↓
+EXPERIENCE
+ ↓
+EVOLUTION SYSTEM
+ ↓
+INTELLIGENCE EVOLUTION
+ ↓
+CONTINUOUS INTELLIGENCE EVOLUTION
+ ↺
+```
 
-**NÃO CRIE OUTRA LUMEN. ALTERE SEMPRE A LUMEN EXISTENTE.**
+A Lumen possui hoje uma trilha completa de:
 
-A Lumen deve evoluir dentro de sua própria arquitetura, usando ambientes experimentais isolados quando houver autoaperfeiçoamento.
-
-## LEGENDA
-
-- 🟩 CONCLUÍDO — evidência/testes/documentação confirmam.
-- 🟥 PENDENTE — ainda não concluído.
-- 🟨 EM PROGRESSO — parcial, sem critério completo.
-
-## ESTADO DESTE PLANO
-
-O estado acima é a referência operacional atual. F0–F7 possuem evidência registrada; as demais permanecem pendentes. A base 0.6.8 existente e suas fases internas continuam registradas em `LUMEN_STATE.md`; elas não devem ser falsamente convertidas em conclusão das novas fases.
+**percepção → raciocínio → planejamento → execução segura → verificação → aprendizado → evolução → monitoramento → nova evolução.**
 
 ---
 
-# FASES — ESTADO OFICIAL 2026-09-27
+# 6. BOUNDARY DE SEGURANÇA — NÃO NEGOCIÁVEL
 
-## F0 — BASELINE / AUDITORIA / CONTRATOS
-🟩 CONCLUÍDA
-
-## F1 — LOCAL PROVIDER / OLLAMA
-🟩 CONCLUÍDA
-
-## F2 — TOOL / AGENT PROTOCOL
-🟩 CONCLUÍDA
-
-## F3 — COMPUTER INTELLIGENCE
-🟩 CONCLUÍDA
-
-Entregues:
-- [x] Perception estruturada.
-- [x] State fingerprint determinístico.
-- [x] Targeting com prioridade native-first.
-- [x] Grounding vinculado à observação.
-- [x] ActionIntent / ActionPlan.
-- [x] Resolução para CCActionRequest sem execução direta.
-- [x] Verification de alvo e mudança de estado.
-- [x] Recovery limitado.
-- [x] Testes focados + CI completa: 1065 passed / 1 skipped / 0 failed.
-- [x] Documentação em docs/COMPUTER_INTELLIGENCE_IMPLEMENTATION.md.
-
-## F4 — WINDOWS NATIVE INTELLIGENCE
-🟩 CONCLUÍDA
-
-Entregues:
-- [x] Enumeração e correspondência de janelas por handle/título/processo/aplicação.
-- [x] Backend Windows UI Automation com imports COM lazy.
-- [x] Árvore UIA limitada por profundidade e quantidade.
-- [x] Propriedades estruturadas de controles.
-- [x] Conversão NativeElement → GroundedTarget.
-- [x] NativeActionRequest sem execução física/bypass de segurança.
-- [x] Testes focados + CI completa: 1073 passed / 1 skipped / 0 failed.
-- [x] Documentação em docs/WINDOWS_NATIVE_INTELLIGENCE.md.
-
-## F5 — VISION PROVIDER
-🟩 CONCLUÍDA
-
-Entregues:
-- [x] VisionProvider independente e desacoplado de modelo específico.
-- [x] JsonVisionProvider com validação fail-closed.
-- [x] OllamaVisionProvider com qwen3-vl:8b configurável.
-- [x] limites de imagem, resposta, tokens e payload.
-- [x] VisionProviderManager para múltiplos modelos/providers.
-- [x] testes focados + CI completa: 1084 passed / 1 skipped / 0 failed.
-- [x] documentação em docs/VISION_PROVIDER_IMPLEMENTATION.md.
-
-## F6 — GROUNDING ENGINE
-🟩 CONCLUÍDA
-
-Entregues:
-- [x] GroundingEngine com ordem estruturada-first.
-- [x] Elegibilidade validada antes da priorização de fonte.
-- [x] Validação de confiança, imagem, região e identidade de janela.
-- [x] Normalização determinística de labels.
-- [x] Adaptação de VisionObservation.
-- [x] Adaptação de NativeElement sem acoplamento ao backend Windows.
-- [x] Deduplicação de candidatos.
-- [x] Fallback seguro quando candidato prioritário é inválido.
-- [x] TargetingEngine integrado ao novo fluxo de elegibilidade.
-- [x] Testes focados + CI: 1094 passed / 1 skipped / 0 failed.
-- [x] Documentação em docs/GROUNDING_ENGINE_IMPLEMENTATION.md.
-
-## F7 — SECURE COMPUTER CONTROL
-🟩 CONCLUÍDA
-
-Entregues:
-- [x] PermissionManager(COMPUTER_CONTROL) como autoridade explícita.
-- [x] CC Policy fail-closed.
-- [x] CCScope com ações, expiração, orçamento e região.
-- [x] checkpoint one-shot CC-CP-XXXXXX antes da execução.
-- [x] fingerprint vinculado ao scope e à requisição.
-- [x] aprovação não reutilizável.
-- [x] revalidação do scope imediatamente antes do driver.
-- [x] regiões de screenshot revalidadas contra o scope.
-- [x] GroundedTarget revalidado antes da ação.
-- [x] auditoria metadata-only.
-- [x] ações não suportadas falham de forma controlada.
-- [x] testes de negação, aprovação, replay, mismatch, recusa, escopo, orçamento e falha.
-- [x] CI completa: 1104 passed / 1 skipped / 0 failed.
-- [x] documentação em docs/SECURE_COMPUTER_CONTROL_IMPLEMENTATION.md.
-
-## F8 — VERIFICATION + RECOVERY + REGRESSION
-🟩 CONCLUÍDA
-
-Entregues:
-- [x] pós-condições explícitas de verification;
-- [x] estados VERIFIED / FAILED / INCONCLUSIVE;
-- [x] classificação de falhas;
-- [x] recovery bounded, com segurança terminal;
-- [x] RegressionDetector determinístico;
-- [x] integração com ComputerIntelligence;
-- [x] testes dedicados + CI da PR;
-- [x] documentação em docs/VERIFICATION_RECOVERY_REGRESSION_IMPLEMENTATION.md.
-
-## F9 — UNREAL ENGINE AGENT
-🟩 CONCLUÍDA
-
-- foco, Open Asset, Open Level, Save, Save All, Play e Stop;
-- planos convertíveis para a cadeia segura;
-- objetivos ambíguos rejeitados;
-- CI final: 1132 passed / 1 skipped / 0 failed.
-
-## F10 — WORKFLOW LEARNING
-🟩 CONCLUÍDA
-
-- workflows versionados e fingerprint determinístico;
-- evidências de sucesso/falha/inconclusivo;
-- matcher e adaptação bounded;
-- alto risco exige aprovação;
-- execução continua na cadeia F7/F8.
-
-## F11 — AUTONOMOUS MULTI-STEP AGENT
-🟩 CONCLUÍDA
-
-- tarefas multi-etapas sequenciais;
-- orçamento de passos/recovery/tentativas;
-- approval explícito;
-- terminalidade para falhas de segurança;
-- CI final: 1160 passed / 1 skipped / 0 failed.
-
-# LUMEN EVOLUTION SYSTEM
-
-## F12 — EVOLUTION FOUNDATION
-🟩 CONCLUÍDA
-
-Capability Registry, Measurement, Diagnostics, Improvement Planner, Hypothesis Manager,
-Experiment Manager, Candidate Registry, Benchmark/Regression, Safety Validator,
-Promotion Manager, Rollback Manager e Evolution Memory.
-
-## F13 — EVOLUTION LABORATORY
-🟩 CONCLUÍDA
-
-Laboratório isolado, path safety, separação de runtime estável e registro bounded de
-experimentos/mudanças/candidatos.
-
-## F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT
-🟩 CONCLUÍDA
-
-Diagnóstico determinístico, pesquisa baseada em evidências fornecidas pelo chamador,
-oportunidades e planos de melhoria. CI final: 1205 passed / 1 skipped / 0 failed.
-
-## F15 — CANDIDATE BUILD + BENCHMARK + PROMOTION
-🟩 CONCLUÍDA
-
-Build evidence, benchmark, regression gate, safety review, Human Approval Gate e
-promoção metadata-only. CI final: 1222 passed / 1 skipped / 0 failed.
-
-## F16 — CONTINUOUS EVOLUTION
-🟩 CONCLUÍDA
-
-Entregas:
-- [x] Post-promotion monitoring.
-- [x] Stability assessment.
-- [x] Degradation/regression detection.
-- [x] Bounded monitoring history.
-- [x] Evolution trigger para novo ciclo.
-- [x] Research-to-opportunity planner.
-- [x] Integração de evidência de monitoramento com EvolutionMemory.
-- [x] testes dedicados.
-- [x] documentação.
-- [x] CI completa e F0 Validation.
-- [x] merge em master e atualização final da evidência.
-
-## F17 — INTELLIGENCE STACK EVOLUTION
-🟩 CONCLUÍDA
-
-- [x] Provider/model contracts e deterministic routing.
-- [x] Stack evidence/evaluator.
-- [x] Isolated adaptation boundary.
-- [x] Security boundary preservada.
-- [x] CI final: 1244 passed / 1 skipped / 0 failed.
-
-## F18 — MODEL ADAPTATION LABORATORY
-🟩 CONCLUÍDA
-
-- [x] Model adaptation specifications e experiments isolados.
-- [x] Evidence, benchmark, regression e safety gates.
-- [x] Integração com Evolution Lab e Promotion Gate.
-- [x] CI final: 1259 passed / 1 skipped / 0 failed.
-
-## F19 — LUMEN INTELLIGENCE LAB
-🟨 IMPLEMENTAÇÃO EM ANDAMENTO
-
-- [x] IntelligenceCapability e baseline contracts.
-- [x] Research/evidence ledger bounded.
-- [x] Hypothesis, finding e opportunity contracts.
-- [x] Integração de evidências F17/F18.
-- [x] Testes dedicados e documentação inicial.
-- [ ] CI final.
-- [ ] Merge em master.
-- [ ] Validação final e encerramento da fase.
-
-## F20 — SELF-OPTIMIZING INTELLIGENCE
-🟨 EM VALIDAÇÃO
-
-- [x] Implementação registrada.
-- [x] 1292 passed / 1 skipped / 0 failed.
-- [x] compile SUCCESS.
-- [x] F0 Validation SUCCESS.
-- [x] PR #14 merged.
-
-## F21 — PROVIDER INDEPENDENCE
-⬜ PRÓXIMA FASE
-
-## F22 — CONTINUOUS INTELLIGENCE EVOLUTION
-🟥 PENDENTE
-
-# BOUNDARY DE SEGURANÇA — NÃO NEGOCIÁVEL
-
-O Evolution System pode evoluir **capacidades**, mas não pode unilateralmente remover ou enfraquecer:
+O sistema de evolução pode evoluir capacidades, mas não pode unilateralmente remover ou enfraquecer:
 
 - PermissionManager;
 - Policy Engine;
@@ -623,71 +374,111 @@ O Evolution System pode evoluir **capacidades**, mas não pode unilateralmente r
 - Promotion Rules;
 - proteção de secrets;
 - limites de autoridade;
-- isolamento do Evolution Lab.
+- isolamento do Evolution Laboratory;
+- Human Approval Gates.
 
-Mudanças nesses mecanismos exigem **Human Approval Gate**.
+Mudanças nesses mecanismos exigem **aprovação humana explícita**.
 
-## NÍVEIS DE RISCO
-
-### 🟢 BAIXO
-Documentação, conhecimento, índices, workflows, testes e otimizações isoladas.
-
-### 🟡 MÉDIO
-Dependências, Providers, ferramentas e mudanças com impacto transversal.
-
-### 🔴 ALTO
-Computer Control, permissões, sandbox, Policy, Checkpoints, Audit, secrets e Security Core.
+Nenhuma fase F12–F22 cria autoridade paralela de execução.
 
 ---
 
-# MODELO DE ESTADOS DO EVOLUTION SYSTEM
+# 7. REGRA DE EXECUÇÃO
 
-`PROPOSED → RESEARCHING → HYPOTHESIS → PLANNED → EXPERIMENTAL → BUILDING → TESTING → BENCHMARKING → SECURITY_REVIEW → PROMOTION_PENDING → APPROVED/REJECTED → PROMOTED → MONITORED`
+A cadeia oficial de execução continua:
 
-Nenhum estado pode ser pulado sem uma regra explícita e auditável.
+```
+Goal
+ ↓
+Planner / Agent
+ ↓
+Tool / Computer Action
+ ↓
+Permission
+ ↓
+Policy
+ ↓
+Scope
+ ↓
+Checkpoint
+ ↓
+Sandbox / Driver
+ ↓
+Audit
+ ↓
+Verification
+ ↓
+Recovery / Regression
+```
+
+A evolução não pode bypassar essa cadeia.
 
 ---
 
-# EXEMPLO DE EVOLUÇÃO
+# 8. LIMITAÇÃO DE AMBIENTE
 
-**Objetivo:** melhorar Computer Control + Visão.
+As validações de CI são executadas em ambiente Linux.
 
-1. 🟥 Baseline.
-2. 🟥 Diagnóstico das falhas.
-3. 🟥 Pesquisa.
-4. 🟥 Hipóteses.
-5. 🟥 Experimento isolado.
-6. 🟥 Implementação.
-7. 🟥 Testes.
-8. 🟥 Benchmark.
-9. 🟥 Security validation.
-10. 🟥 Comparação.
-11. 🟥 Rejeitar ou promover.
-12. 🟥 Registrar sucesso/falha na Experience Memory.
-13. 🟥 Monitorar após promoção.
+Portanto:
 
-**Nunca:** editar o runtime estável diretamente e depender da própria alteração para recuperação.
+- CI verde ≠ smoke test físico de Windows;
+- CI verde ≠ smoke test físico de Unreal Engine;
+- CI verde ≠ validação física de mouse/teclado/UI Automation;
+- testes reais de Windows/Unreal continuam sendo uma validação de ambiente separada.
+
+Nenhuma fase deve ser considerada como tendo passado por smoke test físico Windows/Unreal apenas por causa da CI Linux.
 
 ---
 
-# CRITÉRIO DE CONTINUIDADE
+# 9. REGRA DE CONTINUIDADE
 
-Ao concluir qualquer item:
+Ao alterar a Lumen:
 
-1. marcar 🟩;
-2. registrar teste/evidência;
-3. atualizar `LUMEN_STATE.md`;
-4. atualizar este arquivo;
-5. atualizar decisões quando aplicável;
-6. atualizar handoff;
-7. commit no GitHub;
-8. só então avançar.
+1. alterar a Lumen existente;
+2. preservar o GitHub como source of truth;
+3. implementar em branch quando a mudança for significativa;
+4. criar testes;
+5. executar testes possíveis;
+6. corrigir falhas;
+7. executar CI;
+8. revisar segurança;
+9. atualizar `LUMEN_STATE.md`;
+10. atualizar este arquivo;
+11. atualizar roadmap/documentação específica;
+12. commit;
+13. merge somente com validação verde;
+14. registrar evidência final;
+15. somente então marcar a fase como 🟩.
 
-## REGRA DE PAUSA
+---
 
-Se um teste crítico falhar, a fase permanece 🟥 ou 🟨. Não avançar artificialmente.
+# 10. ESTADO PARA O PRÓXIMO CHAT / AGENTE
 
-## VISÃO FINAL
+**Projeto:** Lumen  
+**Estado:** 🟩 F0–F22 concluídas  
+**Última fase:** F22 — Continuous Intelligence Evolution  
+**Última validação:** 1329 passed / 1 skipped / 0 failed  
+**Último merge conhecido:** `3c862af35ca1cf152051b1a20f1bf686db14f2e9`  
+**Branch oficial:** `master`
+
+### Instrução de continuidade
+
+Antes de qualquer nova implementação:
+
+1. atualizar o clone local;
+2. ler `LUMEN_STATE.md`;
+3. ler este arquivo;
+4. ler `docs/LUMEN_COMPUTER_INTELLIGENCE_ROADMAP.md`;
+5. identificar se existe uma nova fase oficialmente aprovada;
+6. não inventar F23;
+7. não marcar trabalho como concluído sem evidência;
+8. preservar todas as barreiras de segurança existentes.
+
+**A próxima fase só existe após uma decisão arquitetural explícita e documentação correspondente.**
+
+---
+
+# 11. NORTH STAR OPERACIONAL
 
 A Lumen deve evoluir de:
 
@@ -697,17 +488,8 @@ para:
 
 `Agent + Research + Knowledge + Experience + Computer Intelligence + Secure Execution + Verification + Evolution System`
 
-e finalmente para:
+e continuar evoluindo para uma inteligência capaz de:
 
-`Agent capaz de descobrir limitações, pesquisar soluções, experimentar melhorias, provar resultados e evoluir continuamente sem colocar sua própria continuidade em risco.`
+**descobrir limitações → pesquisar soluções → formular hipóteses → experimentar com segurança → medir resultados → validar regressões → obter aprovação quando necessário → promover mudanças → monitorar resultados → estabelecer novos baselines → repetir o ciclo.**
 
-
-## F20 — SELF-OPTIMIZING INTELLIGENCE — 🟨 EM VALIDAÇÃO
-
-Implementação presente no branch `f20-self-optimizing-intelligence`; CI final e merge concluídos.
-
-
-F20 validação final: **1292 passed / 1 skipped / 0 failed**; compile SUCCESS; F0 Validation SUCCESS; PR #14 merged (`8c19f7644896c9382ded9af799a262c53eccdbb5`).
-
-
-**Próxima fase oficial: F21 — Provider Independence.**
+**Estado final atual: 🟩 F0–F22 CONCLUÍDAS.**
