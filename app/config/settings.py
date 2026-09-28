@@ -109,6 +109,9 @@ class Settings:
     ollama_base_url: str = "http://127.0.0.1:11434"
     #: F1 — tempo de retenção do modelo na memória do Ollama.
     ollama_keep_alive: str = "5m"
+    #: F1 — habilita o modo de reasoning/thinking do Ollama.
+    #: Desligado por padrão para garantir conteúdo de resposta dentro do limite.
+    ollama_think: bool = False
 
     def __post_init__(self) -> None:
         if self.log_level not in VALID_LOG_LEVELS:
@@ -246,6 +249,10 @@ class Settings:
                 or "http://127.0.0.1:11434"
             ),
             ollama_keep_alive=(pick("LUMEN_OLLAMA_KEEP_ALIVE", "5m").strip() or "5m"),
+            ollama_think=(
+                pick("LUMEN_OLLAMA_THINK", "0").strip().lower()
+                in ("1", "true", "yes", "sim", "on")
+            ),
         )
 
 
