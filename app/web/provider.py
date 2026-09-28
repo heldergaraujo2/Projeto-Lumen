@@ -11,7 +11,7 @@ from html.parser import HTMLParser
 import socket
 import urllib.error
 import urllib.request
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlsplit
 
 from app.web.security import WebSecurityError, WebSecurityPolicy
 
@@ -57,7 +57,8 @@ class _SearchParser(HTMLParser):
         self.limit=limit; self.items=[]; self._link=None; self._text=[]
     def handle_starttag(self, tag, attrs):
         attrs=dict(attrs)
-        if tag=="a" and attrs.get("class") and "result__a" in attrs.get("class","").split():
+        classes = attrs.get("class", "").split()
+        if tag == "a" and "result-link" in classes:
             self._link=attrs.get("href"); self._text=[]
     def handle_data(self,data):
         if self._link is not None: self._text.append(data)
@@ -88,7 +89,7 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         q=request.query.strip()
         if not q: raise WebProviderError("Consulta vazia.")
         if not 1<=request.max_results<=20: raise WebProviderError("max_results deve estar entre 1 e 20.")
-        endpoint="https://html.duckduckgo.com/html/?q="+quote_plus(q)
+        endpoint="https://lite.duckduckgo.com/lite/?q="+quote_plus(q)
         try:
             body=self.client.get_text(endpoint)
             parser=_SearchParser(request.max_results); parser.feed(body)
@@ -96,9 +97,16 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         except Exception as exc: raise WebProviderError(f"Falha na busca Web: {exc}") from exc
         sources=[]
         for title,href in parser.items:
-            absolute=urljoin(endpoint,href)
-            try: safe=self.policy.validate_url(absolute)
-            except WebSecurityError: continue
+            absolute=urljoin(endpoint, href)
+            parsed=urlsplit(absolute)
+            if parsed.hostname in {"duckduckgo.com", "www.duckduckgo.com"} and parsed.path == "/l/":
+                target = parse_qs(parsed.query).get("uddg", [None])[0]
+                if target:
+                    absolute = unquote(target)
+            try:
+                safe=self.policy.validate_url(absolute)
+            except WebSecurityError:
+                continue
             sources.append(WebSource(title=title,url=safe))
         return WebSearchResponse(query=q,sources=tuple(sources))
 
