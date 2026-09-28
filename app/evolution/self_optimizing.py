@@ -29,7 +29,7 @@ class OptimizationObjective:
             raise ValueError("invalid optimization objective identifier")
         if not self.capability_id.strip():
             raise ValueError("optimization capability is required")
-        if not 0.0 <= self.weight <= 1.0 or self.weight == 0.0:
+        if not 0.0 < self.weight <= 1.0:
             raise ValueError("objective weight must be in (0, 1]")
         if not 0.0 <= self.target <= 1.0:
             raise ValueError("objective target must be between 0 and 1")
@@ -82,10 +82,16 @@ class OptimizationAssessment:
     delta_to_target: float
     sample_size: int
     evidence_ids: tuple[str, ...]
+    maximize: bool = True
+    objective_weight: float = 1.0
 
     @property
     def meets_target(self) -> bool:
-        return self.score >= self.target
+        return self.delta_to_target >= 0.0
+
+    @property
+    def weighted_score(self) -> float:
+        return self.score * self.objective_weight
 
 
 @dataclass(frozen=True)
@@ -128,7 +134,7 @@ class OptimizationPolicy:
 
 
 class SelfOptimizingIntelligence:
-    """F20: deterministic strategy selection over supplied evidence.
+    """F20: deterministic strategy assessment over supplied evidence.
 
     This component never executes a model, changes the live stack, deploys a
     candidate, grants authority, or mutates stable runtime state.
@@ -181,10 +187,11 @@ class SelfOptimizingIntelligence:
         if not evidence:
             raise ValueError("variant requires optimization evidence")
         score = sum(e.score * e.sample_size for e in evidence) / sum(e.sample_size for e in evidence)
+        delta = score - objective.target if objective.maximize else objective.target - score
         return OptimizationAssessment(
-            variant_id, objective_id, score, objective.target,
-            score - objective.target, sum(e.sample_size for e in evidence),
-            tuple(e.evidence_id for e in evidence),
+            variant_id, objective_id, score, objective.target, delta,
+            sum(e.sample_size for e in evidence), tuple(e.evidence_id for e in evidence),
+            objective.maximize, objective.weight,
         )
 
     def recommend(self, capability_id: str, objective_id: str) -> OptimizationRecommendation:
@@ -198,7 +205,13 @@ class SelfOptimizingIntelligence:
         ]
         if not candidates:
             raise ValueError("no evidenced optimization variants available")
-        candidates.sort(key=lambda a: (-a.score if objective.maximize else a.score, a.variant_id))
+        candidates.sort(
+            key=lambda a: (
+                -a.weighted_score if objective.maximize else a.weighted_score,
+                -a.delta_to_target,
+                a.variant_id,
+            )
+        )
         selected = candidates[0]
         if selected.delta_to_target < self.policy.min_improvement:
             raise ValueError("no variant satisfies optimization improvement threshold")
