@@ -327,3 +327,44 @@ def test_safe_http_client_converts_http_errors_to_controlled_provider_error(stat
 
     with pytest.raises(WebProviderError, match=f"HTTP {status}"):
         client.get("https://1.1.1.1/error")
+
+
+class FakeSearchClient:
+    def __init__(self, body):
+        self.body = body
+
+    def get_text(self, url):
+        return self.body
+
+
+def test_duckduckgo_lite_parser_extracts_real_urls_and_snippets():
+    from app.web.provider import DuckDuckGoSearchProvider
+
+    html = """
+    <a href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpage%26x%3D1" class="result-link">Example title</a>
+    <div class="result-snippet">Example snippet</div>
+    """
+    provider = DuckDuckGoSearchProvider(
+        policy=WebSecurityPolicy(),
+        client=FakeSearchClient(html),
+    )
+    result = provider.search(__import__("app.web.provider", fromlist=["WebSearchRequest"]).WebSearchRequest("teste", 5))
+
+    assert len(result.sources) == 1
+    assert result.sources[0].title == "Example title"
+    assert result.sources[0].url == "https://example.com/page&x=1"
+
+
+def test_duckduckgo_lite_skips_private_redirect_targets():
+    from app.web.provider import DuckDuckGoSearchProvider
+
+    html = """
+    <a href="//duckduckgo.com/l/?uddg=http%3A%2F%2F127.0.0.1%2Fprivate" class="result-link">Private</a>
+    """
+    provider = DuckDuckGoSearchProvider(
+        policy=WebSecurityPolicy(),
+        client=FakeSearchClient(html),
+    )
+    result = provider.search(__import__("app.web.provider", fromlist=["WebSearchRequest"]).WebSearchRequest("teste", 5))
+
+    assert result.sources == ()
