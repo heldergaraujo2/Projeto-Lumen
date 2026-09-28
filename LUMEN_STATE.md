@@ -1,3 +1,26 @@
+# LUMEN — ESTADO OFICIAL ATUAL
+
+**Atualização:** 2026-09-27  
+**Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
+**Estado:** F23 em validação; F20–F22 corrigidas e aguardando validação final da suíte.
+
+> O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
+
+## F19–F23 — Auditoria e correções
+
+- **F19:** revisão concluída; nenhum defeito estrutural adicional identificado.
+- **F20:** corrigidas semântica de maximize/minimize, delta de target e exposição do weight.
+- **F21:** corrigida avaliação dirigida por requisitos; FAILOVER e LOCAL_AVAILABILITY agora possuem semântica explícita.
+- **F22:** corrigidas identidade imutável de observações, ciclo de vida, retenção de evidências e fechamento explícito.
+- **F23:** redefinida oficialmente como **Runtime Integration & State Machine Hardening**. O antigo detector de ambiente permanece como gate fail-closed e não prova validação física.
+- **Próximo passo:** executar testes F19–F23 + regressão completa e registrar evidência antes de marcar F23 como concluída.
+
+## Regra de continuidade
+
+**NÃO CRIE OUTRA LUMEN. ALTERE SEMPRE A LUMEN EXISTENTE.**
+
+---
+
 # F23 — REAL ENVIRONMENT VALIDATION & INTEGRATION READINESS — CURRENT OFFICIAL STATUS
 
 🟩 CONCLUÍDA — GATE DE PRONTIDÃO
