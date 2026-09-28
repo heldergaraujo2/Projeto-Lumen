@@ -835,6 +835,12 @@ class ToolsController:
                 ),
             })
         rows.append({
+            "level": "WEB_ACCESS",
+            "kind": "permission",
+            "granted": self._permissions.is_granted(PermissionLevel.WEB_ACCESS),
+            "description": "Acesso externo somente por ferramentas Web HTTP/HTTPS com política de segurança",
+        })
+        rows.append({
             "level": "TERMINAL",
             "kind": "permission",
             "granted": self._permissions.is_granted(PermissionLevel.TERMINAL),
@@ -864,6 +870,16 @@ class ToolsController:
         resolved = self._resolve_manageable(level)
         self._permissions.revoke(resolved)
         logger.info("Permissão revogada pela UI: %s.", resolved.name)
+
+    def grant_web_access(self) -> None:
+        """Concede WEB_ACCESS explicitamente; nunca é concedido por startup."""
+        self._permissions.grant(PermissionLevel.WEB_ACCESS)
+        logger.info("Permissão concedida: WEB_ACCESS.")
+
+    def revoke_web_access(self) -> None:
+        """Revoga WEB_ACCESS explicitamente."""
+        self._permissions.revoke(PermissionLevel.WEB_ACCESS)
+        logger.info("Permissão revogada: WEB_ACCESS.")
 
     @staticmethod
     def _resolve_manageable(level: str) -> PermissionLevel:
