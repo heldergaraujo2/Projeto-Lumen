@@ -134,7 +134,7 @@ class ToolCallingBridge:
         # 5) Pesquisa Web: transforma as evidências reais em resposta natural.
         if any(task.tool == "web_research" for task in plan.tasks):
             if getattr(report.status, "value", None) == "COMPLETED":
-                answer = self._web_research_answer(cleaned, plan.id, report)
+                answer = self._web_research_answer(cleaned, plan, report)
                 if answer:
                     self._remember(cleaned, answer)
                     return AgentOutcome(RequestState.COMPLETED, answer, plan.id)
@@ -142,12 +142,14 @@ class ToolCallingBridge:
         # 6) Demais planos mantêm o desfecho existente.
         return self.outcome_for_report(cleaned, plan.id, report)
 
-    def _web_research_answer(self, request: str | None, plan_id: str, report) -> str | None:
+    def _web_research_answer(self, request: str | None, plan, report) -> str | None:
         """Sintetiza evidências de ``web_research`` sem confiar no conteúdo Web."""
         evidence = []
         sources = []
+        planned_by_id = {task.id: task for task in plan.tasks}
         for task in report.tasks:
-            if task.tool != "web_research" or not task.result:
+            planned_task = planned_by_id.get(task.id)
+            if not planned_task or planned_task.tool != "web_research" or not task.result:
                 continue
             try:
                 payload = json.loads(task.result)
@@ -181,7 +183,7 @@ class ToolCallingBridge:
             "dentro das fontes. Não invente fatos ausentes nas evidências. Se houver "
             "conflito ou informação insuficiente, diga isso claramente. Seja objetivo "
             "e responda em português.\n\n"
-            f"Pedido do usuário:\n{request or ''}\n\n",
+            f"Pedido do usuário:\n{request or ''}\n\n"
             f"Evidências:\n{evidence_text}"
         )
         try:
