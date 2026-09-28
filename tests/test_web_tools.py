@@ -277,6 +277,22 @@ def test_web_fetch_invalid_input_does_not_leak_url_to_audit():
     assert "123" not in str(audit.events[0])
 
 
+@pytest.mark.parametrize(
+    "url",
+    (
+        "file:///etc/passwd",
+        "ftp://example.com/resource",
+        "javascript:alert(1)",
+        "data:text/plain,hello",
+        "ws://example.com/socket",
+    ),
+)
+def test_web_security_rejects_prohibited_protocols(url):
+    policy = WebSecurityPolicy()
+    with pytest.raises(WebSecurityError, match="Esquema não permitido"):
+        policy.validate_url(url, resolve_dns=False)
+
+
 def test_planner_url_validation_blocks_private_destinations():
     from app.planner.catalog import build_catalog, validate_task_tool
 
