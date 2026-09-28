@@ -142,6 +142,74 @@ class ExperienceStore:
     def all(self) -> tuple[ExperienceTrace, ...]:
         return tuple(self.get(k) for k in sorted(self._data) if self.get(k) is not None)
 
+class PersistentWorkflowRegistry(WorkflowRegistry):
+    """Durable workflow/evidence registry built on the F10 contract."""
+
+    def __init__(self, path: str | Path, max_items: int = 5000):
+        if max_items < 1:
+            raise ValueError("max_items must be >= 1")
+        self.path = Path(path)
+        self.max_items = max_items
+        super().__init__()
+        self._load_persistent()
+
+    @staticmethod
+    def _definition_payload(workflow: WorkflowDefinition) -> dict[str, Any]:
+        return {
+            "workflow_id": workflow.workflow_id, "name": workflow.name, "goal": workflow.goal,
+            "steps": [{"action": s.action, "parameters": list(s.parameters),
+                       "expectation_kind": s.expectation_kind, "expectation_value": s.expectation_value,
+                       "risk": s.risk.value, "rationale": s.rationale} for s in workflow.steps],
+            "variables": list(workflow.variables), "source": workflow.source,
+            "version": workflow.version, "enabled": workflow.enabled,
+        }
+
+    @staticmethod
+    def _definition_from_payload(raw: dict[str, Any]) -> WorkflowDefinition:
+        return WorkflowDefinition(
+            workflow_id=raw["workflow_id"], name=raw["name"], goal=raw["goal"],
+            steps=tuple(WorkflowStep(action=s["action"], parameters=tuple((str(k), v) for k, v in s.get("parameters", [])),
+                expectation_kind=s.get("expectation_kind"), expectation_value=s.get("expectation_value"),
+                risk=WorkflowRisk(s.get("risk", WorkflowRisk.LOW.value)), rationale=s.get("rationale", "")) for s in raw["steps"]),
+            variables=tuple(raw.get("variables", [])), source=raw.get("source", "learned"),
+            version=int(raw.get("version", 1)), enabled=bool(raw.get("enabled", True)))
+
+    def _save_persistent(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {"definitions": {k: self._definition_payload(v) for k, v in self._definitions.items()},
+                   "evidence": {k: [{"workflow_id": e.workflow_id, "outcome": e.outcome.value,
+                       "verification_status": e.verification_status, "observation_fingerprint": e.observation_fingerprint,
+                       "reason": e.reason, "source": e.source, "attempt": e.attempt} for e in values]
+                       for k, values in self._evidence.items()}}
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2), encoding="utf-8")
+        tmp.replace(self.path)
+
+    def _load_persistent(self) -> None:
+        if not self.path.exists():
+            return
+        raw = json.loads(self.path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError("workflow registry must contain an object")
+        for key, definition in raw.get("definitions", {}).items():
+            workflow = self._definition_from_payload(definition)
+            if workflow.workflow_id != key:
+                raise ValueError("workflow registry key mismatch")
+            super().register(workflow)
+        for values in raw.get("evidence", {}).values():
+            for value in values:
+                super().record(WorkflowEvidence(workflow_id=value["workflow_id"], outcome=WorkflowOutcome(value["outcome"]),
+                    verification_status=value["verification_status"], observation_fingerprint=value["observation_fingerprint"],
+                    reason=value.get("reason", ""), source=value.get("source", "runtime"), attempt=int(value.get("attempt", 1))))
+
+    def register(self, workflow: WorkflowDefinition) -> None:
+        super().register(workflow)
+        self._save_persistent()
+
+    def record(self, evidence: WorkflowEvidence) -> None:
+        super().record(evidence)
+        self._save_persistent()
+
 
 @dataclass(frozen=True)
 class GeneralizationResult:
