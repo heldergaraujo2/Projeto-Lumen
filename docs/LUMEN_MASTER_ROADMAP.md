@@ -20,7 +20,7 @@
 | F25 | Provider Runtime Independence | 🟩 CONCLUÍDA |
 | F26 | Learning Runtime & Continuous Knowledge | 🟩 CONCLUÍDA |
 | F27 | Real Windows Computer Validation | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — GATE FÍSICO EXTERNO PENDENTE |
-| F28 | Real Vision + Grounding | ⬜ PLANEJADA |
+| F28 | Real Vision + Grounding | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO PROVIDER PENDENTE |
 | F29 | Real Autonomous Computer Agent | ⬜ PLANEJADA |
 | F30 | Unreal Real Integration | ⬜ PLANEJADA |
 | F31 | Experience & Workflow Intelligence | ⬜ PLANEJADA |
@@ -161,6 +161,22 @@ Limite de evidência:
 - hosted Windows CI valida o ambiente automatizado, mas não prova a sessão física interativa do usuário;
 - F27 só pode virar 🟩 depois de evidência real de screenshot, movimento de mouse e teclado na máquina Windows alvo;
 - nenhuma capacidade física é inferida apenas de sys.platform == win32.
+
+## 5.3 F28 — REAL VISION + GROUNDING — 🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL DO PROVIDER PENDENTE
+
+Entregas:
+- `VisionGroundingPipeline`;
+- screenshot/request → vision observation → grounding → target candidate;
+- reutilização do `OllamaVisionProvider` multimodal;
+- validação de limites, confiança, bounding boxes e região autorizada;
+- resolução structured-first;
+- nenhuma execução física pela pipeline;
+- testes dedicados e documentação.
+
+Critério externo:
+- screenshot benigno processado por provider multimodal real;
+- evidência de elementos e target grounded;
+- nenhuma ação física é necessária para o gate de F28.
 
 ## 5.2 F25 — PROVIDER RUNTIME INDEPENDENCE — 🟩 CONCLUÍDA
 
