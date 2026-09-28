@@ -110,7 +110,7 @@ def test_web_search_returns_structured_sources():
     assert result["data"]["sources"][0]["url"] == "https://example.com"
 
 
-def test_web_research_searches_and_fetches_sources():
+class PartialFailureSearch:\n    def search(self, request):\n        return WebSearchResponse(\n            request.query,\n            (\n                WebSource("Fonte OK 1", "https://example.com/one", "primeira"),\n                WebSource("Fonte com falha", "https://example.com/fail", "segunda"),\n                WebSource("Fonte OK 2", "https://example.com/two", "terceira"),\n            ),\n        )\n\n\nclass PartialFailureFetch:\n    def fetch(self, url):\n        if url.endswith("/fail"):\n            raise WebProviderError("falha simulada ao buscar fonte")\n        return WebFetchResponse(\n            url, url, "Example", "text/html", f"conteúdo de {url}", False\n        )\n\n\ndef test_web_research_searches_and_fetches_sources():
     permissions = PermissionManager([PermissionLevel.CHAT, PermissionLevel.WEB_ACCESS])
     registry = ToolRegistry(permissions)
     registry.register(
@@ -126,7 +126,7 @@ def test_web_research_searches_and_fetches_sources():
     assert result["data"]["source_count"] == 1
 
 
-def test_web_research_requires_explicit_permission():
+def test_web_research_continues_when_one_source_fetch_fails():\n    permissions = PermissionManager([PermissionLevel.CHAT, PermissionLevel.WEB_ACCESS])\n    registry = ToolRegistry(permissions)\n    registry.register(\n        WebResearchTool(\n            search_provider=PartialFailureSearch(),\n            fetch_provider=PartialFailureFetch(),\n        )\n    )\n\n    result = json.loads(\n        registry.execute("web_research", query="teste", max_results=5, max_sources=3)\n    )\n\n    assert result["ok"] is True\n    sources = result["data"]["sources"]\n    assert result["data"]["source_count"] == 3\n    assert sources[0]["text"] == "conteúdo de https://example.com/one"\n    assert sources[1]["url"] == "https://example.com/fail"\n    assert sources[1]["fetch_error"] == "falha simulada ao buscar fonte"\n    assert "text" not in sources[1]\n    assert sources[2]["text"] == "conteúdo de https://example.com/two"\n\n\ndef test_web_research_requires_explicit_permission():
     permissions = PermissionManager()
     registry = ToolRegistry(permissions)
     registry.register(
