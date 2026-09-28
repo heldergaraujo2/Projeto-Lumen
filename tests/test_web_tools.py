@@ -320,6 +320,11 @@ def test_web_security_rejects_embedded_credentials_and_oversized_urls(url):
     with pytest.raises(WebSecurityError, match=expected):
         policy.validate_url(url, resolve_dns=False)
 
+def test_web_security_normalizes_configured_schemes_case_insensitively():
+    policy = WebSecurityPolicy(allowed_schemes=("HTTP", "HTTPS"))
+    assert policy.validate_url("https://example.com", resolve_dns=False) == "https://example.com"
+
+
 
 def test_planner_url_validation_blocks_private_destinations():
     from app.planner.catalog import build_catalog, validate_task_tool
