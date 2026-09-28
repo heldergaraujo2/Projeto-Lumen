@@ -166,7 +166,7 @@ class ContinuousIntelligenceEvolution:
     def assess(self, cycle_id: str, observation: IntelligenceObservation) -> IntelligenceCycle:
         cycle = self._cycles[cycle_id]
         observation.validate()
-        if cycle.state not in {IntelligenceCycleState.OBSERVED, IntelligenceCycleState.ASSESSED}:
+        if cycle.state is not IntelligenceCycleState.OBSERVED:
             raise ValueError("cycle is not accepting observations in its current state")
         if observation.sample_size < self.min_samples:
             raise ValueError("observation sample is below minimum")
@@ -185,6 +185,8 @@ class ContinuousIntelligenceEvolution:
         degraded = observation.score + 1e-12 < threshold_floor
         state = IntelligenceCycleState.TRIGGERED if degraded else IntelligenceCycleState.ASSESSED
         reason = "continuous intelligence degradation detected" if degraded else "observation remains within baseline tolerance"
+        if state not in self._ALLOWED_TRANSITIONS[cycle.state]:
+            raise ValueError("invalid intelligence cycle state transition")
         updated = IntelligenceCycle(
             cycle.cycle_id, cycle.capability_id, state, cycle.baseline_score,
             observation.score, cycle.observation_ids + (observation.observation_id,),
@@ -215,7 +217,7 @@ class ContinuousIntelligenceEvolution:
         if any(p.source_trigger_id == trigger.trigger_id for p in self._plans.values()):
             raise ValueError("trigger already has a plan")
         cycle = self._cycles[trigger.cycle_id]
-        if cycle.state is not IntelligenceCycleState.TRIGGERED:
+        if IntelligenceCycleState.PLANNED not in self._ALLOWED_TRANSITIONS[cycle.state]:
             raise ValueError("cycle is not waiting for a plan")
         plan = ContinuousIntelligencePlan(
             self._id("CI-PLAN-"), trigger.trigger_id, trigger.capability_id,
