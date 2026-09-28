@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import pytest
-from app.computer.api import ScreenRegion
+from app.computer_control.api import ScreenRegion
 from app.computer.windows_native import NativeWindow, FakeWindowsNativeBackend, WindowsNativeIntelligence
 from app.unreal import UnrealDiscovery, UnrealIntegration
 
