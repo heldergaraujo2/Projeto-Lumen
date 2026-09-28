@@ -44,10 +44,13 @@ class ProviderCompatibility:
     contract_id: str
     compatible: bool
     reasons: tuple[str, ...]
+    requirement_results: tuple[tuple[str, bool], ...] = ()
 
     def validate(self) -> None:
         if not self.provider_id.strip() or not self.model_id.strip() or not self.contract_id.strip():
             raise ValueError("compatibility identity is required")
+        if any(not name.strip() for name, _ in self.requirement_results):
+            raise ValueError("requirement result names are required")
 
 
 @dataclass(frozen=True)
@@ -108,10 +111,10 @@ class ProviderMigrationPlan:
 
 
 class ProviderIndependenceLab:
-    """F21 provider-neutral compatibility and migration planning.
+    """F21 provider-neutral contract assessment and migration planning.
 
-    This layer evaluates declared profiles only. It never invokes providers,
-    routes live requests, downloads models, changes the live stack, or deploys.
+    This layer evaluates declared profiles only. Runtime failover remains a
+    separate integration concern and cannot be claimed by this declarative lab.
     """
 
     def __init__(self, *, providers: tuple[ProviderProfile, ...] = ()) -> None:
@@ -135,21 +138,46 @@ class ProviderIndependenceLab:
         return tuple(self._providers.values())
 
     @staticmethod
-    def _compatible(provider: ProviderProfile, model: ModelProfile, contract: ProviderCapabilityContract) -> tuple[bool, tuple[str, ...]]:
+    def _compatible(
+        provider: ProviderProfile,
+        model: ModelProfile,
+        contract: ProviderCapabilityContract,
+    ) -> tuple[bool, tuple[str, ...], tuple[tuple[str, bool], ...]]:
+        results: dict[IndependenceRequirement, bool] = {}
         reasons: list[str] = []
+
+        results[IndependenceRequirement.CAPABILITY] = not bool(contract.required_layers - model.capabilities)
+        results[IndependenceRequirement.RELIABILITY] = model.reliability >= contract.min_reliability
+        results[IndependenceRequirement.CONTEXT] = model.context_window >= contract.min_context_window
+        results[IndependenceRequirement.COST] = (
+            contract.max_cost_per_unit is None or model.cost_per_unit <= contract.max_cost_per_unit
+        )
+        results[IndependenceRequirement.LOCAL_AVAILABILITY] = (
+            provider.enabled and model.enabled and provider.adapter_kind is AdapterKind.LOCAL
+        )
         if not provider.enabled:
             reasons.append("provider disabled")
         if not model.enabled:
             reasons.append("model disabled")
-        if contract.required_layers - model.capabilities:
+        if not results[IndependenceRequirement.CAPABILITY]:
             reasons.append("missing required layers")
-        if model.reliability < contract.min_reliability:
+        if not results[IndependenceRequirement.RELIABILITY]:
             reasons.append("reliability below minimum")
-        if model.context_window < contract.min_context_window:
+        if not results[IndependenceRequirement.CONTEXT]:
             reasons.append("context below minimum")
-        if contract.max_cost_per_unit is not None and model.cost_per_unit > contract.max_cost_per_unit:
+        if not results[IndependenceRequirement.COST]:
             reasons.append("cost above maximum")
-        return not reasons, tuple(reasons)
+        if not results[IndependenceRequirement.LOCAL_AVAILABILITY]:
+            reasons.append("local availability not declared")
+
+        required_results = tuple(
+            (requirement.value, results[requirement])
+            for requirement in sorted(
+                contract.requirements - {IndependenceRequirement.FAILOVER},
+                key=lambda x: x.value,
+            )
+        )
+        return not reasons, tuple(reasons), required_results
 
     def assess(self, contract: ProviderCapabilityContract) -> ProviderIndependenceAssessment:
         contract.validate()
@@ -157,25 +185,34 @@ class ProviderIndependenceLab:
         incompatible: list[ProviderCompatibility] = []
         for provider in self._providers.values():
             for model in provider.models:
-                ok, reasons = self._compatible(provider, model, contract)
-                item = ProviderCompatibility(provider.provider_id, model.model_id, contract.capability_id, ok, reasons)
+                ok, reasons, requirement_results = self._compatible(provider, model, contract)
+                item = ProviderCompatibility(
+                    provider.provider_id, model.model_id, contract.capability_id,
+                    ok, reasons, requirement_results,
+                )
                 (compatible if ok else incompatible).append(item)
+
         compatible.sort(key=lambda x: (x.provider_id, x.model_id))
         incompatible.sort(key=lambda x: (x.provider_id, x.model_id))
         providers = {x.provider_id for x in compatible}
+        alternative_count = len(providers)
+        failover_ok = alternative_count >= 2
+        if IndependenceRequirement.FAILOVER in contract.requirements and not failover_ok:
+            reasons = ("failover requirement not satisfied: fewer than two compatible providers",)
+            independent = False
+        else:
+            reasons = ("provider-neutral contract", "declared profile compatibility")
+            independent = alternative_count >= 2
+
         return ProviderIndependenceAssessment(
-            contract.capability_id,
-            tuple(compatible),
-            tuple(incompatible),
-            len(providers) >= 2,
-            len(providers),
-            ("provider-neutral contract", "declared profile compatibility"),
+            contract.capability_id, tuple(compatible), tuple(incompatible),
+            independent, alternative_count, reasons,
         )
 
     def validate_fallback(self, policy: ProviderFallbackPolicy, contract: ProviderCapabilityContract) -> ProviderIndependenceAssessment:
         policy.validate()
         assessment = self.assess(contract)
-        available = set(x.provider_id for x in assessment.compatible)
+        available = {x.provider_id for x in assessment.compatible}
         ordered = [p for p in policy.ordered_provider_ids if p in available]
         if len(ordered) < policy.minimum_alternatives:
             raise ValueError("fallback policy lacks required compatible alternatives")
@@ -199,8 +236,9 @@ class ProviderIndependenceLab:
         assessment = self.assess(contract)
         payload = {
             "contract": contract.capability_id,
-            "compatible": [(x.provider_id, x.model_id) for x in assessment.compatible],
-            "incompatible": [(x.provider_id, x.model_id, x.reasons) for x in assessment.incompatible],
+            "requirements": sorted(x.value for x in contract.requirements),
+            "compatible": [(x.provider_id, x.model_id, x.requirement_results) for x in assessment.compatible],
+            "incompatible": [(x.provider_id, x.model_id, x.reasons, x.requirement_results) for x in assessment.incompatible],
         }
         return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
