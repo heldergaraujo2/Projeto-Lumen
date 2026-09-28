@@ -114,7 +114,7 @@ class ContinuousIntelligenceEvolution:
     """
 
     _ALLOWED_TRANSITIONS = {
-        IntelligenceCycleState.OBSERVED: {IntelligenceCycleState.ASSESSED},
+        IntelligenceCycleState.OBSERVED: {IntelligenceCycleState.ASSESSED, IntelligenceCycleState.TRIGGERED},
         IntelligenceCycleState.ASSESSED: {IntelligenceCycleState.TRIGGERED, IntelligenceCycleState.CLOSED},
         IntelligenceCycleState.TRIGGERED: {IntelligenceCycleState.PLANNED, IntelligenceCycleState.CLOSED},
         IntelligenceCycleState.PLANNED: {IntelligenceCycleState.WAITING_GATES, IntelligenceCycleState.CLOSED},
