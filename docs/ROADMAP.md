@@ -1,3 +1,10 @@
+
+## F23 — Real Environment Validation & Integration Readiness 🟩
+
+Concluída como fase de prontidão: detector determinístico de ambiente, contrato fail-closed de evidência, testes dedicados e CI Ubuntu/Windows. A fase não declara validação física de mouse/teclado/UI Automation nem Unreal; esses gates permanecem NOT_EXECUTED até execução em ambiente real.
+
+Documento: docs/F23_REAL_ENVIRONMENT_VALIDATION.md.
+
 # Roadmap da Lumen
 
 **Status atual: `0.6.8` (base oficial) + fases internas 9A×2, 9B, 10A, 10B, 11A,
