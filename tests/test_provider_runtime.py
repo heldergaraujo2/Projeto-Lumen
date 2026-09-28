@@ -190,3 +190,41 @@ def test_duplicate_provider_rejected():
 def test_runtime_request_validation():
     with pytest.raises(ValueError):
         RuntimeRequest("", frozenset({StackLayer.REASONING})).validate()
+
+
+def test_context_is_normalized_and_invalid_roles_fail_closed():
+    seen = {}
+    class Inspect(FakeProvider):
+        def chat(self, message, context=None, **kwargs):
+            seen["context"] = context
+            return AIResponse(content="ok", model=self.model_name)
+    runtime = ProviderRuntime((spec("local", Inspect("local", []), local=True),))
+    runtime.execute_chat(req(), "hello", [{"role": "user", "content": "ok", "timestamp": "ignored"}], authorized=True)
+    assert seen["context"] == ({"role": "user", "content": "ok"},)
+    with pytest.raises(ValueError):
+        runtime.execute_chat(req(), "hello", [{"role": "tool", "content": "no"}], authorized=True)
+
+
+def test_failed_verification_falls_back_and_is_audited():
+    first = FakeProvider("first", ["bad"])
+    second = FakeProvider("second", ["good"])
+    audited = []
+    runtime = ProviderRuntime(
+        (spec("first", first), spec("second", second)),
+        verification=lambda response: response.content == "good",
+        audit=audited.append,
+    )
+    result = runtime.execute_chat(req(preferred_provider_ids=("first", "second")), "hello", authorized=True)
+    assert result.provider_id == "second"
+    assert result.verified is True
+    assert [item.error_type for item in audited] == ["ProviderError", ""]
+
+
+def test_success_is_audited():
+    audited = []
+    runtime = ProviderRuntime(
+        (spec("local", FakeProvider("local", ["ok"]), local=True),),
+        audit=audited.append,
+    )
+    runtime.execute_chat(req(), "hello", authorized=True)
+    assert audited[-1].success is True
