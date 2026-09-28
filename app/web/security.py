@@ -47,7 +47,8 @@ class WebSecurityPolicy:
 
         parsed = urlsplit(value)
         scheme = parsed.scheme.lower()
-        if scheme not in self.allowed_schemes:
+        allowed_schemes = tuple(s.lower() for s in self.allowed_schemes)
+        if scheme not in allowed_schemes:
             raise WebSecurityError(f"Esquema não permitido: {scheme or '<ausente>'}.")
 
         if parsed.username is not None or parsed.password is not None:
