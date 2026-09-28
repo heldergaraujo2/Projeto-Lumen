@@ -9,7 +9,7 @@ projetos, analisar e criar código, executar comandos, enxergar a tela,
 controlar mouse e teclado, automatizar aplicações e trabalhar com
 desenvolvimento de jogos na **Unreal Engine**.
 
-O projeto evolui em fases (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
+O projeto evolui em fases (ver [`docs/LUMEN_MASTER_ROADMAP.md`](docs/LUMEN_MASTER_ROADMAP.md)).
 
 - **0.1 (Fundação)** ✅ — arquitetura modular completa, UI Tkinter,
   memória local, tarefas, permissões, logging e testes — sem API externa.
