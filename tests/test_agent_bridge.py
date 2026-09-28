@@ -120,6 +120,9 @@ class ResearchProvider(ScriptedProvider):
 
 
 class FakeResearchSearch:
+    def __init__(self, *args, **kwargs):
+        pass
+
     def search(self, request):
         return WebSearchResponse(
             request.query,
@@ -128,6 +131,9 @@ class FakeResearchSearch:
 
 
 class FakeResearchFetch:
+    def __init__(self, *args, **kwargs):
+        pass
+
     def fetch(self, url):
         return WebFetchResponse(
             url, url, "Fonte de pesquisa", "text/html",
