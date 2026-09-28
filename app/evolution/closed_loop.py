@@ -109,6 +109,7 @@ class ClosedLoopEvolution:
         self._loops: dict[str, ClosedLoopRecord] = {}
         self._plans: dict[str, ClosedLoopPlan] = {}
         self._counter = 0
+        self._cycle_ids: dict[str, str] = {}
         self._lock = RLock()
 
     def _next_id(self) -> str:
@@ -121,17 +122,17 @@ class ClosedLoopEvolution:
         record.validate()
         with self._lock:
             self._loops[record.loop_id] = record
+        self._cycle_ids[record.loop_id] = cycle.cycle_id
         return record
 
     def observe(self, loop_id: str, observation: IntelligenceObservation) -> ClosedLoopRecord:
         current = self.get(loop_id)
         if current.state != ClosedLoopState.OBSERVING:
             raise ValueError("loop is not accepting an observation")
-        cycle = self.intelligence._cycles_by_capability_for_loop(current, loop_id) if False else None
-        # F22 remains the authoritative observation/assessment gate. The loop keeps
-        # an explicit cycle reference by resolving the only active cycle for this
-        # capability created through this controller.
-        cycle_id = self._cycle_id_for(current)
+        # F22 remains authoritative; this controller keeps an explicit cycle reference.
+        cycle_id = self._cycle_ids.get(loop_id)
+        if cycle_id is None:
+            raise KeyError("closed-loop intelligence cycle not found")
         assessed = self.intelligence.assess(cycle_id, observation)
         if assessed.state is IntelligenceCycleState.ASSESSED:
             state = ClosedLoopState.STABLE
@@ -190,12 +191,13 @@ class ClosedLoopEvolution:
             problem=problem,
             risk=risk or current.risk,
         )
-        return self._store(ClosedLoopRecord(
+        self._store(ClosedLoopRecord(
             current.loop_id, current.capability_id, ClosedLoopState.WAITING_EVIDENCE,
             current.baseline_score, current.latest_score, current.risk, current.reason,
             current.observation_ids, current.trigger_id, current.plan_id,
             context.evolution_id, True,
-        )) and context
+        ))
+        return context
 
     def mark_waiting_approval(self, loop_id: str) -> ClosedLoopRecord:
         current = self.get(loop_id)
@@ -246,12 +248,6 @@ class ClosedLoopEvolution:
         }
         return hashlib.sha256(json.dumps(payload, sort_keys=True, default=lambda x: x.value if hasattr(x, "value") else x, separators=(",", ":")).encode()).hexdigest()
 
-    def _cycle_id_for(self, record: ClosedLoopRecord) -> str:
-        matches = [c for c in self.intelligence._cycles.values() if c.capability_id == record.capability_id and c.baseline_score == record.baseline_score]
-        if not matches:
-            raise KeyError("closed-loop intelligence cycle not found")
-        return sorted(matches, key=lambda x: x.cycle_id)[-1].cycle_id
-
     def _trigger(self, trigger_id: str) -> IntelligenceTrigger:
         for value in self.intelligence._triggers.values():
             if value.trigger_id == trigger_id:
@@ -286,6 +282,8 @@ class PersistentClosedLoopEvolution(ClosedLoopEvolution):
         payload = {
             "loops": {k: asdict(v) for k, v in self._loops.items()},
             "plans": {k: asdict(v) for k, v in self._plans.items()},
+            "cycle_ids": self._cycle_ids,
+            "counter": self._counter,
         }
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
@@ -316,6 +314,8 @@ class PersistentClosedLoopEvolution(ClosedLoopEvolution):
                 raise ValueError("closed-loop key mismatch")
             record.validate()
             self._loops[key] = record
+        self._cycle_ids = {str(k): str(v) for k, v in raw.get("cycle_ids", {}).items()}
+        self._counter = int(raw.get("counter", len(self._loops)))
         for key, value in raw.get("plans", {}).items():
             plan = ClosedLoopPlan(key, value["trigger_id"], tuple(value["actions"]), tuple(value["evidence_ids"]),
                                   bool(value.get("isolated", True)), bool(value.get("requires_human_approval", True)))
