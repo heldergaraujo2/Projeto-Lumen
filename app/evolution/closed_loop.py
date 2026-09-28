@@ -319,7 +319,7 @@ class PersistentClosedLoopEvolution(ClosedLoopEvolution):
         self._cycle_ids = {str(k): str(v) for k, v in raw.get("cycle_ids", {}).items()}
         self._counter = int(raw.get("counter", len(self._loops)))
         for key, value in raw.get("plans", {}).items():
-            plan = ClosedLoopPlan(key, value["trigger_id"], tuple(value["actions"]), tuple(value["evidence_ids"]),
+            plan = ClosedLoopPlan(value["loop_id"], value["trigger_id"], tuple(value["actions"]), tuple(value["evidence_ids"]),
                                   bool(value.get("isolated", True)), bool(value.get("requires_human_approval", True)))
             plan.validate()
             self._plans[key] = plan
