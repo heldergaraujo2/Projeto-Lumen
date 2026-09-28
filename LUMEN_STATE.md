@@ -2,7 +2,7 @@
 
 **Atualização:** 2026-09-27  
 **Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
-**Estado:** 🟩 F0–F25 concluídas; F26 é a próxima fase planejada.
+**Estado:** 🟩 F0–F26 concluídas; F27 é a próxima fase planejada.
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
@@ -15,7 +15,8 @@
 - **F23:** concluída como **Runtime Integration & State Machine Hardening**. Suíte completa: **1342 passed / 1 skipped / 0 failed**; F0 Validation e F23 Validation verdes. O detector de ambiente permanece fail-closed e não prova validação física.
 - **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.
 - **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
-- **Próximo passo:** F26 — Real Windows Computer Validation.
+- **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
+- **Próximo passo:** F27 — Real Windows Computer Validation.
 
 ## Regra de continuidade
 
