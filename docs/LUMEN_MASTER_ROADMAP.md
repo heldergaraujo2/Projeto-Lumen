@@ -12,10 +12,10 @@
 |---|---|---|
 | F0–F18 | Fundamentos, Agent, Computer Intelligence e Evolution | 🟩 CONCLUÍDAS |
 | F19 | Lumen Intelligence Lab | 🟩 CONCLUÍDA — revisão sem defeito estrutural |
-| F20 | Self-Optimizing Intelligence | 🟨 CORRIGIDA — aguardando suíte final |
-| F21 | Provider Independence | 🟨 CORRIGIDA — aguardando suíte final |
-| F22 | Continuous Intelligence Evolution | 🟨 CORRIGIDA — aguardando suíte final |
-| F23 | Runtime Integration & State Machine Hardening | 🟨 EM VALIDAÇÃO |
+| F20 | Self-Optimizing Intelligence | 🟩 CORRIGIDA E VALIDADA |
+| F21 | Provider Independence | 🟩 CORRIGIDA E VALIDADA |
+| F22 | Continuous Intelligence Evolution | 🟩 CORRIGIDA E VALIDADA |
+| F23 | Runtime Integration & State Machine Hardening | 🟩 CONCLUÍDA |
 | F24 | Evolution Runtime Orchestrator | ⬜ PLANEJADA |
 | F25 | Provider Runtime Independence | ⬜ PLANEJADA |
 | F26 | Real Windows Computer Validation | ⬜ PLANEJADA |
@@ -68,7 +68,16 @@ O detector de `app/validation/environment.py` permanece como artefato fail-close
 - CI registrada;
 - nenhum PASS físico Windows/Unreal inferido de CI Linux.
 
-## 3. F24–F31
+## 3. EVIDÊNCIA FINAL F23
+
+- Suíte completa: **1342 passed / 1 skipped / 0 failed**.
+- Lumen F0 Validation: **success**.
+- Lumen F23 Validation: **success**.
+- Compile: **success**.
+- Correções verificadas em F20, F21 e F22.
+- Validação física Windows/Unreal continua separada e não é declarada por esta CI.
+
+## 4. F24–F31
 
 ### F24 — Evolution Runtime Orchestrator
 Coordenar `detect → investigate → research → hypothesis → experiment request → benchmark → security → approval → promotion request → monitoring`, sem bypass de gates.
@@ -94,7 +103,7 @@ Descoberta do projeto, Editor, Content Browser, Blueprints, C++, build/compile, 
 ### F31 — Closed-Loop Lumen Evolution
 `real computer → observation → experience → metrics → diagnosis → research → hypothesis → experiment → build → benchmark → security → approval → promotion → runtime → monitoring → new observation`.
 
-## 4. CRITÉRIO UNIVERSAL DE CONCLUSÃO
+## 5. CRITÉRIO UNIVERSAL DE CONCLUSÃO
 
 Uma fase só pode ser 🟩 com:
 1. SPEC;
@@ -109,7 +118,7 @@ Uma fase só pode ser 🟩 com:
 
 CI verde não prova Windows físico, mouse, teclado, UI Automation ou Unreal.
 
-## 5. SEGURANÇA
+## 6. SEGURANÇA
 
 A evolução nunca pode remover ou enfraquecer sem aprovação humana explícita:
 - PermissionManager;
@@ -127,7 +136,7 @@ A evolução nunca pode remover ou enfraquecer sem aprovação humana explícita
 Cadeia operacional:
 `Goal → Planner/Agent → Tool/Computer Action → Permission → Policy → Scope → Checkpoint → Sandbox/Driver → Audit → Verification → Recovery/Regression`
 
-## 6. CONTINUIDADE
+## 7. CONTINUIDADE
 
 Antes de implementar:
 1. atualizar clone;
@@ -142,7 +151,7 @@ Antes de implementar:
 
 **Regra obrigatória:** NÃO CRIE OUTRA LUMEN. ALTERE SEMPRE A LUMEN EXISTENTE.
 
-## 7. ARQUIVO HISTÓRICO CONSOLIDADO — CONTINUIDADE ANTERIOR
+## 9. ARQUIVO HISTÓRICO CONSOLIDADO — CONTINUIDADE ANTERIOR
 
 # LUMEN — CONTINUIDADE OFICIAL DO PROJETO
 
@@ -1333,7 +1342,7 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 5. A arquitetura em camadas permanece intocada — só se estende.
 
 
-## 9. REGRA FINAL
+## 10. REGRA FINAL
 
 O conteúdo das seções 1–6 deste documento é canônico. As seções 7–8 preservam histórico e evidências antigas para não perder contexto, mas não podem contradizer o estado canônico atual.
 
