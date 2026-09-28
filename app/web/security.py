@@ -71,9 +71,13 @@ class WebSecurityPolicy:
                 raise WebSecurityError("Hostname não pôde ser resolvido.")
 
         for address in addresses:
-            if not self.allow_private_networks and self._is_private_or_local(address):
+            # Loopback/link-local/multicast/unspecified/reserved remain blocked
+            # even when private RFC1918 ranges are explicitly allowed.
+            if self._is_always_local(address):
+                raise WebSecurityError(f"Destino local/especial não permitido: {address}.")
+            if not self.allow_private_networks and address.is_private:
                 raise WebSecurityError(
-                    f"Destino de rede privada/local não permitido: {address}."
+                    f"Destino de rede privada não permitido: {address}."
                 )
 
         return parsed.geturl()
@@ -112,10 +116,9 @@ class WebSecurityPolicy:
         return tuple(addresses)
 
     @staticmethod
-    def _is_private_or_local(address: ipaddress._BaseAddress) -> bool:
+    def _is_always_local(address: ipaddress._BaseAddress) -> bool:
         return (
-            address.is_private
-            or address.is_loopback
+            address.is_loopback
             or address.is_link_local
             or address.is_multicast
             or address.is_unspecified
