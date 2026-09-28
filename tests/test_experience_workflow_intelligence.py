@@ -3,7 +3,7 @@ import json
 import pytest
 
 from app.experience import (
-    ExperienceEvent, ExperienceOutcome, ExperienceStore, ExperienceTrace,
+    ExperienceEvent, ExperienceOutcome, ExperienceStore, ExperienceTrace, PersistentWorkflowRegistry,
     WorkflowIntelligence,
 )
 from app.workflows import WorkflowOutcome
@@ -125,3 +125,16 @@ def test_store_is_bounded(tmp_path):
     assert store.get("e0") is None
     assert store.get("e1") is not None
     assert store.get("e2") is not None
+
+
+def test_workflow_registry_persists_definitions_and_evidence(tmp_path):
+    path = tmp_path / "workflows.json"
+    first = PersistentWorkflowRegistry(path)
+    intelligence = WorkflowIntelligence(experience_store=ExperienceStore(tmp_path / "experience.json"), workflow_registry=first)
+    workflow = intelligence.generalize(
+        workflow_id="asset.open", name="Open", traces=(trace("e1", "/A", "A", "fp"),)
+    ).workflow
+    intelligence.record_verification(workflow_id=workflow.workflow_id, success=True, observation_fingerprint="verified")
+    second = PersistentWorkflowRegistry(path)
+    assert second.get("asset.open") is not None
+    assert second.reusable("asset.open")
