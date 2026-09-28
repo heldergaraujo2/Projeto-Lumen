@@ -5,6 +5,7 @@ from app.tools.base import StructuredTool, ToolResult
 from app.tools.filesystem import FilesystemAudit
 from app.web.provider import DuckDuckGoSearchProvider, StandardWebFetchProvider, WebProviderError, WebSearchRequest
 from app.web.security import WebSecurityPolicy
+from urllib.parse import urlsplit
 
 class WebSearchTool(StructuredTool):
     name="web_search"; description="Pesquisa na Web e retorna fontes estruturadas."; required_permission=PermissionLevel.WEB_ACCESS
@@ -21,7 +22,7 @@ class WebSearchTool(StructuredTool):
             self._record(False,query, str(exc))
             return ToolResult(False,error=str(exc))
     def _record(self,ok,query,error):
-        if self._audit: self._audit.record(tool=self.name,operation="web_search",requested_path=query[:500],success=ok,error=error)
+        if self._audit: self._audit.record(tool=self.name,operation="web_search",requested_path=None,success=ok,error=error,query_length=len(query))
 
 class WebFetchTool(StructuredTool):
     name="web_fetch"; description="Baixa uma página Web HTTP/HTTPS e extrai texto sem executar conteúdo."; required_permission=PermissionLevel.WEB_ACCESS
@@ -39,4 +40,6 @@ class WebFetchTool(StructuredTool):
             self._record(False,url,str(exc),None)
             return ToolResult(False,error=str(exc))
     def _record(self,ok,url,error,final_url):
-        if self._audit: self._audit.record(tool=self.name,operation="web_fetch",requested_path=url[:1000],resolved_path=final_url,success=ok,error=error)
+        if self._audit: host=urlsplit(url).hostname or "<invalid>"
+            final_host=urlsplit(final_url).hostname if final_url else None
+            self._audit.record(tool=self.name,operation="web_fetch",requested_path=f"host:{host}",resolved_path=f"host:{final_host}" if final_host else None,success=ok,error=error)
