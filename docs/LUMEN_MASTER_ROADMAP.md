@@ -17,7 +17,7 @@
 | F22 | Continuous Intelligence Evolution | 🟩 CORRIGIDA E VALIDADA |
 | F23 | Runtime Integration & State Machine Hardening | 🟩 CONCLUÍDA |
 | F24 | Evolution Runtime Orchestrator | 🟩 CONCLUÍDA |
-| F25 | Provider Runtime Independence | ⬜ PLANEJADA |
+| F25 | Provider Runtime Independence | 🟩 CONCLUÍDA |
 | F26 | Real Windows Computer Validation | ⬜ PLANEJADA |
 | F27 | Real Vision + Grounding | ⬜ PLANEJADA |
 | F28 | Real Autonomous Computer Agent | ⬜ PLANEJADA |
@@ -116,6 +116,34 @@ Descoberta do projeto, Editor, Content Browser, Blueprints, C++, build/compile, 
 
 ### F31 — Closed-Loop Lumen Evolution
 `real computer → observation → experience → metrics → diagnosis → research → hypothesis → experiment → build → benchmark → security → approval → promotion → runtime → monitoring → new observation`.
+
+## 5.1 F25 — PROVIDER RUNTIME INDEPENDENCE — 🟩 CONCLUÍDA
+
+F25 transforma a independência declarativa de F21 em execução runtime real.
+
+Entregas:
+- ProviderRuntime em app/ai/provider_runtime.py;
+- integração com o contrato AIProvider existente;
+- reutilização do OllamaProvider existente como provider local oficial;
+- seleção determinística por preferência, custo, confiabilidade e contexto;
+- filtro de capabilities, reliability, custo, contexto e enabled;
+- fallback real entre providers compatíveis;
+- retry bounded somente para RETRYABLE_ERRORS;
+- falha de autenticação não repete o mesmo provider;
+- provider incompatível/desabilitado não é chamado;
+- autorização explícita antes de executar;
+- hook de autorização por provider;
+- registro de todas as tentativas;
+- resposta normalizada em AIResponse;
+- falha fail-closed sem provider compatível;
+- testes negativos e de segurança em tests/test_provider_runtime.py;
+- documentação em docs/F25_PROVIDER_RUNTIME_INDEPENDENCE.md.
+
+Validação:
+- implementação e testes dedicados adicionados ao repositório;
+- F25 não duplica nem substitui o OllamaProvider;
+- F25 não concede Permission, altera Policy/Sandbox/Checkpoint/Audit, executa tools/drivers/browser/processos ou promove automaticamente;
+- validação física do daemon Ollama/Windows continua separada e não é inferida da CI Linux.
 
 ## 6. CRITÉRIO UNIVERSAL DE CONCLUSÃO
 
