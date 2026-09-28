@@ -42,5 +42,13 @@ daemon Ollama/Windows só pode ser declarada como validação física quando
 executada nesse ambiente.
 
 
-## CI
-A validação automatizada desta fase é executada pelo workflow de testes no pull request de integração.
+## Validação final
+
+- commit master: 3fecc50a2df1f5a5e89de64360c9a5306fd46c1f;
+- compileall: SUCCESS;
+- Lumen Tests: **1366 passed / 1 skipped / 0 failed**;
+- Lumen F0 Validation: SUCCESS;
+- Lumen F23 Validation: SUCCESS;
+- testes F25 dedicados cobrem autorização, Ollama/local, fallback, retry, custo, contexto, verificação, auditoria, providers incompatíveis/desabilitados e fail-closed;
+- CI não executa o daemon Ollama real: valida o contrato/runtime de forma determinística.
+
