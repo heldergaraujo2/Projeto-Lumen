@@ -204,6 +204,20 @@ def test_web_research_requires_explicit_permission():
         registry.execute("web_research", query="teste")
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    (
+        {"query": "teste", "max_results": True, "max_sources": 1},
+        {"query": "teste", "max_results": 5, "max_sources": True},
+    ),
+)
+def test_web_research_rejects_boolean_limits(kwargs):
+    tool = WebResearchTool(search_provider=FakeSearch(), fetch_provider=FakeFetch())
+    result = tool.run(**kwargs)
+    assert not result.ok
+    assert result.error
+
+
 def test_web_research_invalid_limits_are_controlled():
     tool = WebResearchTool(search_provider=FakeSearch(), fetch_provider=FakeFetch())
     for kwargs in (
@@ -290,6 +304,20 @@ def test_web_fetch_invalid_input_does_not_leak_url_to_audit():
 def test_web_security_rejects_prohibited_protocols(url):
     policy = WebSecurityPolicy()
     with pytest.raises(WebSecurityError, match="Esquema não permitido"):
+        policy.validate_url(url, resolve_dns=False)
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "https://user:pass@example.com/private",
+        "https://example.com/" + ("a" * 4100),
+    ),
+)
+def test_web_security_rejects_embedded_credentials_and_oversized_urls(url):
+    policy = WebSecurityPolicy()
+    expected = "credenciais embutidas" if "@" in url else "limite de tamanho"
+    with pytest.raises(WebSecurityError, match=expected):
         policy.validate_url(url, resolve_dns=False)
 
 
