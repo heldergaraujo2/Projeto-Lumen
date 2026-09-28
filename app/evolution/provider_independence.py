@@ -167,7 +167,10 @@ class ProviderIndependenceLab:
             reasons.append("context below minimum")
         if not results[IndependenceRequirement.COST]:
             reasons.append("cost above maximum")
-        if not results[IndependenceRequirement.LOCAL_AVAILABILITY]:
+        if (
+            IndependenceRequirement.LOCAL_AVAILABILITY in contract.requirements
+            and not results[IndependenceRequirement.LOCAL_AVAILABILITY]
+        ):
             reasons.append("local availability not declared")
 
         required_results = tuple(
