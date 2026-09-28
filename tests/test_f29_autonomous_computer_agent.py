@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from app.computer_control.actions import CCActionRequest
-from app.computer_control.api import CCActionType, ScreenshotInfo
+from app.computer_control.api import CCActionType, CCTarget, ScreenshotInfo
 from app.computer_control.autonomous_agent import (
     ComputerAgentLimits, ComputerAgentState, ComputerPlan, VisionComputerAgent,
 )
@@ -14,7 +15,7 @@ from app.computer_control.service import CCExecutionResult
 from app.computer_control.verification import VerificationExpectation, VerificationResult, VerificationStatus
 from app.computer_control.vision import VisionElement, VisionObservation, VisionRequest
 from app.computer_control.vision_grounding import VisionGroundingPipeline
-from app.computer_control.scopes import CCScope
+from app.computer_control.scopes import CCLimits, CCScope
 
 
 @dataclass
@@ -56,7 +57,8 @@ def obs(label="Compile", request_id="REQ"):
 
 
 def make_scope():
-    return CCScope(scope_id="scope", target=None, allowed_region=None, action_budget=5)
+    created = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    return CCScope(scope_id="scope", created_at=created, expires_at=created + timedelta(minutes=10), target=CCTarget(app_name="test"), allowed_actions=frozenset({CCActionType.MOUSE_CLICK}), limits=CCLimits(max_actions_total=5, max_actions_per_minute=5))
 
 
 def test_closed_loop_completes_after_action_and_verification():
@@ -86,7 +88,7 @@ def test_checkpoint_pauses_before_physical_action():
         verifier=Verifier(),
     )
     run = agent.run(goal="click Compile", scope=make_scope(),
-                    screenshot_request=VisionRequest("fake", 800, 600),
+                    screenshot_request=VisionRequest(Path("fake"), "click Compile"),
                     target_label="Compile")
     assert run.state is ComputerAgentState.WAITING_APPROVAL
     assert run.pending_checkpoint_id == "CP-1"
