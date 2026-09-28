@@ -18,7 +18,7 @@ from app.web.provider import (
     WebSource,
 )
 from app.web.security import WebSecurityError, WebSecurityPolicy
-from app.web.tools import WebFetchTool, WebSearchTool
+from app.web.tools import WebFetchTool, WebResearchTool, WebSearchTool
 
 
 class FakeSearch:
@@ -108,6 +108,45 @@ def test_web_search_returns_structured_sources():
     result = json.loads(registry.execute("web_search", query="teste", max_results=1))
     assert result["ok"] is True
     assert result["data"]["sources"][0]["url"] == "https://example.com"
+
+
+def test_web_research_searches_and_fetches_sources():
+    permissions = PermissionManager([PermissionLevel.CHAT, PermissionLevel.WEB_ACCESS])
+    registry = ToolRegistry(permissions)
+    registry.register(
+        WebResearchTool(search_provider=FakeSearch(), fetch_provider=FakeFetch())
+    )
+    result = json.loads(
+        registry.execute("web_research", query="teste", max_results=5, max_sources=1)
+    )
+    assert result["ok"] is True
+    source = result["data"]["sources"][0]
+    assert source["url"] == "https://example.com"
+    assert source["text"] == "conteúdo público"
+    assert result["data"]["source_count"] == 1
+
+
+def test_web_research_requires_explicit_permission():
+    permissions = PermissionManager()
+    registry = ToolRegistry(permissions)
+    registry.register(
+        WebResearchTool(search_provider=FakeSearch(), fetch_provider=FakeFetch())
+    )
+    with pytest.raises(PermissionDeniedError):
+        registry.execute("web_research", query="teste")
+
+
+def test_web_research_invalid_limits_are_controlled():
+    tool = WebResearchTool(search_provider=FakeSearch(), fetch_provider=FakeFetch())
+    for kwargs in (
+        {"query": "", "max_results": 5, "max_sources": 1},
+        {"query": "teste", "max_results": 0, "max_sources": 1},
+        {"query": "teste", "max_results": 5, "max_sources": 0},
+        {"query": "teste", "max_results": 21, "max_sources": 6},
+    ):
+        result = tool.run(**kwargs)
+        assert not result.ok
+        assert result.error
 
 
 def test_web_fetch_returns_text_without_execution():
