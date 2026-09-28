@@ -152,6 +152,28 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         web=True,
     ),
     ToolSpec(
+        name="web_research",
+        description=(
+            "Pesquisa na Web e lê as principais fontes públicas encontradas "
+            "em uma única operação. Exige WEB_ACCESS."
+        ),
+        parameters=(
+            ParameterSpec(
+                "query", "string", True,
+                "Pergunta/tema de pesquisa em linguagem natural.",
+            ),
+            ParameterSpec(
+                "max_results", "integer", False,
+                "Quantidade de resultados pesquisados (1..20; default 5).",
+            ),
+            ParameterSpec(
+                "max_sources", "integer", False,
+                "Quantidade máxima de fontes que serão lidas (1..5; default 3).",
+            ),
+        ),
+        web=True,
+    ),
+    ToolSpec(
         name="run_command",
         description=(
             "Executa UM comando da allowlist do terminal, dentro do "
