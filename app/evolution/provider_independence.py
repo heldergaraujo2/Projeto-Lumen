@@ -153,7 +153,7 @@ class ProviderIndependenceLab:
             contract.max_cost_per_unit is None or model.cost_per_unit <= contract.max_cost_per_unit
         )
         results[IndependenceRequirement.LOCAL_AVAILABILITY] = (
-            provider.enabled and model.enabled and provider.adapter_kind is AdapterKind.LOCAL
+            provider.enabled and model.enabled and provider.adapter is AdapterKind.LOCAL
         )
         if not provider.enabled:
             reasons.append("provider disabled")
