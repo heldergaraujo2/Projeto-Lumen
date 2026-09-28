@@ -100,7 +100,8 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         except Exception as exc: raise WebProviderError(f"Falha na busca Web: {exc}") from exc
         sources=[]
         for title,href in parser.items:
-            absolute=urljoin(endpoint, href)
+            normalized_href = _normalize_search_url(href)
+            absolute=urljoin(endpoint, normalized_href)
             absolute = _normalize_search_url(absolute)
             parsed=urlsplit(absolute)
             if parsed.hostname in {"duckduckgo.com", "www.duckduckgo.com"} and parsed.path == "/l/":
