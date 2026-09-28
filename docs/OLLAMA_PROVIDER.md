@@ -22,6 +22,7 @@ No .env:
     LUMEN_MODEL=qwen2.5-coder:7b-instruct-q8_0
     LUMEN_OLLAMA_BASE_URL=http://127.0.0.1:11434
     LUMEN_OLLAMA_KEEP_ALIVE=5m
+    LUMEN_OLLAMA_THINK=0
     LUMEN_REQUEST_TIMEOUT=60
     LUMEN_MAX_RETRIES=2
 
@@ -42,6 +43,7 @@ são normalizados para os tipos internos da Lumen.
 ## Saúde
 
 health_check() consulta /api/tags sem alterar o estado do Ollama.
+`LUMEN_OLLAMA_THINK=0` mantém o modo de reasoning/thinking desativado por padrão, evitando que limites pequenos de geração sejam consumidos integralmente pelo raciocínio antes da resposta textual. Use `1` quando quiser habilitá-lo.
 list_models() lista apenas modelos instalados.
 
 ## Segurança e privacidade
