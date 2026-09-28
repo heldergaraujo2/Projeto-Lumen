@@ -160,7 +160,8 @@ class ContinuousIntelligenceEvolution:
             raise ValueError("observation baseline differs from cycle baseline")
         if observation.observation_id not in self._observations:
             self.observe(observation)
-        degraded = observation.score < cycle.baseline_score - self.degradation_threshold
+        threshold_floor = cycle.baseline_score - self.degradation_threshold
+        degraded = observation.score + 1e-12 < threshold_floor
         state = IntelligenceCycleState.TRIGGERED if degraded else IntelligenceCycleState.ASSESSED
         reason = "continuous intelligence degradation detected" if degraded else "observation remains within baseline tolerance"
         updated = IntelligenceCycle(cycle.cycle_id, cycle.capability_id, state, cycle.baseline_score, observation.score, cycle.observation_ids + (observation.observation_id,), reason, EvolutionRisk.HIGH if degraded else EvolutionRisk.MEDIUM)
