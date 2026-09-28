@@ -21,8 +21,8 @@
 | F26 | Learning Runtime & Continuous Knowledge | 🟩 CONCLUÍDA |
 | F27 | Real Windows Computer Validation | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — GATE FÍSICO EXTERNO PENDENTE |
 | F28 | Real Vision + Grounding | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO PROVIDER PENDENTE |
-| F29 | Real Autonomous Computer Agent | ⬜ PLANEJADA |
-| F30 | Unreal Real Integration | ⬜ PLANEJADA |
+| F29 | Real Autonomous Computer Agent | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO FÍSICA EXTERNA PENDENTE |
+| F30 | Unreal Real Integration | ⬜ PRÓXIMA |
 | F31 | Experience & Workflow Intelligence | ⬜ PLANEJADA |
 | F32 | Closed-Loop Lumen Evolution | ⬜ PLANEJADA |
 
@@ -210,7 +210,7 @@ Validação final:
 - F25 não concede Permission, altera Policy/Sandbox/Checkpoint/Audit, executa tools/drivers/browser/processos ou promove automaticamente;
 - validação física do daemon Ollama/Windows continua separada e não é inferida da CI Linux.
 
-## 6. CRITÉRIO UNIVERSAL DE CONCLUSÃO
+## 5.4 F29 — REAL AUTONOMOUS COMPUTER AGENT — 🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FÍSICA EXTERNA PENDENTE\n\nImplementado:\n- Goal → Plan → Observe → Target → Action → Verify → Recover → Replan;\n- VisionComputerAgent;\n- budgets bounded;\n- integração com VisionGroundingPipeline e ComputerControlService;\n- pausa segura em checkpoint;\n- testes dedicados e documentação.\n\nLimite de evidência:\n- CI e testes fake validam contratos, segurança e regressão, mas não provam execução física em Windows;\n- o gate físico exige sessão Windows interativa, provider multimodal real, ação benigna e verificação observável.\n\n## 6. CRITÉRIO UNIVERSAL DE CONCLUSÃO
 
 Uma fase só pode ser 🟩 com:
 1. SPEC;
