@@ -36,6 +36,7 @@ def test_chat_normalizes_stream_and_usage():
         payload = json.loads(body.decode())
         assert payload["model"] == DEFAULT_MODEL
         assert payload["stream"] is True
+        assert payload["think"] is False
         assert payload["messages"][-1]["content"] == "Olá"
         yield from events
 
@@ -51,6 +52,16 @@ def test_chat_normalizes_stream_and_usage():
     assert response.usage.output_tokens == 6
     assert response.usage.total_tokens == 10
     assert deltas == ["Olá ", "Lumen"]
+
+
+def test_thinking_mode_is_configurable():
+    def transport(method, url, body, timeout):
+        payload = json.loads(body.decode())
+        assert payload["think"] is True
+        yield b'{"model":"qwen3:8b","message":{"role":"assistant","content":"resposta"},"done":true,"done_reason":"stop"}\n'
+
+    provider = OllamaProvider(make_settings(ollama_think=True), transport=transport)
+    assert provider.chat("Olá").content == "resposta"
 
 
 def test_health_check_and_list_models():
