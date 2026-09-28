@@ -973,6 +973,12 @@ class ToolsController:
                 RunCommandTool(self._terminal_policy, sandbox, self._audit)
             )
             registry.register(RunPytestTool(sandbox, self._audit))
+        # Web tools are always registered, but WEB_ACCESS remains an explicit
+        # permission gate in ToolRegistry. Registration is capability exposure;
+        # it never grants network access.
+        from app.web.tools import WebFetchTool, WebSearchTool
+        registry.register(WebSearchTool(audit=self._audit))
+        registry.register(WebFetchTool(audit=self._audit))
         return registry
 
     # ---------------------------------------------------------- F2 protocol
