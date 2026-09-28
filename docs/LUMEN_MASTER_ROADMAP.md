@@ -24,7 +24,28 @@
 | F29 | Real Autonomous Computer Agent | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO FÍSICA EXTERNA PENDENTE |
 | F30 | Unreal Real Integration | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO UNREAL PENDENTE |
 | F31 | Experience & Workflow Intelligence | 🟩 CONCLUÍDA — implementação, integração, segurança, persistência e testes |
-| F32 | Closed-Loop Lumen Evolution | ⬜ PLANEJADA |
+| F32 | Closed-Loop Lumen Evolution | 🟩 CONCLUÍDA — implementação, integração F22/F24, persistência, segurança e CI |
+
+## F32 — CLOSED-LOOP LUMEN EVOLUTION
+
+Implementada em `app/evolution/closed_loop.py`.
+
+Ciclo oficial:
+`MONITOR → OBSERVE → ASSESS → TRIGGER → PLAN → EVOLUTION GATES → APPROVAL → PROMOTION → MONITOR → NEW CYCLE`.
+
+Entregas:
+- ClosedLoopEvolution e estados bounded;
+- vínculo explícito com o ciclo F22;
+- planos vinculados exatamente às evidências do trigger;
+- abertura explícita do gate F24;
+- estados explícitos de WAITING_EVIDENCE, WAITING_APPROVAL, PROMOTED e MONITORED;
+- PersistentClosedLoopEvolution;
+- digest determinístico;
+- histórico bounded;
+- testes dedicados em `tests/test_closed_loop_evolution.py`;
+- documentação em `docs/F32_CLOSED_LOOP_LUMEN_EVOLUTION.md`.
+
+A camada permanece deliberativa/evidencial. Não executa providers, ferramentas, código, processos, browser, drivers, builds ou deploy; não concede permissões; não bypassa Policy/Scope/Sandbox/Checkpoint/Audit; promoção continua dependente de aprovação humana explícita.
 
 ## 2. F23 — RUNTIME INTEGRATION & STATE MACHINE HARDENING
 

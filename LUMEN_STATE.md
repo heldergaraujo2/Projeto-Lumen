@@ -16,7 +16,35 @@
 - **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.
 - **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
-- **Próximo passo:** F32 — Closed-Loop Lumen Evolution.
+- **Próximo passo:** auditar a próxima fase oficialmente documentada no roadmap.
+
+# F32 — CLOSED-LOOP LUMEN EVOLUTION — CURRENT OFFICIAL STATUS
+
+🟩 IMPLEMENTAÇÃO CONCLUÍDA
+
+Entregas:
+- ClosedLoopEvolution em app/evolution/closed_loop.py;
+- integração deliberativa com F22 ContinuousIntelligenceEvolution;
+- abertura explícita do gate F24 EvolutionRuntimeOrchestrator;
+- estados bounded: OBSERVING, STABLE, TRIGGERED, PLANNED, WAITING_EVIDENCE, WAITING_APPROVAL, PROMOTED, MONITORED, CLOSED, REJECTED;
+- planos vinculados exatamente às evidências que causaram o trigger;
+- persistência atômica de metadados e identidade do ciclo;
+- digest determinístico;
+- histórico bounded;
+- testes dedicados em tests/test_closed_loop_evolution.py;
+- documentação em docs/F32_CLOSED_LOOP_LUMEN_EVOLUTION.md.
+
+Segurança:
+- não executa provider/modelo, ferramenta, código, processo, browser ou driver;
+- não concede permissões;
+- não altera Policy, Scope, Sandbox, Checkpoint ou Audit;
+- não promove sem etapa explícita de aprovação;
+- não persiste screenshots, secrets ou conteúdo sensível.
+
+Validação:
+- F32 possui testes unitários, negativos, atomicidade, persistência, limites e superfície de segurança;
+- CI é o gate final antes do merge;
+- validação física Windows/Unreal continua separada.
 
 # F31 — EXPERIENCE & WORKFLOW INTELLIGENCE — CURRENT OFFICIAL STATUS
 
