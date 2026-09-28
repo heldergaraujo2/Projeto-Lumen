@@ -18,12 +18,13 @@
 | F23 | Runtime Integration & State Machine Hardening | 🟩 CONCLUÍDA |
 | F24 | Evolution Runtime Orchestrator | 🟩 CONCLUÍDA |
 | F25 | Provider Runtime Independence | 🟩 CONCLUÍDA |
-| F26 | Real Windows Computer Validation | ⬜ PLANEJADA |
-| F27 | Real Vision + Grounding | ⬜ PLANEJADA |
-| F28 | Real Autonomous Computer Agent | ⬜ PLANEJADA |
-| F29 | Unreal Real Integration | ⬜ PLANEJADA |
-| F30 | Experience & Workflow Intelligence | ⬜ PLANEJADA |
-| F31 | Closed-Loop Lumen Evolution | ⬜ PLANEJADA |
+| F26 | Learning Runtime & Continuous Knowledge | 🟩 CONCLUÍDA |
+| F27 | Real Windows Computer Validation | ⬜ PLANEJADA |
+| F28 | Real Vision + Grounding | ⬜ PLANEJADA |
+| F29 | Real Autonomous Computer Agent | ⬜ PLANEJADA |
+| F30 | Unreal Real Integration | ⬜ PLANEJADA |
+| F31 | Experience & Workflow Intelligence | ⬜ PLANEJADA |
+| F32 | Closed-Loop Lumen Evolution | ⬜ PLANEJADA |
 
 ## 2. F23 — RUNTIME INTEGRATION & STATE MACHINE HARDENING
 
@@ -117,7 +118,26 @@ Descoberta do projeto, Editor, Content Browser, Blueprints, C++, build/compile, 
 ### F31 — Closed-Loop Lumen Evolution
 `real computer → observation → experience → metrics → diagnosis → research → hypothesis → experiment → build → benchmark → security → approval → promotion → runtime → monitoring → new observation`.
 
-## 5.1 F25 — PROVIDER RUNTIME INDEPENDENCE — 🟩 CONCLUÍDA
+## 5.1 F26 — LEARNING RUNTIME & CONTINUOUS KNOWLEDGE — 🟩 CONCLUÍDA
+
+Implementado:
+- `app/learning/runtime.py`: LearningStore, LearningGoal, KnowledgeItem, Experience, Strategy e LearningRuntime;
+- aprendizagem explícita por objetivo;
+- pipeline pesquisa → candidato → prática → verificação → consolidação;
+- aprendizagem automática a partir de resultados de uso;
+- memória persistente JSON atômica e bounded;
+- recall determinístico de conhecimento verificado;
+- redaction de segredos antes da persistência;
+- conhecimento não verificado fica fora do recall padrão;
+- callbacks explícitos para integrar provider local, pesquisa, prática e verificação sem bypass de segurança;
+- testes dedicados em `tests/test_learning_runtime.py`;
+- documentação em `docs/F26_LEARNING_RUNTIME.md`.
+
+Arquitetura: Ollama continua sendo provider local; o aprendizado pertence à Lumen e persiste entre sessões. O runtime não executa código, ferramentas, browser, drivers, rede nem concede permissões.
+
+Validação física não se aplica ao núcleo persistente. A integração real com Windows/Computer Control permanece na F27.
+
+## 5.2 F25 — PROVIDER RUNTIME INDEPENDENCE — 🟩 CONCLUÍDA
 
 F25 transforma a independência declarativa de F21 em execução runtime real.
 
