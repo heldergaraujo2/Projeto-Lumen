@@ -47,7 +47,7 @@ def test_secrets_are_redacted_before_persistence(tmp_path):
     t = trace("e1", "/Game/A", "A", "fp1")
     t = ExperienceTrace(
         t.experience_id, t.goal, (
-            ExperienceEvent(0, "open_asset", (("token", "Authorization: Bearer SECRET"),), "fp", True, ExperienceOutcome.SUCCESS),
+            ExperienceEvent(0, "open_asset", (("token", "Authorization: Bearer SUPERSECRETTOKEN"),), "fp", True, ExperienceOutcome.SUCCESS),
         ), ExperienceOutcome.SUCCESS,
     )
     store.record(t)
