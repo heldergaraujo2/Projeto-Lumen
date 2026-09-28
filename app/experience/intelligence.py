@@ -81,6 +81,8 @@ class ExperienceStore:
         self._load()
 
     def _safe(self, value: Any) -> Any:
+        if isinstance(value, Enum):
+            return value.value
         if isinstance(value, dict):
             return {str(k): self._safe(v) for k, v in value.items()}
         if isinstance(value, (list, tuple)):
