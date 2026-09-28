@@ -80,7 +80,6 @@ def test_result_validation_rejects_foreign_target(tmp_path: Path):
     result = VisionGroundingPipeline(StubVisionProvider()).observe_and_resolve(
         VisionRequest(image, "Find Compile"), label="Compile"
     )
-    result.target = None if False else result.target
     result.validate()
 
 
