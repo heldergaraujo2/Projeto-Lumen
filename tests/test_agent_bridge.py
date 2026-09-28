@@ -25,6 +25,7 @@ from app.planner.catalog import build_catalog
 from app.planner.models import PlanStatus
 from app.security.permissions import PermissionLevel, PermissionManager
 from app.tools.control import ToolsController
+from app.web.provider import WebFetchResponse, WebSearchResponse, WebSource
 
 CREATE_MSG = (
     "Crie um arquivo chamado teste_lumen.txt dentro do workspace atual "
@@ -93,6 +94,66 @@ def armed(controller, ws):
 
 def use(agent: Agent, provider) -> None:
     agent.set_provider(provider)
+
+class ResearchProvider(ScriptedProvider):
+    """Planeia a pesquisa na primeira chamada e sintetiza na segunda."""
+
+    def __init__(self):
+        self.calls = []
+        super().__init__(plan_json(
+            "web_research",
+            {"query": "OpenAI GPT latest", "max_results": 3, "max_sources": 1},
+        ))
+
+    def chat(self, message, context=None, *, system_prompt=None, **kw):
+        self.calls.append((message, system_prompt))
+        if len(self.calls) == 1:
+            return AIResponse(
+                content=self._content, model="scripted", usage=None,
+                finish_reason="stop", response_type=ResponseType.FINAL_RESPONSE,
+            )
+        return AIResponse(
+            content="A pesquisa encontrou evidências atuais nas fontes consultadas.",
+            model="scripted", usage=None, finish_reason="stop",
+            response_type=ResponseType.FINAL_RESPONSE,
+        )
+
+
+class FakeResearchSearch:
+    def search(self, request):
+        return WebSearchResponse(
+            request.query,
+            (WebSource("Fonte de pesquisa", "https://example.com/research", "trecho"),),
+        )
+
+
+class FakeResearchFetch:
+    def fetch(self, url):
+        return WebFetchResponse(
+            url, url, "Fonte de pesquisa", "text/html",
+            "Fato pesquisado em fonte pública.", False,
+        )
+
+def test_web_research_is_synthesized_back_into_chat(monkeypatch, env):
+    agent, controller, _ = env
+    controller.grant_web_access()
+    import app.web.tools as web_tools
+
+    monkeypatch.setattr(web_tools, "DuckDuckGoSearchProvider", FakeResearchSearch)
+    monkeypatch.setattr(web_tools, "StandardWebFetchProvider", FakeResearchFetch)
+
+    provider = ResearchProvider()
+    use(agent, provider)
+    outcome = agent.process_message("Pesquise as novidades do GPT e me explique.")
+
+    assert outcome.state is RequestState.COMPLETED
+    assert "evidências atuais" in outcome.text
+    assert "https://example.com/research" in outcome.text
+    assert len(provider.calls) == 2
+    assert "Conteúdo Web" in provider.calls[1][1] or "sintetizador" in provider.calls[1][1]
+    assert "Fato pesquisado em fonte pública." in provider.calls[1][0]
+
+
 
 
 # ============================================ conversa × ação (FASE 4/8)
