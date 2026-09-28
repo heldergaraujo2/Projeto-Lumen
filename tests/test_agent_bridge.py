@@ -160,6 +160,35 @@ def test_web_research_is_synthesized_back_into_chat(monkeypatch, env):
     assert "Fato pesquisado em fonte pública." in provider.calls[1][0]
 
 
+class FailingResearchSynthesisProvider(ResearchProvider):
+    def chat(self, message, context=None, *, system_prompt=None, **kw):
+        self.calls.append((message, system_prompt))
+        if len(self.calls) == 1:
+            return AIResponse(
+                content=self._content, model="scripted", usage=None,
+                finish_reason="stop", response_type=ResponseType.FINAL_RESPONSE,
+            )
+        raise RuntimeError("falha simulada do provider de síntese")
+
+
+def test_web_research_provider_failure_falls_back_to_sources(monkeypatch, env):
+    agent, controller, _ = env
+    controller.grant_web_access()
+    import app.web.tools as web_tools
+
+    monkeypatch.setattr(web_tools, "DuckDuckGoSearchProvider", FakeResearchSearch)
+    monkeypatch.setattr(web_tools, "StandardWebFetchProvider", FakeResearchFetch)
+
+    provider = FailingResearchSynthesisProvider()
+    use(agent, provider)
+    outcome = agent.process_message("Pesquise evidências e me explique.")
+
+    assert outcome.state is RequestState.COMPLETED
+    assert "não foi possível gerar a síntese automaticamente" in outcome.text
+    assert "https://example.com/research" in outcome.text
+    assert len(provider.calls) == 2
+
+
 
 
 # ============================================ conversa × ação (FASE 4/8)
