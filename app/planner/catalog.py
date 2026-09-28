@@ -44,7 +44,8 @@ class ToolSpec:
     name: str
     description: str
     parameters: tuple[ParameterSpec, ...]
-    terminal: bool = False   # run_command: exige terminal habilitado
+    terminal: bool = False
+    web: bool = False   # run_command: exige terminal habilitado
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -132,6 +133,23 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
                 "Texto substituto (literal, não vazio).",
             ),
         ),
+    ),
+    ToolSpec(
+        name="web_search",
+        description="Pesquisa na Internet e retorna fontes estruturadas. Exige WEB_ACCESS.",
+        parameters=(
+            ParameterSpec("query", "string", True, "Consulta de pesquisa em linguagem natural."),
+            ParameterSpec("max_results", "integer", False, "Quantidade de fontes (1..20; default 5)."),
+        ),
+        web=True,
+    ),
+    ToolSpec(
+        name="web_fetch",
+        description="Busca uma página HTTP/HTTPS e extrai texto sem executar conteúdo. Exige WEB_ACCESS.",
+        parameters=(
+            ParameterSpec("url", "string", True, "URL HTTP/HTTPS pública."),
+        ),
+        web=True,
     ),
     ToolSpec(
         name="run_command",
@@ -306,6 +324,12 @@ def validate_task_tool(
                     f"parâmetro '{pname}' de '{name}' deve ser texto "
                     "não vazio"
                 )
+            if pname == "url" and name == "web_fetch":
+                from app.web.security import WebSecurityError, WebSecurityPolicy
+                try:
+                    WebSecurityPolicy().validate_url(value)
+                except WebSecurityError as exc:
+                    return f"URL Web rejeitada pela política de segurança: {exc}"
             if pname == "path" and _path_suspect(value):
                 return (
                     f"parâmetro 'path' de '{name}' deve ser um caminho "
