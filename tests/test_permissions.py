@@ -14,6 +14,7 @@ DANGEROUS_LEVELS = (
     PermissionLevel.WRITE,
     PermissionLevel.TERMINAL,
     PermissionLevel.COMPUTER_CONTROL,
+    PermissionLevel.WEB_ACCESS,
 )
 
 
@@ -32,6 +33,7 @@ def test_levels_ordered_by_risk():
         < PermissionLevel.WRITE
         < PermissionLevel.TERMINAL
         < PermissionLevel.COMPUTER_CONTROL
+        < PermissionLevel.WEB_ACCESS
     )
 
 
@@ -59,3 +61,14 @@ def test_invalid_level_raises_type_error():
     manager = PermissionManager()
     with pytest.raises(TypeError):
         manager.grant("SUPERUSER")
+
+
+def test_web_access_is_denied_by_default_and_requires_explicit_grant():
+    manager = PermissionManager()
+    assert not manager.is_granted(PermissionLevel.WEB_ACCESS)
+    with pytest.raises(PermissionDeniedError):
+        manager.require(PermissionLevel.WEB_ACCESS)
+    manager.grant(PermissionLevel.WEB_ACCESS)
+    manager.require(PermissionLevel.WEB_ACCESS)
+    manager.revoke(PermissionLevel.WEB_ACCESS)
+    assert not manager.is_granted(PermissionLevel.WEB_ACCESS)
