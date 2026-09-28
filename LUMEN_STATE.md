@@ -2,7 +2,7 @@
 
 **Atualização:** 2026-09-28  
 **Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
-**Estado:** 🟨 F0–F26 concluídas; F27 implementação concluída e validação física Windows aguardando evidência externa.
+**Estado:** 🟨 F0–F26 concluídas; F27 implementação concluída e validação física Windows aguardando evidência externa; F28 implementação concluída e validação real do provider multimodal aguardando evidência externa.
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
@@ -16,7 +16,25 @@
 - **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.
 - **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
-- **Próximo passo:** F27 — Real Windows Computer Validation.
+- **Próximo passo:** F29 — Real Autonomous Computer Agent.
+
+# F28 — REAL VISION + GROUNDING — CURRENT OFFICIAL STATUS
+
+🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL DO PROVIDER PENDENTE
+
+Entregas:
+- VisionGroundingPipeline em app/computer_control/vision_grounding.py;
+- integração screenshot/request → VisionObservation → GroundingEngine → TargetResolver;
+- VisionProviderManager e OllamaVisionProvider existentes reutilizados;
+- grounding structured-first com threshold, bounds e scope;
+- pipeline não executa ações;
+- testes dedicados em tests/test_vision_grounding.py;
+- documentação em docs/F28_REAL_VISION_GROUNDING.md.
+
+Gate restante:
+- executar provider multimodal real disponível na máquina alvo sobre screenshot benigno;
+- registrar evidência de observação + bounding box + resolução do target;
+- nenhuma ação física é necessária para validar F28.
 
 # F27 — REAL WINDOWS COMPUTER VALIDATION — CURRENT OFFICIAL STATUS
 
