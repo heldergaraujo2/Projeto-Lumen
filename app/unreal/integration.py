@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
-from app.computer.api import CCTarget
+from app.computer_control.api import CCTarget
 from app.computer.windows_native import NativeElement, NativeWindow, WindowsNativeIntelligence
 
 @dataclass(frozen=True)

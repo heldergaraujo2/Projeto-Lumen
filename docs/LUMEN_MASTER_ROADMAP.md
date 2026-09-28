@@ -23,7 +23,7 @@
 | F28 | Real Vision + Grounding | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO PROVIDER PENDENTE |
 | F29 | Real Autonomous Computer Agent | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO FÍSICA EXTERNA PENDENTE |
 | F30 | Unreal Real Integration | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO UNREAL PENDENTE |
-| F31 | Experience & Workflow Intelligence | ⬜ PLANEJADA |
+| F31 | Experience & Workflow Intelligence | 🟩 CONCLUÍDA — implementação, integração, segurança, persistência e testes |
 | F32 | Closed-Loop Lumen Evolution | ⬜ PLANEJADA |
 
 ## 2. F23 — RUNTIME INTEGRATION & STATE MACHINE HARDENING
@@ -114,6 +114,20 @@ Descoberta do projeto, Editor, Content Browser, Blueprints, C++, build/compile, 
 
 ### F31 — Experience & Workflow Intelligence
 `observe → understand → record → generalize → store → reuse → adapt → verify`.
+
+Implementado em `app/experience/intelligence.py`:
+- ExperienceTrace/Event e store persistente bounded;
+- generalização determinística somente de experiências verificadas;
+- abstração de parâmetros divergentes em variáveis;
+- PersistentWorkflowRegistry para definições + evidências;
+- reuse somente após evidência verificada;
+- adaptação somente com bindings declarados;
+- redaction de segredos antes da persistência;
+- integração direta com F10 WorkflowLearner/Matcher e F26 Learning Runtime;
+- testes dedicados em `tests/test_experience_workflow_intelligence.py`;
+- documentação em `docs/F31_EXPERIENCE_WORKFLOW_INTELLIGENCE.md`.
+
+A camada permanece sem autoridade de execução e preserva Permission/Policy/Scope/Checkpoint/Sandbox/Driver/Audit/Human Approval.
 
 ### F32 — Closed-Loop Lumen Evolution
 `real computer → observation → experience → metrics → diagnosis → research → hypothesis → experiment → build → benchmark → security → approval → promotion → runtime → monitoring → new observation`.
