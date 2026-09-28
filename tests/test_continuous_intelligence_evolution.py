@@ -126,3 +126,40 @@ def test_plan_rejects_unregistered_trigger():
     trigger=IntelligenceTrigger("CI-TRIGGER-999999",c.cycle_id,"reasoning",MonitoringStatus.REGRESSED,"degraded",__import__('app.evolution.models',fromlist=['EvolutionRisk']).EvolutionRisk.HIGH,("CI-EV-1",))
     with pytest.raises(KeyError):
         e.plan(trigger,actions=("research",))
+
+
+def test_observation_identity_is_immutable():
+    e = ContinuousIntelligenceEvolution()
+    c = e.start_cycle("reasoning", .8)
+    first = obs("CI-EV-ID", .8, .8)
+    e.assess(c.cycle_id, first)
+    different = obs("CI-EV-ID", .7, .8)
+    with pytest.raises(ValueError):
+        e.assess(c.cycle_id, different)
+
+
+def test_cycle_rejects_second_assessment_after_state_transition():
+    e = ContinuousIntelligenceEvolution()
+    c = e.start_cycle("reasoning", .8)
+    e.assess(c.cycle_id, obs("CI-EV-A", .81, .8))
+    with pytest.raises(ValueError):
+        e.assess(c.cycle_id, obs("CI-EV-B", .82, .8))
+
+
+def test_archived_observation_remains_resolvable_after_history_eviction():
+    e = ContinuousIntelligenceEvolution(history_limit=1)
+    first = obs("CI-EV-ARCHIVE-1")
+    second = obs("CI-EV-ARCHIVE-2")
+    e.observe(first)
+    e.observe(second)
+    assert e.counts()["observations"] == 1
+    assert e.observation(first.observation_id) == first
+
+
+def test_cycle_can_be_closed_explicitly():
+    e = ContinuousIntelligenceEvolution()
+    c = e.start_cycle("reasoning", .8)
+    closed = e.close_cycle(c.cycle_id)
+    assert closed.state is IntelligenceCycleState.CLOSED
+    with pytest.raises(ValueError):
+        e.assess(c.cycle_id, obs("CI-EV-CLOSED", .8, .8))
