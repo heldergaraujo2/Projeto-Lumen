@@ -42,6 +42,7 @@ class OllamaProvider(AIProvider):
         self._base_url = (str(getattr(settings, "ollama_base_url", "") or "").strip() or DEFAULT_BASE_URL).rstrip("/")
         self._timeout = float(getattr(settings, "request_timeout", 60.0) or 60.0)
         self._keep_alive = str(getattr(settings, "ollama_keep_alive", "") or "").strip() or DEFAULT_KEEP_ALIVE
+        self._think = bool(getattr(settings, "ollama_think", False))
         self._transport = transport or self._default_transport
         if not self._model:
             raise ModelNotConfiguredError("LUMEN_MODEL não configurado para o Ollama.")
@@ -86,6 +87,7 @@ class OllamaProvider(AIProvider):
             "messages": messages,
             "stream": True,
             "keep_alive": self._keep_alive,
+            "think": self._think,
         }
         if options:
             payload["options"] = options
