@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import pytest
 from pathlib import Path
 
 from app.planner.models import Plan, PlanStatus, PlannedTask
@@ -151,7 +152,12 @@ def test_symlink_diretorio_para_fora_nao_e_pesquisado(tmp_path):
     ext = tmp_path / "external_dir"
     ext.mkdir()
     (ext / "secret.txt").write_text("LUMEN_11B_EXTERNAL_TOKEN", encoding="utf-8")
-    os.symlink(ext, sub / "link_dir")
+    try:
+        os.symlink(ext, sub / "link_dir")
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows sem privilégio para criar symlink.")
+        raise
     _, payload = search(controller, ws, "T1", "subdir", "LUMEN_11B_EXTERNAL_TOKEN")
     data = payload["data"]
     assert data["matches_returned"] == 0
@@ -163,7 +169,12 @@ def test_symlink_arquivo_para_fora_nao_e_pesquisado(tmp_path):
     ext = tmp_path / "external_dir"
     ext.mkdir()
     (ext / "secret.txt").write_text("LUMEN_11B_EXTERNAL_TOKEN", encoding="utf-8")
-    os.symlink(ext / "secret.txt", ws / "link_file")
+    try:
+        os.symlink(ext / "secret.txt", ws / "link_file")
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows sem privilégio para criar symlink.")
+        raise
     _, payload = search(controller, ws, "T1", ".", "LUMEN_11B_EXTERNAL_TOKEN")
     data = payload["data"]
     assert data["matches_returned"] == 0

@@ -66,6 +66,7 @@ def test_catalog_lists_exactly_the_existing_tools():
         "list_directory", "read_file", "write_file",
         "create_file", "delete_file", "file_exists",
         "search_files", "edit_file",
+        "web_search", "web_fetch",
     }
 
 

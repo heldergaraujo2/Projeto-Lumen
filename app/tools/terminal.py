@@ -603,7 +603,7 @@ def build_safe_environment() -> dict[str, str]:
         upper = name.upper()
         if any(marker in upper for marker in _SECRET_MARKERS):
             continue
-        if name in SAFE_ENV_VARS or upper.startswith("LC_"):
+        if upper in {item.upper() for item in SAFE_ENV_VARS} or upper.startswith("LC_"):
             env[name] = value
     env.setdefault("PATH", os.defpath)
     return env
