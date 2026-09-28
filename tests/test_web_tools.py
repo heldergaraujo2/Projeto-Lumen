@@ -171,6 +171,29 @@ def test_web_research_continues_when_one_source_fetch_fails():
     assert sources[2]["text"] == "conteúdo de https://example.com/two"
 
 
+class CompleteFailureSearch:
+    def search(self, request):
+        raise WebProviderError("falha total simulada na pesquisa")
+
+
+def test_web_research_returns_controlled_error_when_search_provider_fails():
+    permissions = PermissionManager([PermissionLevel.CHAT, PermissionLevel.WEB_ACCESS])
+    registry = ToolRegistry(permissions)
+    registry.register(
+        WebResearchTool(
+            search_provider=CompleteFailureSearch(),
+            fetch_provider=FakeFetch(),
+        )
+    )
+
+    result = json.loads(
+        registry.execute("web_research", query="teste", max_results=5, max_sources=3)
+    )
+
+    assert result["ok"] is False
+    assert result["error"] == "falha total simulada na pesquisa"
+
+
 def test_web_research_requires_explicit_permission():
     permissions = PermissionManager()
     registry = ToolRegistry(permissions)
