@@ -109,7 +109,7 @@ def test_expected_project_layout_exists():
         ".env.example",
         "LUMEN_STATE.md",
         "docs/ARCHITECTURE.md",
-        "docs/ROADMAP.md",
+        "docs/LUMEN_MASTER_ROADMAP.md",
         "data/memory",
         "data/logs",
         "app/ai/provider.py",
