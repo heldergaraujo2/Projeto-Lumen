@@ -75,7 +75,102 @@ Data/hora:
 
 ---
 
-# 3. F27 — REAL WINDOWS COMPUTER VALIDATION
+# 3. CÉREBRO LOCAL — OLLAMA / PROVIDER LOCAL — PRIMEIRO GATE REAL
+
+**Regra de ordem:** antes de qualquer teste físico F27–F30, o novo chat deve validar que a Lúmen consegue utilizar um provider local real instalado e executando no PC. Isso não substitui os gates F27–F30; é a fundação operacional para que a Lúmen tenha inteligência local durante os testes seguintes.
+
+**Objetivo:** sair de “provider implementado/testado em CI” para “Lúmen realmente conversa com um modelo local no PC”.
+
+## 3.1 Instalação e ambiente
+
+- [ ] ❌ Confirmar que o Ollama está instalado no Windows.
+- [ ] ❌ Registrar versão real do Ollama.
+- [ ] ❌ Confirmar serviço/daemon do Ollama em execução.
+- [ ] ❌ Confirmar endpoint local acessível.
+- [ ] ❌ Confirmar API local responde sem mock.
+- [ ] ❌ Confirmar que o processo é realmente local.
+- [ ] ❌ Registrar modelo de linguagem local escolhido.
+- [ ] ❌ Confirmar que o modelo de linguagem está instalado.
+- [ ] ❌ Registrar tag/tamanho do modelo.
+- [ ] ❌ Confirmar que o modelo pode gerar uma resposta real.
+- [ ] ❌ Registrar tempo aproximado da primeira resposta e de uma resposta subsequente.
+- [ ] ❌ Registrar consumo/limitações relevantes observados no hardware, sem transformar isso em requisito artificial de desempenho.
+
+**Modelo textual inicial registrado no projeto:** `qwen2.5-coder:7b-instruct-q8_0`. O teste deve confirmar no PC qual modelo está efetivamente instalado; não marcar PASS apenas porque esse nome aparece em documentação.
+
+## 3.2 Inferência real independente
+
+Executar uma chamada real ao Ollama, fora de mocks/fakes.
+
+- [ ] ❌ Enviar prompt de teste não destrutivo.
+- [ ] ❌ Receber resposta real do modelo.
+- [ ] ❌ Confirmar que a resposta veio do provider local.
+- [ ] ❌ Confirmar ausência de fallback silencioso para provider remoto.
+- [ ] ❌ Registrar provider efetivo.
+- [ ] ❌ Registrar modelo efetivo.
+- [ ] ❌ Registrar resultado da chamada.
+- [ ] ❌ Registrar erro completo se houver falha.
+
+## 3.3 Lúmen usando o provider local
+
+O teste mais importante deste bloco é **pela própria Lúmen**, e não somente pelo comando do Ollama.
+
+- [ ] ❌ Inicializar o runtime real da Lúmen.
+- [ ] ❌ Configurar o provider local conforme a configuração oficial existente.
+- [ ] ❌ Confirmar health check pela Lúmen.
+- [ ] ❌ Confirmar descoberta/listagem do modelo pela Lúmen.
+- [ ] ❌ Enviar uma solicitação através do Provider Runtime da Lúmen.
+- [ ] ❌ Confirmar resposta real.
+- [ ] ❌ Confirmar streaming quando aplicável.
+- [ ] ❌ Confirmar tratamento de erro real desligando/parando o provider de forma controlada.
+- [ ] ❌ Confirmar recuperação/reconexão sem criar bypass.
+- [ ] ❌ Confirmar auditoria/telemetria sem persistir secrets.
+- [ ] ❌ Confirmar que a Lúmen não depende de um provider remoto para concluir a inferência local.
+
+## 3.4 Teste de continuidade do cérebro local
+
+- [ ] ❌ Encerrar e reiniciar a sessão da Lúmen.
+- [ ] ❌ Confirmar nova conexão com Ollama.
+- [ ] ❌ Confirmar nova inferência.
+- [ ] ❌ Confirmar que nenhuma credencial/secreta foi gravada indevidamente.
+- [ ] ❌ Registrar configuração mínima necessária para reproduzir o teste.
+
+## 3.5 Visão multimodal local — pré-requisito para F28
+
+Depois do modelo textual local estar validado:
+
+- [ ] ❌ Confirmar Ollama pronto para modelo multimodal.
+- [ ] ❌ Registrar modelo multimodal real.
+- [ ] ❌ Confirmar instalação do modelo multimodal.
+- [ ] ❌ Confirmar que o modelo aceita imagem.
+- [ ] ❌ Executar uma inferência multimodal real simples.
+- [ ] ❌ Confirmar que a resposta utiliza a imagem fornecida.
+- [ ] ❌ Registrar modelo/tag.
+- [ ] ❌ Confirmar que não houve fallback textual silencioso.
+
+Este bloco pode utilizar o modelo vision que o teste F28 definir no ambiente real; não deve inventar um modelo apenas para obter PASS.
+
+## 3.6 Critério para liberar os testes seguintes
+
+O **cérebro local** somente recebe **✅ CONCLUÍDO** quando:
+
+1. Ollama real instalado e acessível;
+2. modelo textual real instalado;
+3. inferência textual real confirmada;
+4. Lúmen executou inferência através do provider local;
+5. provider efetivo foi identificado;
+6. não houve fallback remoto silencioso;
+7. reinicialização/reconexão foi validada;
+8. evidências foram registradas;
+9. nenhum bypass de segurança foi utilizado.
+
+A validação multimodal é necessária antes de considerar **F28** liberada para execução real.
+
+**Importante:** instalação do Ollama não é, sozinha, prova de que a Lúmen já possui um cérebro funcional. O PASS é da cadeia **PC → Ollama → modelo → Provider Lúmen → Runtime Lúmen → resposta real**.
+
+---
+
+# 4. F27 — REAL WINDOWS COMPUTER VALIDATION
 
 **Componentes auditados:** `app/computer_control/windows_driver.py`, `tests/test_f27_windows_driver.py`, `scripts/f27_windows_smoke.py`.
 
@@ -142,7 +237,7 @@ Screenshot + mouse + teclado foram executados na sessão Windows real, com evid�
 
 ---
 
-# 4. F28 — REAL VISION + GROUNDING
+# 5. F28 — REAL VISION + GROUNDING
 
 **Componentes auditados:** `OllamaVisionProvider`, `VisionGroundingPipeline`, `scripts/f28_vision_smoke.py`.
 
@@ -211,7 +306,7 @@ Provider real + screenshot real + elementos + target grounded forem comprovados 
 
 ---
 
-# 5. F29 — REAL AUTONOMOUS COMPUTER AGENT
+# 6. F29 — REAL AUTONOMOUS COMPUTER AGENT
 
 **Componente:** `app/computer_control/autonomous_agent.py`.
 
@@ -299,7 +394,7 @@ Houver evidência real de goal, observe, plan, target, checkpoint, approval, act
 
 ---
 
-# 6. F30 — REAL UNREAL INTEGRATION
+# 7. F30 — REAL UNREAL INTEGRATION
 
 **Componente:** `app/unreal/integration.py`.
 
@@ -401,7 +496,7 @@ Projeto real + Editor + UI + Blueprint + C++ quando aplicável + compile/build +
 
 ---
 
-# 7. F31 — EXPERIENCE & WORKFLOW INTELLIGENCE
+# 8. F31 — EXPERIENCE & WORKFLOW INTELLIGENCE
 
 A documentação oficial não define F31 como gate físico independente.
 
@@ -422,7 +517,7 @@ Este bloco é **E2E recomendado**, não um novo gate físico.
 
 ---
 
-# 8. F32 — CLOSED-LOOP LUMEN EVOLUTION
+# 9. F32 — CLOSED-LOOP LUMEN EVOLUTION
 
 F32 é deliberativa/evidencial e não possui hardware físico próprio.
 
@@ -456,7 +551,7 @@ F32 é deliberativa/evidencial e não possui hardware físico próprio.
 
 ---
 
-# 9. TESTE END-TO-END FINAL
+# 10. TESTE END-TO-END FINAL
 
 Depois de F27–F30:
 
@@ -482,11 +577,11 @@ Depois de F27–F30:
 
 ---
 
-# 10. MATRIZ DE FECHAMENTO
+# 11. MATRIZ DE FECHAMENTO
 
 | Gate | Código | CI | Real agora | Ação |
 |---|---:|---:|---:|---|
-| F27 Windows | ✅ | ✅ | ❌ | executar smoke físico |
+| Provider local / cérebro | ⚠️ | — | ❌ | instalar/validar Ollama + modelo + inferência pela Lúmen |\n| F27 Windows | ✅ | ✅ | ❌ | executar smoke físico |
 | F28 Vision | ✅ | ✅ | ❌ | executar provider multimodal real |
 | F29 Autonomous | ✅ | ✅ | ❌ | executar agente físico real |
 | F30 Unreal | ✅ | ✅ | ❌ | executar integração Unreal real |
@@ -497,7 +592,7 @@ Depois de F27–F30:
 
 ---
 
-# 11. EVIDÊNCIA OBRIGATÓRIA POR TESTE
+# 12. EVIDÊNCIA OBRIGATÓRIA POR TESTE
 
 Para cada execução, o novo chat deve registrar:
 
@@ -556,7 +651,7 @@ Recovery:
 
 ---
 
-# 12. REGRA DE PASS/FAIL
+# 13. REGRA DE PASS/FAIL
 
 Só trocar **❌ → ✅** se:
 
@@ -584,7 +679,7 @@ Em caso de falha:
 
 ---
 
-# 13. ORDEM OFICIAL
+# 14. ORDEM OFICIAL
 
 1. Pre-flight
 2. F27 Windows físico
@@ -604,7 +699,7 @@ Não pular F27/F28 para testar autonomia. F29 depende das fundações reais de C
 
 ---
 
-# 14. CRITÉRIO ABSOLUTO DE “F0–F32 CONCLUÍDA COM TESTES REAIS”
+# 15. CRITÉRIO ABSOLUTO DE “F0–F32 CONCLUÍDA COM TESTES REAIS”
 
 - [ ] ❌ F27 PASS real.
 - [ ] ❌ F28 PASS real.
@@ -621,9 +716,9 @@ Não pular F27/F28 para testar autonomia. F29 depende das fundações reais de C
 
 ---
 
-# 15. ESTADO DESTE ARQUIVO NA CRIAÇÃO
+# 16. ESTADO DESTE ARQUIVO NA CRIAÇÃO
 
-No momento da criação, **nenhum teste físico F27–F30 foi considerado executado** apenas por existir código, testes unitários ou CI.
+No momento desta atualização, **nenhum teste real do provider local foi considerado executado** apenas por existir código, testes unitários ou CI. Da mesma forma, nenhum teste físico F27–F30 é considerado executado sem evidência real.
 
 Estado inicial:
 - F27 real: **❌ PENDENTE**
