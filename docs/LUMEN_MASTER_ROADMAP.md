@@ -1,6 +1,6 @@
 # LUMEN — ROADMAP E CONTINUIDADE OFICIAL
 
-**Atualização:** 2026-09-27  
+**Atualização:** 2026-09-28  
 **Branch oficial:** `master`  
 **Fonte de verdade:** este documento + código/testes do repositório GitHub.
 
@@ -19,7 +19,7 @@
 | F24 | Evolution Runtime Orchestrator | 🟩 CONCLUÍDA |
 | F25 | Provider Runtime Independence | 🟩 CONCLUÍDA |
 | F26 | Learning Runtime & Continuous Knowledge | 🟩 CONCLUÍDA |
-| F27 | Real Windows Computer Validation | ⬜ PLANEJADA |
+| F27 | Real Windows Computer Validation | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — GATE FÍSICO EXTERNO PENDENTE |
 | F28 | Real Vision + Grounding | ⬜ PLANEJADA |
 | F29 | Real Autonomous Computer Agent | ⬜ PLANEJADA |
 | F30 | Unreal Real Integration | ⬜ PLANEJADA |
@@ -92,7 +92,7 @@ O detector de `app/validation/environment.py` permanece como artefato fail-close
 - Aprovação humana continua obrigatória antes de promoção.
 - Validação física Windows/Unreal permanece separada.
 
-## 5. F25–F31
+## 5. F25–F32
 
 ### F24 — Evolution Runtime Orchestrator
 Coordenar `detect → investigate → research → hypothesis → experiment request → benchmark → security → approval → promotion request → monitoring`, sem bypass de gates.
@@ -100,22 +100,22 @@ Coordenar `detect → investigate → research → hypothesis → experiment req
 ### F25 — Provider Runtime Independence
 Fallback real, falha de provider, normalização de contexto, verificação, custo, auditoria e recuperação.
 
-### F26 — Real Windows Computer Validation
+### F27 — Real Windows Computer Validation
 UIA/Win32, foco, janelas, controles, menus, diálogos, mouse, teclado e cadeia Permission → Policy → Scope → Checkpoint → Driver → Audit → Observation → Verification.
 
-### F27 — Real Vision + Grounding
+### F28 — Real Vision + Grounding
 `Screenshot → Vision Provider → Elements → Target → Confidence → Grounding → Action Candidate`, priorizando structured-first.
 
-### F28 — Real Autonomous Computer Agent
+### F29 — Real Autonomous Computer Agent
 `Goal → Plan → Observe → Target → Action → Verify → Recover → Replan → Success`.
 
-### F29 — Unreal Real Integration
+### F30 — Unreal Real Integration
 Descoberta do projeto, Editor, Content Browser, Blueprints, C++, build/compile, PIE, logs, erros e recovery.
 
-### F30 — Experience & Workflow Intelligence
+### F31 — Experience & Workflow Intelligence
 `observe → understand → record → generalize → store → reuse → adapt → verify`.
 
-### F31 — Closed-Loop Lumen Evolution
+### F32 — Closed-Loop Lumen Evolution
 `real computer → observation → experience → metrics → diagnosis → research → hypothesis → experiment → build → benchmark → security → approval → promotion → runtime → monitoring → new observation`.
 
 ## 5.1 F26 — LEARNING RUNTIME & CONTINUOUS KNOWLEDGE — 🟩 CONCLUÍDA
@@ -136,6 +136,31 @@ Implementado:
 Arquitetura: Ollama continua sendo provider local; o aprendizado pertence à Lumen e persiste entre sessões. O runtime não executa código, ferramentas, browser, drivers, rede nem concede permissões.
 
 Validação física não se aplica ao núcleo persistente. A integração real com Windows/Computer Control permanece na F27.
+
+## 5.2 F27 — REAL WINDOWS COMPUTER VALIDATION — 🟨 IMPLEMENTAÇÃO CONCLUÍDA / GATE FÍSICO EXTERNO PENDENTE
+
+Entregas:
+- driver nativo em app/computer_control/windows_driver.py;
+- mouse, teclado, foco de janela e screenshot no Windows;
+- arming explícito e fail-closed;
+- testes dedicados em tests/test_f27_windows_driver.py;
+- smoke runner em scripts/f27_windows_smoke.py;
+- CI Windows em .github/workflows/windows-validation.yml;
+- exportação pública do driver;
+- documentação em docs/F27_REAL_WINDOWS_VALIDATION.md.
+
+Critérios:
+- SPEC: documentação da fase;
+- IMPLEMENTATION: driver nativo entregue;
+- INTEGRATION: driver compatível com o contrato ComputerControlDriver;
+- NEGATIVE/SECURITY: input bloqueado sem arming e Windows obrigatório;
+- REGRESSION: suíte existente deve permanecer verde;
+- CI: Windows deve executar compileall + pytest.
+
+Limite de evidência:
+- hosted Windows CI valida o ambiente automatizado, mas não prova a sessão física interativa do usuário;
+- F27 só pode virar 🟩 depois de evidência real de screenshot, movimento de mouse e teclado na máquina Windows alvo;
+- nenhuma capacidade física é inferida apenas de sys.platform == win32.
 
 ## 5.2 F25 — PROVIDER RUNTIME INDEPENDENCE — 🟩 CONCLUÍDA
 
