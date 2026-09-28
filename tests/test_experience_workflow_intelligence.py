@@ -94,7 +94,7 @@ def test_generalization_rejects_different_sequences(tmp_path):
 def test_reuse_requires_verified_outcome(tmp_path):
     intelligence = WorkflowIntelligence(experience_store=ExperienceStore(tmp_path / "x.json"))
     workflow = intelligence.generalize(workflow_id="asset.open", name="Open", traces=(trace("e1", "/A", "A", "fp"),)).workflow
-    assert intelligence.reuse("abrir asset Unreal")
+    assert intelligence.reuse("abrir asset Unreal") == ()
     intelligence.record_verification(workflow_id=workflow.workflow_id, success=True, observation_fingerprint="ok")
     assert intelligence.reuse("abrir asset Unreal")[0].workflow_id == "asset.open"
 
