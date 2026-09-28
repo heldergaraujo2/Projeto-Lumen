@@ -73,6 +73,7 @@ class RuntimeResult:
     response: AIResponse
     provider_id: str
     attempts: tuple[RuntimeAttempt, ...]
+    verified: bool
 
 
 class ProviderRuntime:
@@ -84,6 +85,8 @@ class ProviderRuntime:
         *,
         max_retries_per_provider: int = 0,
         authorization: Callable[[RuntimeRequest, str], bool] | None = None,
+        verification: Callable[[AIResponse], bool] | None = None,
+        audit: Callable[[RuntimeAttempt], None] | None = None,
     ) -> None:
         if max_retries_per_provider < 0:
             raise ValueError("max_retries_per_provider must be >= 0")
@@ -95,6 +98,8 @@ class ProviderRuntime:
             self._providers[spec.provider_id] = spec
         self._max_retries = max_retries_per_provider
         self._authorization = authorization
+        self._verification = verification
+        self._audit = audit
 
     def providers(self) -> tuple[RuntimeProviderSpec, ...]:
         return tuple(self._providers.values())
@@ -121,6 +126,24 @@ class ProviderRuntime:
             ),
         ))
 
+
+    @staticmethod
+    def _normalize_context(
+        context: Sequence[Mapping[str, str]] | None,
+    ) -> tuple[dict[str, str], ...]:
+        normalized: list[dict[str, str]] = []
+        for item in context or ():
+            if not isinstance(item, Mapping):
+                raise ValueError("context item must be a mapping")
+            role = str(item.get("role", "")).strip()
+            content = str(item.get("content", ""))
+            if role not in {"system", "user", "assistant"}:
+                raise ValueError("context role is invalid")
+            if not content.strip():
+                continue
+            normalized.append({"role": role, "content": content})
+        return tuple(normalized)
+
     def execute_chat(
         self,
         request: RuntimeRequest,
@@ -135,6 +158,7 @@ class ProviderRuntime:
         request.validate()
         if not authorized:
             raise PermissionError("provider runtime requires explicit authorization")
+        normalized_context = self._normalize_context(context)
         candidates = self.compatible(request)
         if not candidates:
             raise LookupError("no enabled provider satisfies the runtime request")
@@ -143,34 +167,52 @@ class ProviderRuntime:
 
         for spec in candidates:
             if self._authorization is not None and not self._authorization(request, spec.provider_id):
-                attempts.append(RuntimeAttempt(spec.provider_id, spec.provider.model_name, False, "authorization_denied"))
+                attempt = RuntimeAttempt(spec.provider_id, spec.provider.model_name, False, "authorization_denied")
+                attempts.append(attempt)
+                if self._audit is not None:
+                    self._audit(attempt)
                 continue
 
             total_attempts = self._max_retries + 1
             for attempt_no in range(total_attempts):
                 try:
                     response = spec.provider.chat(
-                        message, context,
+                        message, normalized_context,
                         system_prompt=system_prompt,
                         on_delta=on_delta,
                         max_tokens=max_tokens,
                     )
                     if not isinstance(response, AIResponse) or not response.content.strip():
                         raise ProviderError("provider returned an invalid empty response")
-                    attempts.append(RuntimeAttempt(spec.provider_id, response.model or spec.provider.model_name, True))
-                    return RuntimeResult(request.request_id, response, spec.provider_id, tuple(attempts))
+                    verified = True if self._verification is None else bool(self._verification(response))
+                    if not verified:
+                        raise ProviderError("provider response failed verification")
+                    success_attempt = RuntimeAttempt(spec.provider_id, response.model or spec.provider.model_name, True)
+                    attempts.append(success_attempt)
+                    if self._audit is not None:
+                        self._audit(success_attempt)
+                    return RuntimeResult(request.request_id, response, spec.provider_id, tuple(attempts), True)
                 except ProviderAuthError:
-                    attempts.append(RuntimeAttempt(spec.provider_id, spec.provider.model_name, False, "ProviderAuthError"))
+                    attempt = RuntimeAttempt(spec.provider_id, spec.provider.model_name, False, "ProviderAuthError")
+                    attempts.append(attempt)
+                    if self._audit is not None:
+                        self._audit(attempt)
                     last_error = ProviderAuthError("provider authentication failed")
                     break
                 except RETRYABLE_ERRORS as exc:
-                    attempts.append(RuntimeAttempt(spec.provider_id, spec.provider.model_name, False, type(exc).__name__))
+                    attempt = RuntimeAttempt(spec.provider_id, spec.provider.model_name, False, type(exc).__name__)
+                    attempts.append(attempt)
+                    if self._audit is not None:
+                        self._audit(attempt)
                     last_error = exc
                     if attempt_no + 1 < total_attempts:
                         continue
                     break
                 except ProviderError as exc:
-                    attempts.append(RuntimeAttempt(spec.provider_id, spec.provider.model_name, False, type(exc).__name__))
+                    attempt = RuntimeAttempt(spec.provider_id, spec.provider.model_name, False, type(exc).__name__)
+                    attempts.append(attempt)
+                    if self._audit is not None:
+                        self._audit(attempt)
                     last_error = exc
                     break
 
