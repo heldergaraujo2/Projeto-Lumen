@@ -1,6 +1,7 @@
 """Infraestrutura de acesso Web da Lumen.
 
-A camada Web é deliberadamente separada de filesystem, terminal e
-computer control. A implementação inicial contém apenas políticas e
-contratos seguros; execução HTTP será adicionada em fases posteriores.
+A camada Web é separada de filesystem, terminal e computer control.
+Ela fornece políticas de segurança, provedores e ferramentas estruturadas
+para pesquisa e obtenção de conteúdo HTTP/HTTPS, sempre protegidas pela
+permissão explícita WEB_ACCESS e pelas validações de destino.
 """
