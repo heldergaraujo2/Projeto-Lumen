@@ -58,3 +58,5 @@ from .continuous_intelligence import (
     IntelligenceCycle, IntelligenceCycleState, IntelligenceObservation,
     IntelligenceTrigger,
 )
+
+from .orchestrator import EvolutionRuntimeOrchestrator, OrchestrationContext
