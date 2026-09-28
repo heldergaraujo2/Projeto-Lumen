@@ -10,6 +10,7 @@ from app.ai.ollama_provider import DEFAULT_MODEL as OLLAMA_DEFAULT_MODEL
 from app.ai.ollama_provider import OllamaProvider
 from app.ai.together_provider import DEFAULT_MODEL as TOGETHER_DEFAULT_MODEL
 from app.ai.together_provider import TogetherProvider
+from app.ai.provider_runtime import ProviderRuntime, RuntimeAttempt, RuntimeProviderSpec, RuntimeRequest, RuntimeResult
 from app.ai.provider import (
     AIProvider,
     ContextMessage,
@@ -34,6 +35,11 @@ from app.ai.types import AIResponse, ResponseType, Usage
 
 __all__ = [
     "AIProvider",
+    "ProviderRuntime",
+    "RuntimeAttempt",
+    "RuntimeProviderSpec",
+    "RuntimeRequest",
+    "RuntimeResult",
     "AIResponse",
     "ContextMessage",
     "DeltaCallback",
