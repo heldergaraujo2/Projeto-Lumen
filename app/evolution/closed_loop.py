@@ -151,7 +151,9 @@ class ClosedLoopEvolution:
         current = self.get(loop_id)
         if current.state != ClosedLoopState.TRIGGERED:
             return None
-        cycle_id = self._cycle_id_for(current)
+        cycle_id = self._cycle_ids.get(loop_id)
+        if cycle_id is None:
+            raise KeyError("closed-loop intelligence cycle not found")
         trigger = self.intelligence.trigger(cycle_id)
         if trigger is None:
             return None
