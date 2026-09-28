@@ -137,3 +137,28 @@ def test_provider_and_model_identity_are_preserved():
 
 def test_contract_requirements_are_declarative():
     assert IndependenceRequirement.FAILOVER in contract().requirements
+
+
+def test_requirement_results_are_explicit():
+    lab = ProviderIndependenceLab(providers=(provider("a", "m-a"), provider("b", "m-b")))
+    result = lab.assess(contract())
+    for item in result.compatible:
+        assert dict(item.requirement_results)["capability"] is True
+    assert all("local_availability" not in dict(item.requirement_results) for item in result.compatible)
+
+
+def test_failover_requirement_is_part_of_independence_decision():
+    lab = ProviderIndependenceLab(providers=(provider("a", "m-a"),))
+    result = lab.assess(contract())
+    assert not result.independent
+    assert "failover requirement not satisfied" in result.reasons[0]
+
+
+def test_local_availability_is_enforced_only_when_requested():
+    local_contract = ProviderCapabilityContract(
+        "contract-local", frozenset({StackLayer.REASONING}),
+        requirements=frozenset({IndependenceRequirement.LOCAL_AVAILABILITY}),
+    )
+    lab = ProviderIndependenceLab(providers=(provider("a", "m-a"),))
+    result = lab.assess(local_contract)
+    assert dict(result.compatible[0].requirement_results)["local_availability"] is True
