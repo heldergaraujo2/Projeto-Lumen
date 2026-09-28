@@ -14,7 +14,7 @@
 - **F22:** corrigidas identidade imutável de observações, ciclo de vida, retenção de evidências e fechamento explícito; validada na suíte completa.
 - **F23:** concluída como **Runtime Integration & State Machine Hardening**. Suíte completa: **1342 passed / 1 skipped / 0 failed**; F0 Validation e F23 Validation verdes. O detector de ambiente permanece fail-closed e não prova validação física.
 - **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.
-- **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação.
+- **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
 - **Próximo passo:** F26 — Real Windows Computer Validation.
 
 ## Regra de continuidade
