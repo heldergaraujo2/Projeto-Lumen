@@ -51,8 +51,20 @@ def test_default_permissions_and_no_silent_grants(controller):
     assert rows["CHAT"]["granted"] is True
     assert rows["READ"]["granted"] is False
     assert rows["WRITE"]["granted"] is False
+    assert rows["WEB_ACCESS"]["granted"] is False
     assert rows["DELETE"]["kind"] == "workspace_opt_in"
     assert rows["DELETE"]["granted"] is False
+
+
+def test_web_access_requires_explicit_controller_grant(controller):
+    rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["WEB_ACCESS"]["granted"] is False
+    controller.grant_web_access()
+    rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["WEB_ACCESS"]["granted"] is True
+    controller.revoke_web_access()
+    rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["WEB_ACCESS"]["granted"] is False
 
 
 def test_grant_and_revoke_read_write(controller):
