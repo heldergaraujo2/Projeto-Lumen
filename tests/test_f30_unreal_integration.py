@@ -42,3 +42,29 @@ def test_workflow_never_creates_project_and_marks_mutation_for_approval(tmp_path
 def test_windows_editor_discovery_fails_without_backend(tmp_path):
     project = UnrealDiscovery().discover(make_project(tmp_path))
     with pytest.raises(RuntimeError, match="native backend"): UnrealIntegration().find_editor(project)
+
+from app.computer.windows_native import NativeElement
+
+def test_editor_inspection_maps_unreal_surfaces(tmp_path):
+    project = UnrealDiscovery().discover(make_project(tmp_path))
+    window = NativeWindow(50, "MyGame - Unreal Editor", ScreenRegion(0,0,1600,900), 1, "UnrealEditor.exe", True)
+    elements = (
+        NativeElement("Content Browser", "Pane", ScreenRegion(0,0,300,300), window=window.target()),
+        NativeElement("Blueprint Editor", "Window", ScreenRegion(300,0,600,600), window=window.target()),
+        NativeElement("Output Log", "Pane", ScreenRegion(0,600,600,300), window=window.target()),
+        NativeElement("Play", "Button", ScreenRegion(900,0,100,40), window=window.target()),
+    )
+    native = WindowsNativeIntelligence(FakeWindowsNativeBackend((window,), {50: elements}))
+    state = UnrealIntegration(native=native).inspect_editor(project, window)
+    assert state.content_browser_visible
+    assert state.blueprint_editor_visible
+    assert state.output_log_visible
+    assert state.play_in_editor
+
+def test_operation_allowlist_and_approval(tmp_path):
+    project = UnrealDiscovery().discover(make_project(tmp_path))
+    integration = UnrealIntegration()
+    plan = integration.plan_operation(project, "edit_blueprint")
+    assert plan.steps[2].requires_approval
+    with pytest.raises(ValueError):
+        integration.plan_operation(project, "delete_everything")
