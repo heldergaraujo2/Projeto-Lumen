@@ -18,6 +18,25 @@
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
 - **Próximo passo:** F30 — Unreal Real Integration.
 
+# F30 — UNREAL REAL INTEGRATION — CURRENT OFFICIAL STATUS
+
+🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL DO UNREAL PENDENTE
+
+Entregas:
+- descoberta read-only de um único .uproject existente;
+- validação do descriptor e estrutura Content/Source/Config/Plugins/Saved;
+- descoberta do Unreal Editor por Windows Native;
+- inspeção de Content Browser, Blueprint, Output Log e estado PIE;
+- operações bounded para Content Browser, Blueprint, C++, build, compile, PIE, logs e recovery;
+- operações mutáveis marcadas para aprovação;
+- testes dedicados em tests/test_f30_unreal_integration.py;
+- documentação em docs/F30_UNREAL_REAL_INTEGRATION.md.
+
+Gate restante:
+- executar em Windows com Unreal Editor real e projeto existente;
+- comprovar UI Automation, Blueprint/C++, compile/build, PIE, logs e recovery reais;
+- nenhum PASS real é inferido de testes fake ou CI.
+
 # F29 — REAL AUTONOMOUS COMPUTER AGENT — CURRENT OFFICIAL STATUS
 
 🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FÍSICA EXTERNA PENDENTE
