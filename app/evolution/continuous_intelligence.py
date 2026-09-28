@@ -113,6 +113,15 @@ class ContinuousIntelligenceEvolution:
     bounded plans for the existing F12-F21 gates. It never executes remediation.
     """
 
+    _ALLOWED_TRANSITIONS = {
+        IntelligenceCycleState.OBSERVED: {IntelligenceCycleState.ASSESSED},
+        IntelligenceCycleState.ASSESSED: {IntelligenceCycleState.TRIGGERED, IntelligenceCycleState.CLOSED},
+        IntelligenceCycleState.TRIGGERED: {IntelligenceCycleState.PLANNED, IntelligenceCycleState.CLOSED},
+        IntelligenceCycleState.PLANNED: {IntelligenceCycleState.WAITING_GATES, IntelligenceCycleState.CLOSED},
+        IntelligenceCycleState.WAITING_GATES: {IntelligenceCycleState.CLOSED},
+        IntelligenceCycleState.CLOSED: set(),
+    }
+
     def __init__(self, *, min_samples: int = 1, degradation_threshold: float = 0.0, history_limit: int = 100) -> None:
         if min_samples < 1 or history_limit < 1 or degradation_threshold < 0:
             raise ValueError("invalid continuous intelligence policy")
@@ -120,6 +129,7 @@ class ContinuousIntelligenceEvolution:
         self.degradation_threshold = degradation_threshold
         self.history_limit = history_limit
         self._observations: dict[str, IntelligenceObservation] = {}
+        self._observation_archive: dict[str, IntelligenceObservation] = {}
         self._cycles: dict[str, IntelligenceCycle] = {}
         self._triggers: dict[str, IntelligenceTrigger] = {}
         self._plans: dict[str, ContinuousIntelligencePlan] = {}
@@ -133,9 +143,13 @@ class ContinuousIntelligenceEvolution:
         observation.validate()
         if observation.sample_size < self.min_samples:
             raise ValueError("observation sample is below minimum")
-        if observation.observation_id in self._observations:
+        existing = self._observation_archive.get(observation.observation_id)
+        if existing is not None:
+            if existing != observation:
+                raise ValueError("observation identity is immutable")
             raise ValueError("observation already exists")
         self._observations[observation.observation_id] = observation
+        self._observation_archive[observation.observation_id] = observation
         if len(self._observations) > self.history_limit:
             oldest = next(iter(self._observations))
             del self._observations[oldest]
@@ -152,19 +166,30 @@ class ContinuousIntelligenceEvolution:
     def assess(self, cycle_id: str, observation: IntelligenceObservation) -> IntelligenceCycle:
         cycle = self._cycles[cycle_id]
         observation.validate()
+        if cycle.state not in {IntelligenceCycleState.OBSERVED, IntelligenceCycleState.ASSESSED}:
+            raise ValueError("cycle is not accepting observations in its current state")
         if observation.sample_size < self.min_samples:
             raise ValueError("observation sample is below minimum")
         if observation.capability_id != cycle.capability_id:
             raise ValueError("observation targets another capability")
         if observation.baseline_score != cycle.baseline_score:
             raise ValueError("observation baseline differs from cycle baseline")
-        if observation.observation_id not in self._observations:
+
+        existing = self._observation_archive.get(observation.observation_id)
+        if existing is None:
             self.observe(observation)
+        elif existing != observation:
+            raise ValueError("observation identity is immutable")
+
         threshold_floor = cycle.baseline_score - self.degradation_threshold
         degraded = observation.score + 1e-12 < threshold_floor
         state = IntelligenceCycleState.TRIGGERED if degraded else IntelligenceCycleState.ASSESSED
         reason = "continuous intelligence degradation detected" if degraded else "observation remains within baseline tolerance"
-        updated = IntelligenceCycle(cycle.cycle_id, cycle.capability_id, state, cycle.baseline_score, observation.score, cycle.observation_ids + (observation.observation_id,), reason, EvolutionRisk.HIGH if degraded else EvolutionRisk.MEDIUM)
+        updated = IntelligenceCycle(
+            cycle.cycle_id, cycle.capability_id, state, cycle.baseline_score,
+            observation.score, cycle.observation_ids + (observation.observation_id,),
+            reason, EvolutionRisk.HIGH if degraded else EvolutionRisk.MEDIUM,
+        )
         updated.validate()
         self._cycles[cycle_id] = updated
         return updated
@@ -175,7 +200,10 @@ class ContinuousIntelligenceEvolution:
             return None
         if any(t.cycle_id == cycle_id for t in self._triggers.values()):
             raise ValueError("cycle already has a trigger")
-        trigger = IntelligenceTrigger(self._id("CI-TRIGGER-"), cycle.cycle_id, cycle.capability_id, MonitoringStatus.REGRESSED, cycle.trigger_reason, cycle.risk, cycle.observation_ids)
+        trigger = IntelligenceTrigger(
+            self._id("CI-TRIGGER-"), cycle.cycle_id, cycle.capability_id,
+            MonitoringStatus.REGRESSED, cycle.trigger_reason, cycle.risk, cycle.observation_ids,
+        )
         trigger.validate()
         self._triggers[trigger.trigger_id] = trigger
         return trigger
@@ -186,16 +214,44 @@ class ContinuousIntelligenceEvolution:
             raise KeyError("unknown trigger")
         if any(p.source_trigger_id == trigger.trigger_id for p in self._plans.values()):
             raise ValueError("trigger already has a plan")
-        plan = ContinuousIntelligencePlan(self._id("CI-PLAN-"), trigger.trigger_id, trigger.capability_id, actions, trigger.evidence_ids)
+        cycle = self._cycles[trigger.cycle_id]
+        if cycle.state is not IntelligenceCycleState.TRIGGERED:
+            raise ValueError("cycle is not waiting for a plan")
+        plan = ContinuousIntelligencePlan(
+            self._id("CI-PLAN-"), trigger.trigger_id, trigger.capability_id,
+            actions, trigger.evidence_ids,
+        )
         plan.validate()
         self._plans[plan.plan_id] = plan
-        cycle = self._cycles[trigger.cycle_id]
-        self._cycles[trigger.cycle_id] = IntelligenceCycle(cycle.cycle_id, cycle.capability_id, IntelligenceCycleState.WAITING_GATES, cycle.baseline_score, cycle.latest_score, cycle.observation_ids, cycle.trigger_reason, cycle.risk)
+        self._cycles[trigger.cycle_id] = IntelligenceCycle(
+            cycle.cycle_id, cycle.capability_id, IntelligenceCycleState.PLANNED,
+            cycle.baseline_score, cycle.latest_score, cycle.observation_ids,
+            cycle.trigger_reason, cycle.risk,
+        )
         return plan
+
+    def close_cycle(self, cycle_id: str) -> IntelligenceCycle:
+        cycle = self._cycles[cycle_id]
+        if cycle.state is IntelligenceCycleState.CLOSED:
+            raise ValueError("cycle already closed")
+        updated = IntelligenceCycle(
+            cycle.cycle_id, cycle.capability_id, IntelligenceCycleState.CLOSED,
+            cycle.baseline_score, cycle.latest_score, cycle.observation_ids,
+            cycle.trigger_reason, cycle.risk, True,
+        )
+        updated.validate()
+        self._cycles[cycle_id] = updated
+        return updated
+
+    def observation(self, observation_id: str) -> IntelligenceObservation:
+        try:
+            return self._observation_archive[observation_id]
+        except KeyError as exc:
+            raise KeyError("unknown observation") from exc
 
     def digest(self) -> str:
         payload = {
-            "observations": sorted((x.observation_id, x.capability_id, x.score, x.sample_size, x.baseline_score) for x in self._observations.values()),
+            "observations": sorted((x.observation_id, x.capability_id, x.score, x.sample_size, x.baseline_score) for x in self._observation_archive.values()),
             "cycles": sorted((x.cycle_id, x.capability_id, x.state.value, x.baseline_score, x.latest_score, x.observation_ids) for x in self._cycles.values()),
             "triggers": sorted((x.trigger_id, x.cycle_id, x.status.value, x.evidence_ids) for x in self._triggers.values()),
             "plans": sorted((x.plan_id, x.source_trigger_id, x.actions, x.evidence_ids) for x in self._plans.values()),
