@@ -1,0 +1,26 @@
+name: Lumen Windows Validation
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile
+        run: python -m compileall -q app tests
+      - name: Tests
+        run: python -m pytest -q
+      - name: F27 physical gate policy
+        shell: pwsh
+        run: |
+          python -c "from app.computer_control.windows_driver import WindowsComputerControlDriver; print('F27 native driver import: PASS')"
+          Write-Host "F27 physical desktop smoke: NOT_EXECUTED (hosted CI is not accepted as physical evidence)"
