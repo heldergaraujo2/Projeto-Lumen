@@ -2,7 +2,7 @@
 
 **Atualização:** 2026-09-27  
 **Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
-**Estado:** 🟩 F0–F23 concluídas; F24 é a próxima fase planejada.
+**Estado:** 🟩 F0–F24 concluídas; F25 é a próxima fase planejada.
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
@@ -13,7 +13,7 @@
 - **F21:** corrigida avaliação dirigida por requisitos; FAILOVER e LOCAL_AVAILABILITY agora possuem semântica explícita; validada na suíte completa.
 - **F22:** corrigidas identidade imutável de observações, ciclo de vida, retenção de evidências e fechamento explícito; validada na suíte completa.
 - **F23:** concluída como **Runtime Integration & State Machine Hardening**. Suíte completa: **1342 passed / 1 skipped / 0 failed**; F0 Validation e F23 Validation verdes. O detector de ambiente permanece fail-closed e não prova validação física.
-- **Próximo passo:** iniciar F24 somente após revisão normal do estado atual.
+- **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.\n- **Próximo passo:** F25 — Provider Runtime Independence.
 
 ## Regra de continuidade
 
