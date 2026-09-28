@@ -44,3 +44,4 @@ A fase só será marcada como concluída após:
 - CI verde;
 - evidência registrada no roadmap canônico;
 - nenhuma inferência de validação física a partir de CI.
+\n\n## Evidência final\n\nF23 validada em 2026-09-28: suíte completa **1342 passed / 1 skipped / 0 failed**, Compile verde, F0 Validation verde e F23 Validation verde.\n
