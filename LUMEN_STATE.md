@@ -1,8 +1,8 @@
 # LUMEN — ESTADO OFICIAL ATUAL
 
-**Atualização:** 2026-09-27  
+**Atualização:** 2026-09-28  
 **Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
-**Estado:** 🟩 F0–F26 concluídas; F27 é a próxima fase planejada.
+**Estado:** 🟨 F0–F26 concluídas; F27 implementação concluída e validação física Windows aguardando evidência externa.
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
@@ -17,6 +17,41 @@
 - **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
 - **Próximo passo:** F27 — Real Windows Computer Validation.
+
+# F27 — REAL WINDOWS COMPUTER VALIDATION — CURRENT OFFICIAL STATUS
+
+🟨 IMPLEMENTAÇÃO CONCLUÍDA / GATE FÍSICO EXTERNO PENDENTE
+
+Entregas:
+- driver nativo real em app/computer_control/windows_driver.py;
+- mouse, teclado, foco de janela e screenshot no Windows;
+- driver desarmado por padrão;
+- testes fail-closed em tests/test_f27_windows_driver.py;
+- smoke runner explícito em scripts/f27_windows_smoke.py;
+- CI Windows em .github/workflows/windows-validation.yml;
+- exportação do driver no pacote app.computer_control;
+- documentação em docs/F27_REAL_WINDOWS_VALIDATION.md.
+
+Invariantes:
+- o driver não concede Permission;
+- o driver não altera Policy, Scope ou Checkpoint;
+- input físico exige arming explícito;
+- CI Windows não é aceita como prova de desktop físico;
+- screenshot é evidência por referência, não conteúdo de auditoria.
+
+Validação automatizada prevista:
+- compileall;
+- suíte pytest completa em Ubuntu;
+- suíte pytest completa em Windows;
+- import do driver nativo no Windows;
+- testes negativos de driver desarmado e execução fora do Windows.
+
+Gate restante:
+- execução real na sessão interativa Windows do usuário com LUMEN_F27_PHYSICAL_CONFIRM=YES;
+- evidência de screenshot, movimento de mouse e digitação;
+- sem clique, fechamento de janela, exclusão, lançamento de processo ou concessão de permissão.
+
+Até essa evidência existir, F27 não deve ser marcada como 🟩 para não transformar disponibilidade de Windows em falsa validação física.
 
 ## Regra de continuidade
 
