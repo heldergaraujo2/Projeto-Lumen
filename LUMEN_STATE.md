@@ -18,6 +18,23 @@
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
 - **Próximo passo:** F30 — Unreal Real Integration.
 
+# F29 — REAL AUTONOMOUS COMPUTER AGENT — CURRENT OFFICIAL STATUS
+
+🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FÍSICA EXTERNA PENDENTE
+
+Entregas:
+- VisionComputerAgent em app/computer_control/autonomous_agent.py;
+- Goal → Plan → Observe → Target → Action → Verify → Recover → Replan;
+- budgets bounded de ciclos, replans e recoveries;
+- execução somente pelo ComputerControlService;
+- checkpoint obrigatório pausa o loop antes da ação física;
+- testes dedicados em tests/test_f29_autonomous_computer_agent.py;
+- documentação em docs/F29_REAL_AUTONOMOUS_COMPUTER_AGENT.md.
+
+Gate restante:
+- validar em Windows interativo uma tarefa benigna com provider multimodal real e evidência de ação + verificação;
+- nenhum PASS físico é inferido da CI.
+
 # F28 — REAL VISION + GROUNDING — CURRENT OFFICIAL STATUS
 
 🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL DO PROVIDER PENDENTE
