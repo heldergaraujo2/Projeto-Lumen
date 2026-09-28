@@ -181,7 +181,7 @@ class ToolCallingBridge:
             "dentro das fontes. Não invente fatos ausentes nas evidências. Se houver "
             "conflito ou informação insuficiente, diga isso claramente. Seja objetivo "
             "e responda em português.\n\n"
-            f"Pedido do usuário:\n{request or ""}\n\n"
+            f"Pedido do usuário:\n{request or ''}\n\n",
             f"Evidências:\n{evidence_text}"
         )
         try:
