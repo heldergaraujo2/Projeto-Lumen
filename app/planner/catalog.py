@@ -3,7 +3,7 @@
 Este módulo é **dados + validação de protocolo**, nada mais:
 
 - descreve, em formato declarativo, as ferramentas **já existentes** na
-  arquitetura (6 de filesystem + ``run_command``) que o Planner pode
+  arquitetura (6 de filesystem + ``run_command`` + ferramentas Web) que o Planner pode
   referenciar em tarefas estruturadas (``tool``/``parameters``);
 - valida a saída do provedor (nomes/parâmetros/tipos) **antes** de o
   plano existir de fato — uma saída inválida vira falha controlada no
@@ -45,7 +45,7 @@ class ToolSpec:
     description: str
     parameters: tuple[ParameterSpec, ...]
     terminal: bool = False
-    web: bool = False   # run_command: exige terminal habilitado
+    web: bool = False    # ferramenta Web: exige WEB_ACCESS
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -62,7 +62,7 @@ def _fs(name: str, description: str) -> ToolSpec:
     )
 
 
-#: Allowlist completa (10 ferramentas já existentes — nada novo foi criado).
+#: Allowlist completa de ferramentas de filesystem, terminal e Web.
 TOOL_SPECS: tuple[ToolSpec, ...] = (
     _fs("list_directory", "Lista arquivos e subdiretórios de um diretório."),
     _fs("read_file", "Lê o conteúdo de um arquivo de texto (UTF-8)."),
