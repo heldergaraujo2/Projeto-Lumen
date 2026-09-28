@@ -16,7 +16,36 @@
 - **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.
 - **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
-- **Próximo passo:** F30 — Unreal Real Integration.
+- **Próximo passo:** F32 — Closed-Loop Lumen Evolution.
+
+# F31 — EXPERIENCE & WORKFLOW INTELLIGENCE — CURRENT OFFICIAL STATUS
+
+🟩 IMPLEMENTAÇÃO CONCLUÍDA
+
+Entregas:
+- ExperienceTrace/Event e armazenamento persistente bounded;
+- compreensão determinística da sequência observada;
+- generalização de experiências somente quando todos os eventos são sucesso + verificados;
+- abstração de parâmetros divergentes em variáveis declaradas;
+- PersistentWorkflowRegistry para persistir workflows e evidências;
+- reuse somente após evidência de sucesso verificada;
+- adaptação estritamente limitada às variáveis declaradas;
+- redaction de segredos antes da persistência;
+- integração com WorkflowLearner/Matcher F10 e Learning Runtime F26;
+- testes dedicados em tests/test_experience_workflow_intelligence.py;
+- documentação em docs/F31_EXPERIENCE_WORKFLOW_INTELLIGENCE.md.
+
+Segurança:
+- não executa driver, browser, processo, ferramenta ou workflow;
+- não concede Permission;
+- não altera Policy, Scope, Sandbox, Checkpoint ou Audit;
+- high-risk continua exigindo Human Approval;
+- nenhum screenshot ou conteúdo sensível é persistido.
+
+Validação:
+- implementação e testes adicionados ao PR F31;
+- CI do repositório deve fornecer a evidência automatizada final;
+- validação física Windows/Unreal continua separada e não é inferida.
 
 # F30 — UNREAL REAL INTEGRATION — CURRENT OFFICIAL STATUS
 
