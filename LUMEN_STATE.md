@@ -2,7 +2,7 @@
 
 **Atualização:** 2026-09-28  
 **Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
-**Estado:** 🟨 F0–F26 concluídas; F27 implementação concluída e validação física Windows aguardando evidência externa; F28 implementação concluída e validação real do provider multimodal aguardando evidência externa; F29 implementação concluída e validação física/autônoma externa aguardando evidência.
+**Estado:** 🟩 F0–F32 com implementação concluída e validação automatizada concluída. 🟨 F27–F30 ainda aguardam validações físicas/externas específicas (Windows, provider multimodal e Unreal). F31–F32 possuem implementação, integração, segurança, persistência e validação automatizada registradas; nenhuma validação física é inferida da CI.
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
