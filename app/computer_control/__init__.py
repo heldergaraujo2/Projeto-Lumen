@@ -5,6 +5,7 @@ from .grounding import GroundedTarget,GroundingEngine,GroundingSource,TargetReso
 from .recovery import RecoveryEngine
 from .scopes import CCLimits,CCScope
 from .service import CCExecutionResult,ComputerControlService
+from .windows_driver import WindowsComputerControlDriver,WindowsComputerControlError
 from .verification import ComputerVerifier,VerificationResult,VerificationStatus
 from .vision import JsonVisionProvider,OllamaVisionProvider,VisionElement,VisionObservation,VisionProvider,VisionProviderManager,VisionRequest
-__all__=["CCActionType","CCTarget","ScreenRegion","ScreenshotInfo","WindowInfo","CCActionRequest","GroundedTarget","GroundingEngine","GroundingSource","TargetResolver","RecoveryEngine","CCLimits","CCScope","CCExecutionResult","ComputerControlService","ComputerVerifier","VerificationResult","VerificationStatus","JsonVisionProvider","OllamaVisionProvider","VisionElement","VisionObservation","VisionProvider","VisionProviderManager","VisionRequest"]
+__all__=["CCActionType","CCTarget","ScreenRegion","ScreenshotInfo","WindowInfo","CCActionRequest","GroundedTarget","GroundingEngine","GroundingSource","TargetResolver","RecoveryEngine","CCLimits","CCScope","CCExecutionResult","ComputerControlService","WindowsComputerControlDriver","WindowsComputerControlError","ComputerVerifier","VerificationResult","VerificationStatus","JsonVisionProvider","OllamaVisionProvider","VisionElement","VisionObservation","VisionProvider","VisionProviderManager","VisionRequest"]
