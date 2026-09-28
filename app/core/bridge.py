@@ -197,7 +197,7 @@ class ToolCallingBridge:
             )
             answer = (getattr(response, "content", "") or "").strip()
         except Exception:
-            logger.exception("Falha ao sintetizar pesquisa Web do plano %s.", plan_id)
+            logger.exception("Falha ao sintetizar pesquisa Web do plano %s.", plan.id)
             answer = ""
         if not answer:
             answer = (
