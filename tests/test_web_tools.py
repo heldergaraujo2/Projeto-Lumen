@@ -37,13 +37,15 @@ class FakeFetch:
 
 
 class FakeResponse:
-    def __init__(self, url, body=b"", content_type="text/plain", charset="utf-8"):
+    def __init__(self, url, body=b"", content_type="text/plain", charset="utf-8", content_encoding=None):
         self._url = url
         self._body = body
         self.headers = Message()
         self.headers["Content-Type"] = (
             f"{content_type}; charset={charset}" if charset else content_type
         )
+        if content_encoding:
+            self.headers["Content-Encoding"] = content_encoding
 
     def __enter__(self):
         return self
@@ -404,6 +406,45 @@ def test_safe_http_client_rejects_redirect_without_location():
 
     with pytest.raises(WebProviderError, match="sem Location"):
         client.get("https://1.1.1.1/start")
+
+
+def test_safe_http_client_decodes_gzip_response_within_limit():
+    import gzip
+
+    body = gzip.compress(b"<html>gzip content</html>")
+    client, _ = _client(
+        FakeResponse(
+            "https://1.1.1.1/page",
+            body,
+            content_type="text/html",
+            content_encoding="gzip",
+        )
+    )
+
+    result = client.get("https://1.1.1.1/page")
+
+    assert result.body == b"<html>gzip content</html>"
+    assert result.truncated is False
+
+
+def test_duckduckgo_lite_normalizes_markdown_result_urls():
+    from app.web.provider import DuckDuckGoSearchProvider
+
+    html = """
+    <a href="[https://example.com/](https://example.com/)" class="result-link">Example</a>
+    """
+    provider = DuckDuckGoSearchProvider(
+        policy=WebSecurityPolicy(),
+        client=FakeSearchClient(html),
+    )
+
+    result = provider.search(
+        __import__("app.web.provider", fromlist=["WebSearchRequest"]).WebSearchRequest(
+            "teste", 5
+        )
+    )
+
+    assert result.sources[0].url == "https://example.com/"
 
 
 def test_safe_http_client_truncates_response_at_max_bytes():
