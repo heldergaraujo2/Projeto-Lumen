@@ -40,3 +40,7 @@ authorized=True e pode aplicar um hook adicional por provider.
 CI Linux valida o contrato e o runtime determinístico. Uma chamada real ao
 daemon Ollama/Windows só pode ser declarada como validação física quando
 executada nesse ambiente.
+
+
+## CI
+A validação automatizada desta fase é executada pelo workflow de testes no pull request de integração.
