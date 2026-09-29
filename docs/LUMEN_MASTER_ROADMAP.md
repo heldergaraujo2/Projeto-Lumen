@@ -19,8 +19,8 @@
 | F24 | Evolution Runtime Orchestrator | 🟩 CONCLUÍDA |
 | F25 | Provider Runtime Independence | 🟩 CONCLUÍDA |
 | F26 | Learning Runtime & Continuous Knowledge | 🟩 CONCLUÍDA |
-| F27 | Real Windows Computer Validation | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — GATE FÍSICO EXTERNO PENDENTE |
-| F28 | Real Vision + Grounding | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO PROVIDER PENDENTE |
+| F27 | Real Windows Computer Validation | 🟩 VALIDADA EM MÁQUINA REAL |
+| F28 | Real Vision + Grounding | 🟩 VALIDADA EM MÁQUINA REAL |
 | F29 | Real Autonomous Computer Agent | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO FÍSICA EXTERNA PENDENTE |
 | F30 | Unreal Real Integration | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO UNREAL PENDENTE |
 | F31 | Experience & Workflow Intelligence | 🟩 CONCLUÍDA — implementação, integração, segurança, persistência e testes |
@@ -172,7 +172,7 @@ Arquitetura: Ollama continua sendo provider local; o aprendizado pertence à Lum
 
 Validação física não se aplica ao núcleo persistente. A integração real com Windows/Computer Control permanece na F27.
 
-## 5.2 F27 — REAL WINDOWS COMPUTER VALIDATION — 🟨 IMPLEMENTAÇÃO CONCLUÍDA / GATE FÍSICO EXTERNO PENDENTE
+## 5.2 F27 — REAL WINDOWS COMPUTER VALIDATION — 🟩 VALIDADA EM MÁQUINA REAL
 
 Entregas:
 - driver nativo em app/computer_control/windows_driver.py;
@@ -192,12 +192,14 @@ Critérios:
 - REGRESSION: suíte existente deve permanecer verde;
 - CI: Windows deve executar compileall + pytest.
 
-Limite de evidência:
-- hosted Windows CI valida o ambiente automatizado, mas não prova a sessão física interativa do usuário;
-- F27 só pode virar 🟩 depois de evidência real de screenshot, movimento de mouse e teclado na máquina Windows alvo;
-- nenhuma capacidade física é inferida apenas de sys.platform == win32.
+Evidência real:
+- screenshot real: PASS (3840x1125);
+- movimento real do mouse: PASS;
+- digitação real de marcador: PASS;
+- entrada física só foi armada explicitamente durante o smoke e o teste não executou clique destrutivo.
+- evidência detalhada registrada no fluxo de validação F27.
 
-## 5.3 F28 — REAL VISION + GROUNDING — 🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL DO PROVIDER PENDENTE
+## 5.3 F28 — REAL VISION + GROUNDING — 🟩 VALIDADA EM MÁQUINA REAL
 
 Entregas:
 - `VisionGroundingPipeline`;
@@ -208,10 +210,16 @@ Entregas:
 - nenhuma execução física pela pipeline;
 - testes dedicados e documentação.
 
-Critério externo:
-- screenshot benigno processado por provider multimodal real;
-- evidência de elementos e target grounded;
-- nenhuma ação física é necessária para o gate de F28.
+Evidência real:
+- screenshot real: PASS (3840x1125);
+- provider real local: `ollama:qwen3-vl:2b-instruct`;
+- elementos retornados: 1;
+- target grounded: PASS (`PowerShell`, confidence=0.990);
+- entrada física: DISARMED;
+- testes automatizados do provider: 17 passed;
+- testes automatizados de grounding: 5 passed;
+- regressão integrada Computer Control + Vision: 50 passed.
+
 
 ## 5.2 F25 — PROVIDER RUNTIME INDEPENDENCE — 🟩 CONCLUÍDA
 
