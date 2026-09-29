@@ -1,6 +1,7 @@
 """F30 — Convert Unreal Slate Inspector snapshots into safe grounded UI targets."""
 from __future__ import annotations
 
+import json
 import re
 from typing import Any, Iterable
 
@@ -30,6 +31,15 @@ def _clean_label(value: str) -> str:
 def _text_items(value: Any) -> Iterable[str]:
     if isinstance(value, str):
         yield value
+        # Unreal MCP wraps the Slate tree as JSON inside the text content.
+        stripped = value.strip()
+        if stripped.startswith("{") or stripped.startswith("["):
+            try:
+                decoded = json.loads(stripped)
+            except json.JSONDecodeError:
+                decoded = None
+            if decoded is not None:
+                yield from _text_items(decoded)
     elif isinstance(value, dict):
         for key in ("text", "returnValue", "result"):
             if key in value:
