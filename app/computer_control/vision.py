@@ -279,16 +279,40 @@ class OllamaVisionProvider(JsonVisionProvider):
             raise RuntimeError("vision provider returned invalid response JSON") from exc
         if not isinstance(data, dict) or not isinstance(data.get("response"), str):
             raise RuntimeError("Ollama response missing response")
-        observation = self.parse(
-            data["response"],
-            width=vision_width,
-            height=vision_height,
-        )
         if (vision_width, vision_height) == (width, height):
+            return self.parse(
+                data["response"],
+                width=width,
+                height=height,
+            )
+
+        payload_text = data["response"]
+        try:
+            observation = self.parse(
+                payload_text,
+                width=vision_width,
+                height=vision_height,
+            )
+            source_width, source_height = vision_width, vision_height
+        except ValueError as scaled_error:
+            # Some multimodal models preserve the original screenshot coordinate
+            # system after input resizing. Accept it only when every reported
+            # element is valid against the known original capture dimensions.
+            try:
+                observation = self.parse(
+                    payload_text,
+                    width=width,
+                    height=height,
+                )
+                source_width, source_height = width, height
+            except ValueError:
+                raise scaled_error
+
+        if (source_width, source_height) == (width, height):
             return observation
 
-        scale_x = width / vision_width
-        scale_y = height / vision_height
+        scale_x = width / source_width
+        scale_y = height / source_height
         elements = []
         for element in observation.elements:
             x1 = round(element.x * scale_x)
