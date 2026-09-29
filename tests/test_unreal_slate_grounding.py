@@ -49,7 +49,7 @@ def test_slate_real_mcp_geometry_without_parentheses_and_virtual_desktop_origin(
     result = {
         "content": [{
             "type": "text",
-            "text": '{"returnValue":"button \\"Gaveta de Conteúdo\" [pos=-1917,1047 size=151,28] [ref=b16]"}'
+            "text": '{"returnValue":"button \"Gaveta de Conteúdo\" [pos=-1917,1047 size=151,28] [ref=b16]"}'
         }]
     }
     targets = SlateGroundingAdapter().targets_from_snapshot(result)
