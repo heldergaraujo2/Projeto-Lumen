@@ -250,3 +250,66 @@ def test_windows_uia_walk_skips_invalid_sibling_com_pointer():
 
     elements = backend._walk(root, window, max_depth=2, max_elements=8)
     assert [e.name for e in elements] == ["Root", "Play"]
+
+
+def test_windows_uia_walk_treats_null_com_pointer_as_absent():
+    from app.computer.windows_uia import WindowsUIABackend
+
+    class FakePointer:
+        def __bool__(self):
+            return False
+        def __repr__(self):
+            return "<POINTER(IUIAutomationElement) ptr=0x0>"
+
+    import types
+    class FakeAdapter:
+        def element_info(self, element):
+            raise AssertionError("null COM pointer must never reach element_info")
+
+    class FakeWalker:
+        def GetFirstChildElement(self, element):
+            return FakePointer()
+        def GetNextSiblingElement(self, element):
+            raise AssertionError("null COM pointer must not request next sibling")
+
+    backend = object.__new__(WindowsUIABackend)
+    backend._adapter = FakeAdapter()
+    backend._adapter._uia = types.SimpleNamespace(ControlViewWalker=FakeWalker())
+    window = NativeWindow(1, "Unreal Editor", None, 42, "UnrealEditor.exe")
+
+    assert backend._walk(object(), window, max_depth=2, max_elements=8) == ()
+
+
+def test_windows_uia_descendants_rejects_null_root_pointer():
+    from app.computer.windows_uia import WindowsUIABackend
+
+    class FakePointer:
+        def __bool__(self):
+            return False
+
+    class FakeUIAutomation:
+        def CreatePropertyCondition(self, prop, value):
+            return object()
+
+    class FakeRoot:
+        def FindFirst(self, scope, condition):
+            return FakePointer()
+
+    class FakeAdapter:
+        _uia = FakeUIAutomation()
+        def root(self):
+            return FakeRoot()
+
+    import sys, types
+    fake_client = types.SimpleNamespace(
+        UIA_NativeWindowHandlePropertyId=7,
+        TreeScope_Descendants=32,
+    )
+    monkeypatch = None
+    sys.modules.setdefault("comtypes.gen", types.SimpleNamespace(UIAutomationClient=fake_client))
+
+    backend = object.__new__(WindowsUIABackend)
+    backend._adapter = FakeAdapter()
+    window = NativeWindow(1, "Unreal Editor", None, 42, "UnrealEditor.exe")
+
+    assert backend.descendants(window) == ()
