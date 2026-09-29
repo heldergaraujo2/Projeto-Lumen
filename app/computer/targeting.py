@@ -69,15 +69,19 @@ class TargetingEngine:
             )
 
         mechanism = (
-            ExecutionMechanism.NATIVE
-            if target.source
-            in {
-                GroundingSource.UI_AUTOMATION,
-                GroundingSource.ACCESSIBILITY,
-                GroundingSource.NATIVE,
-                GroundingSource.DOM,
-            }
-            else ExecutionMechanism.COMPUTER_CONTROL
+            ExecutionMechanism.COMPUTER_CONTROL
+            if target.source is GroundingSource.SLATE
+            else (
+                ExecutionMechanism.NATIVE
+                if target.source
+                in {
+                    GroundingSource.UI_AUTOMATION,
+                    GroundingSource.ACCESSIBILITY,
+                    GroundingSource.NATIVE,
+                    GroundingSource.DOM,
+                }
+                else ExecutionMechanism.COMPUTER_CONTROL
+            )
         )
         return TargetResolution(
             label.strip(),
