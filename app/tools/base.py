@@ -11,8 +11,9 @@ correspondente não tenha sido concedida. Ferramentas devem:
 3. ser registradas em um :class:`ToolRegistry` construído com o
    :class:`~app.security.permissions.PermissionManager`.
 
-Nada aqui executa comandos, controla mouse/teclado ou acessa a rede —
-essas capacidades continuam inexistentes.
+Nada aqui concede permissões: a execução continua subordinada ao
+PermissionManager. Ferramentas externas, como a inspeção Unreal via MCP,
+declaram sua permissão e continuam sujeitas ao porteiro do registry.
 """
 from __future__ import annotations
 
