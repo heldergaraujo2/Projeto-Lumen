@@ -14,9 +14,8 @@ def test_slate_text_snapshot_becomes_grounded_target():
     }
     window = CCTarget(window_title_pattern="AgeOfAether", window_handle=42)
     targets = SlateGroundingAdapter().targets_from_snapshot(result, window=window)
-    assert len(targets) == 1
-    target = targets[0]
-    assert target.label == "Gaveta de Conteúdo"
+    assert len(targets) == 2
+    target = next(t for t in targets if t.label == "Gaveta de Conteúdo")
     assert target.source is GroundingSource.SLATE
     assert target.center() == (243, 472)
     assert target.window == window
