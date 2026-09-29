@@ -60,3 +60,16 @@ def test_slate_real_mcp_geometry_without_parentheses_and_virtual_desktop_origin(
     assert target.width == 151
     assert target.height == 28
     assert target.evidence == "slate_ref=b16"
+
+
+def test_slate_negative_virtual_desktop_y_is_normalized():
+    result = {
+        "content": [{
+            "type": "text",
+            "text": '{"returnValue":"window \\\"Unreal\\\" [pos=-10,-50 size=1920,1080] [ref=w1]\\nbutton \\\"Play\\\" [pos=20,-20 size=80,30] [ref=b1]"}'
+        }]
+    }
+    targets = SlateGroundingAdapter().targets_from_snapshot(result)
+    target = next(t for t in targets if t.label == "Play")
+    assert target.x == 30
+    assert target.y == 30
