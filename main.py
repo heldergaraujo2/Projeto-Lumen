@@ -27,6 +27,8 @@ from app.memory.system import MemorySystem
 from app.security.permissions import PermissionManager
 from app.tasks.manager import TaskManager
 from app.tools.control import ToolsController
+from app.unreal.integration import UnrealIntegration
+from app.unreal.mcp import UnrealMCPClient
 
 LOGGER = logging.getLogger("lumen")
 
@@ -128,6 +130,7 @@ def main() -> int:
         # 0.5.x: camada de controle de ferramentas (workspaces/permissões/
         # checkpoints/auditoria) — construída sem efeitos colaterais (nenhum
         # arquivo nasce, nenhuma permissão é concedida no startup).
+        unreal = UnrealIntegration(mcp=UnrealMCPClient())
         tools_controller = ToolsController(
             agent.permissions or PermissionManager(),
             workspaces_file=settings.data_dir / "workspaces.json",
@@ -145,6 +148,7 @@ def main() -> int:
             # sanitizado; nunca concede permissão (spec 11I).
             export_execution_reports=settings.export_execution_reports,
             reports_dir=settings.data_dir / "reports",
+            unreal=unreal,
         )
         # 0.6.3: liga o chat à fachada de ferramentas (tool calling via
         # Planner com allowlist). Sem concessões: a autoridade segue no
