@@ -54,8 +54,8 @@ def test_initialize_captures_session_and_uses_mcp_headers():
     assert response.result["protocolVersion"] == "2025-06-18"
     assert client.session_id == "abc"
     request = opener.requests[0][0]
-    assert request.get_header("Mcp-session-id") is None
-    assert request.headers["Mcp-session-id"] == "abc" if "Mcp-session-id" in request.headers else True
+    assert request.headers.get("Mcp-session-id") is None
+    assert request.headers.get("Mcp-Protocol-Version") == "2025-06-18"
 
 
 def test_second_request_reuses_session_id():
@@ -67,7 +67,7 @@ def test_second_request_reuses_session_id():
     client.initialize()
     client.list_tools()
     request = opener.requests[1][0]
-    assert request.headers["Mcp-session-id"] == "abc"
+    assert request.headers.get("Mcp-session-id") == "abc"
 
 
 def test_sse_response_is_parsed():
@@ -113,5 +113,5 @@ def test_call_toolset_tool_uses_unprefixed_tool_name():
     request = opener.requests[0][0]
     payload = json.loads(request.data.decode())
     assert payload["params"]["name"] == "call_tool"
-    assert payload["params"]["arguments"]["tool_name"] == "call_tool"
-    assert payload["params"]["arguments"]["arguments"]["tool_name"] == "Snapshot"
+    assert payload["params"]["arguments"]["tool_name"] == "Snapshot"
+    assert payload["params"]["arguments"]["toolset_name"] == "SlateInspectorToolset.SlateInspectorToolset"
