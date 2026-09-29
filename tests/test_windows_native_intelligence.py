@@ -147,7 +147,6 @@ def test_windows_uia_walk_skips_null_com_element(monkeypatch):
 
     valid = FakeElement()
     invalid = FakeElement()
-    child = FakeElement()
 
     class FakeAdapter:
         def element_info(self, element):
@@ -277,7 +276,7 @@ def test_windows_uia_walk_treats_null_com_pointer_as_absent():
     backend._adapter._uia = types.SimpleNamespace(ControlViewWalker=FakeWalker())
     window = NativeWindow(1, "Unreal Editor", None, 42, "UnrealEditor.exe")
 
-    assert backend._walk(object(), window, max_depth=2, max_elements=8) == ()
+    assert backend._walk(FakePointer(), window, max_depth=2, max_elements=8) == ()
 
 
 def test_windows_uia_descendants_rejects_null_root_pointer():
