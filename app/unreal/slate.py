@@ -26,6 +26,7 @@ def _clean_label(value: str) -> str:
     if match:
         value = match.group("label")[1:-1]
     value = re.sub(r"^\s*(?:button|textbox|tab|menu|combobox|checkbox|window|image|panel|slider|list|tree|toolbar)\s+", "", value, flags=re.I)
+    value = value.strip(' "\\')
     return value.strip()
 
 def _text_items(value: Any) -> Iterable[str]:
