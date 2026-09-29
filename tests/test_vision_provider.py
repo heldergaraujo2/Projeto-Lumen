@@ -168,6 +168,9 @@ def test_ollama_provider_downscales_large_images_and_remaps_coordinates(tmp_path
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
     result = provider.observe(VisionRequest(path, "inspect"))
 
+    assert captured["payload"]["options"]["temperature"] == 0
+    assert captured["payload"]["options"]["num_predict"] == 512
+
     sent = base64.b64decode(captured["payload"]["images"][0])
     sent_path = tmp_path / "sent.png"
     sent_path.write_bytes(sent)
