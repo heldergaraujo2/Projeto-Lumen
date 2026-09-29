@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol
 from app.computer_control.api import CCTarget
 from app.computer.windows_native import NativeElement, NativeWindow, WindowsNativeIntelligence
+from .mcp import MCPResponse, UnrealMCPClient
 
 @dataclass(frozen=True)
 class UnrealProject:
@@ -84,12 +85,29 @@ class UnrealIntegration:
         "play": ("play",),
         "stop": ("stop",),
     }
-    def __init__(self, *, discovery: UnrealDiscovery | None = None, native: WindowsNativeIntelligence | None = None):
+    def __init__(self, *, discovery: UnrealDiscovery | None = None, native: WindowsNativeIntelligence | None = None, mcp: UnrealMCPClient | None = None):
         self.discovery = discovery or UnrealDiscovery()
         self.native = native
+        self.mcp = mcp
 
     def discover_project(self, root: str | Path) -> UnrealProject:
         return self.discovery.discover(root)
+
+    def mcp_snapshot(self, *, ref: str = "", max_depth: int = 30, include_source_locations: bool = False) -> MCPResponse:
+        """Read the real Unreal Slate tree through MCP; never performs UI input."""
+        if self.mcp is None:
+            raise RuntimeError("Unreal MCP client is required for Slate snapshot")
+        if max_depth < 0:
+            raise ValueError("max_depth must be non-negative")
+        return self.mcp.call_toolset_tool(
+            "SlateInspectorToolset.SlateInspectorToolset",
+            "Snapshot",
+            {
+                "ref": ref,
+                "maxDepth": max_depth,
+                "bIncludeSourceLocations": include_source_locations,
+            },
+        )
 
     def find_editor(self, project: UnrealProject, *, native: WindowsNativeIntelligence | None = None) -> NativeWindow | None:
         backend = native or self.native
