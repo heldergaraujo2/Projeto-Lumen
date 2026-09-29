@@ -31,7 +31,11 @@ class WindowsUIABackend:
         from collections import deque
         out=[];queue=deque([(root,0)]);walker=self._adapter._uia.ControlViewWalker
         while queue and len(out)<max_elements:
-            element,depth=queue.popleft();info=self._adapter.element_info(element)
+            element,depth=queue.popleft()
+            try:
+                info=self._adapter.element_info(element)
+            except ValueError:
+                continue
             out.append(NativeElement(info.name,info.control_type,info.bounds,info.automation_id,info.class_name,info.enabled,window.target(),element))
             if depth>=max_depth: continue
             child=walker.GetFirstChildElement(element)
