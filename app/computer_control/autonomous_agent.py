@@ -73,6 +73,14 @@ class ComputerPlan:
     target_label: str | None = None
 
 
+@dataclass(frozen=True)
+class _PendingApproval:
+    goal: str
+    target_label: str
+    scope_id: str
+    plan: ComputerPlan
+
+
 class ComputerAgentPlanner(Protocol):
     def plan(
         self,
@@ -110,6 +118,7 @@ class VisionComputerAgent:
         self.verifier = verifier
         self.limits = limits or ComputerAgentLimits()
         self.limits.validate()
+        self._pending_approvals: dict[str, _PendingApproval] = {}
 
     def run(
         self,
@@ -130,45 +139,88 @@ class VisionComputerAgent:
         replans = 0
         recoveries = 0
         previous_reason = ""
+        pending_plan: ComputerPlan | None = None
+        resume_checkpoint_id = approved_checkpoint_id
+
+        if approved_checkpoint_id is not None:
+            pending = self._pending_approvals.pop(approved_checkpoint_id, None)
+            if pending is None:
+                return ComputerAgentRun(
+                    goal, ComputerAgentState.FAILED, tuple(steps), 0, replans, recoveries
+                )
+            if pending.goal != goal or pending.target_label != target_label or pending.scope_id != scope.scope_id:
+                return ComputerAgentRun(
+                    goal, ComputerAgentState.FAILED, tuple(steps), 0, replans, recoveries
+                )
+            pending_plan = pending.plan
 
         for cycle in range(1, self.limits.max_cycles + 1):
-            observation = self.vision.observe_and_resolve(
-                screenshot_request,
-                label=target_label,
-                scope_region=scope_region,
-                expected_window=expected_window,
-            )
-            steps.append(ComputerAgentStep(cycle, ComputerAgentState.OBSERVE, reason=observation.reason))
-            if observation.target is None:
-                if replans >= self.limits.max_replans:
-                    return ComputerAgentRun(goal, ComputerAgentState.FAILED, tuple(steps), cycle, replans, recoveries)
-                replans += 1
-                previous_reason = observation.reason
-                steps.append(ComputerAgentStep(cycle, ComputerAgentState.REPLAN, reason=previous_reason))
-                continue
-
-            plan = self.planner.plan(goal=goal, observation=observation, previous_reason=previous_reason)
-            plan.action.validate()
-            plan.expectation.validate()
-            steps.append(ComputerAgentStep(cycle, ComputerAgentState.PLAN, plan.action, "plan_ready"))
-            if plan.action.target is None and plan.target_label:
-                target = observation.target
-                plan = ComputerPlan(
-                    CCActionRequest(
-                        action=plan.action.action, x=plan.action.x, y=plan.action.y,
-                        target=target, text=plan.action.text, keys=plan.action.keys,
-                        delta=plan.action.delta, region=plan.action.region, metadata=plan.action.metadata
-                    ),
-                    plan.expectation, plan.target_label,
+            if pending_plan is not None:
+                plan = pending_plan
+                pending_plan = None
+                steps.append(
+                    ComputerAgentStep(
+                        cycle,
+                        ComputerAgentState.PLAN,
+                        plan.action,
+                        "checkpoint_resume",
+                    )
                 )
-            steps.append(ComputerAgentStep(cycle, ComputerAgentState.TARGET, plan.action, "target_grounded"))
+                plan.action.validate()
+                plan.expectation.validate()
+                steps.append(
+                    ComputerAgentStep(
+                        cycle,
+                        ComputerAgentState.TARGET,
+                        plan.action,
+                        "checkpoint_target_reused",
+                    )
+                )
+            else:
+                observation = self.vision.observe_and_resolve(
+                    screenshot_request,
+                    label=target_label,
+                    scope_region=scope_region,
+                    expected_window=expected_window,
+                )
+                steps.append(ComputerAgentStep(cycle, ComputerAgentState.OBSERVE, reason=observation.reason))
+                if observation.target is None:
+                    if replans >= self.limits.max_replans:
+                        return ComputerAgentRun(goal, ComputerAgentState.FAILED, tuple(steps), cycle, replans, recoveries)
+                    replans += 1
+                    previous_reason = observation.reason
+                    steps.append(ComputerAgentStep(cycle, ComputerAgentState.REPLAN, reason=previous_reason))
+                    continue
+
+                plan = self.planner.plan(goal=goal, observation=observation, previous_reason=previous_reason)
+                plan.action.validate()
+                plan.expectation.validate()
+                steps.append(ComputerAgentStep(cycle, ComputerAgentState.PLAN, plan.action, "plan_ready"))
+                if plan.action.target is None and plan.target_label:
+                    target = observation.target
+                    plan = ComputerPlan(
+                        CCActionRequest(
+                            action=plan.action.action, x=plan.action.x, y=plan.action.y,
+                            target=target, text=plan.action.text, keys=plan.action.keys,
+                            delta=plan.action.delta, region=plan.action.region, metadata=plan.action.metadata
+                        ),
+                        plan.expectation, plan.target_label,
+                    )
+                steps.append(ComputerAgentStep(cycle, ComputerAgentState.TARGET, plan.action, "target_grounded"))
 
             result: CCExecutionResult = self.computer_control.execute(
                 scope=scope,
                 request=plan.action,
-                approved_checkpoint_id=approved_checkpoint_id,
+                approved_checkpoint_id=resume_checkpoint_id,
             )
+            resume_checkpoint_id = None
             if not result.success and result.checkpoint is not None and result.error == "checkpoint_required":
+                self._pending_approvals[result.checkpoint.id] = _PendingApproval(
+                    goal=goal,
+                    target_label=target_label,
+                    scope_id=scope.scope_id,
+                    plan=plan,
+                )
                 steps.append(ComputerAgentStep(cycle, ComputerAgentState.WAITING_APPROVAL, plan.action, "checkpoint_required"))
                 return ComputerAgentRun(
                     goal, ComputerAgentState.WAITING_APPROVAL, tuple(steps), cycle,
@@ -206,4 +258,5 @@ class VisionComputerAgent:
                 previous_reason = verification.reason
                 steps.append(ComputerAgentStep(cycle, ComputerAgentState.REPLAN, plan.action, previous_reason))
 
+        return ComputerAgentRun(goal, ComputerAgentState.FAILED, tuple(steps), self.limits.max_cycles, replans, recoveries)
         return ComputerAgentRun(goal, ComputerAgentState.FAILED, tuple(steps), self.limits.max_cycles, replans, recoveries)
