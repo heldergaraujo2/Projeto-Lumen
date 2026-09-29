@@ -255,7 +255,7 @@ class OllamaVisionProvider(JsonVisionProvider):
                 "images": [raw],
                 "stream": False,
                 "format": "json",
-                "options": {"num_predict": request.max_output_tokens},
+                "options": {"num_predict": request.max_output_tokens, "temperature": 0},
             }
         ).encode("utf-8")
         req = urllib.request.Request(
