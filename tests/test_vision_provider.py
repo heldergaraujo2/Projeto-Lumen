@@ -219,3 +219,58 @@ def test_ollama_provider_preserves_small_image_dimensions(tmp_path, monkeypatch)
     assert result.height == 600
     assert result.elements[0].x == 10
     assert result.elements[0].y == 20
+
+
+def test_ollama_provider_accepts_original_coordinate_space_after_downscale(tmp_path, monkeypatch):
+    path = make_image(tmp_path, size=(3840, 1125))
+    provider = OllamaVisionProvider(timeout_seconds=1, max_image_dimension=1280)
+
+    class Response:
+        def read(self, limit=-1):
+            return json.dumps({
+                "response": json.dumps({
+                    "elements": [{
+                        "label": "PowerShell", "confidence": 0.95,
+                        "x": 677, "y": 573, "width": 144, "height": 32,
+                    }],
+                })
+            }).encode()
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: Response())
+    result = provider.observe(VisionRequest(path, "inspect"))
+
+    element = result.elements[0]
+    assert result.width == 3840
+    assert result.height == 1125
+    assert element.x == 677
+    assert element.y == 573
+    assert element.width == 144
+    assert element.height == 32
+
+
+def test_ollama_provider_rejects_coordinates_outside_both_spaces(tmp_path, monkeypatch):
+    path = make_image(tmp_path, size=(3840, 1125))
+    provider = OllamaVisionProvider(timeout_seconds=1, max_image_dimension=1280)
+
+    class Response:
+        def read(self, limit=-1):
+            return json.dumps({
+                "response": json.dumps({
+                    "elements": [{
+                        "label": "bad", "confidence": 0.95,
+                        "x": 4000, "y": 1200, "width": 10, "height": 10,
+                    }],
+                })
+            }).encode()
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: Response())
+    with pytest.raises(ValueError, match="outside image"):
+        provider.observe(VisionRequest(path, "inspect"))
