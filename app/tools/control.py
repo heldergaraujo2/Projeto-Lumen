@@ -76,6 +76,8 @@ from app.tools.correction import (
     build_proposal_validator,
 )
 from app.tools.workspaces import MultiWorkspaceSandbox, WorkspaceStore
+from app.unreal.integration import UnrealIntegration
+from app.unreal.tool import UnrealSnapshotTool
 
 logger = logging.getLogger("lumen.tools.control")
 
@@ -105,7 +107,7 @@ OPERATION_LABELS = {
 }
 
 #: Níveis gerenciáveis pela UI (DELETE é opt-in de workspace, não nível).
-MANAGEABLE_LEVELS = (PermissionLevel.CHAT, PermissionLevel.READ, PermissionLevel.WRITE)
+MANAGEABLE_LEVELS = (PermissionLevel.CHAT, PermissionLevel.READ, PermissionLevel.WRITE, PermissionLevel.UNREAL)
 
 #: 11F — tools contadas como WRITE para o auto-anexo de ``run_pytest``.
 _AUTO_PYTEST_WRITE_TOOLS = frozenset({
@@ -359,6 +361,7 @@ class ToolsController:
         enable_snapshots: bool = False,
         snapshots_dir: Path | None = None,
         snapshot_max_bytes: int = 1_000_000,
+        unreal: UnrealIntegration | None = None,
     ) -> None:
         if not isinstance(permissions, PermissionManager):
             raise ToolsControlError(
@@ -366,6 +369,7 @@ class ToolsController:
                 "(compartilhe a instância do Agent)."
             )
         self._permissions = permissions
+        self._unreal = unreal
         self._store = WorkspaceStore(workspaces_file)
         self._audit_file = Path(audit_file)
         self._audit = FilesystemAudit(sink=JsonlAuditSink(self._audit_file))
@@ -832,6 +836,8 @@ class ToolsController:
                     else "Ler arquivos e diretórios dos workspaces"
                     if level is PermissionLevel.READ
                     else "Criar/modificar arquivos dos workspaces"
+                    if level is PermissionLevel.WRITE
+                    else "Inspecionar o Unreal Editor via MCP (somente leitura)"
                 ),
             })
         rows.append({
@@ -860,13 +866,13 @@ class ToolsController:
         return rows
 
     def grant_permission(self, level: str) -> None:
-        """Concede CHAT/READ/WRITE (explícito; outros níveis são rejeitados)."""
+        """Concede CHAT/READ/WRITE/UNREAL explicitamente."""
         resolved = self._resolve_manageable(level)
         self._permissions.grant(resolved)
         logger.info("Permissão concedida pela UI: %s.", resolved.name)
 
     def revoke_permission(self, level: str) -> None:
-        """Revoga CHAT/READ/WRITE (explícito; outros níveis são rejeitados)."""
+        """Revoga CHAT/READ/WRITE/UNREAL explicitamente."""
         resolved = self._resolve_manageable(level)
         self._permissions.revoke(resolved)
         logger.info("Permissão revogada pela UI: %s.", resolved.name)
@@ -944,7 +950,8 @@ class ToolsController:
         from app.planner.catalog import build_catalog
 
         return build_catalog(
-            include_terminal=self._terminal_policy is not None
+            include_terminal=self._terminal_policy is not None,
+            include_unreal=self._unreal is not None,
         )
 
     def build_registry(self) -> ToolRegistry:
@@ -980,6 +987,8 @@ class ToolsController:
         registry.register(WebSearchTool(audit=self._audit))
         registry.register(WebFetchTool(audit=self._audit))
         registry.register(WebResearchTool(audit=self._audit))
+        if self._unreal is not None:
+            registry.register(UnrealSnapshotTool(self._unreal))
         return registry
 
     # ---------------------------------------------------------- F2 protocol
