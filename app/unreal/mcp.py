@@ -57,6 +57,7 @@ class UnrealMCPClient:
         self.timeout = timeout
         self._opener = opener or urllib.request.urlopen
         self.session_id: str | None = None
+        self._session_initialized = False
         self._next_id = 1
         self._validate_endpoint(allow_non_loopback)
 
@@ -82,12 +83,15 @@ class UnrealMCPClient:
                 "clientInfo": {"name": client_name, "version": client_version},
             },
         )
+        if not response.is_error:
+            self._session_initialized = True
         return response
 
     def notify_initialized(self) -> int:
         return self._notification("notifications/initialized")
 
     def list_tools(self) -> MCPResponse:
+        self._ensure_session()
         return self._request("tools/list", {})
 
     def list_toolsets(self) -> MCPResponse:
@@ -99,6 +103,7 @@ class UnrealMCPClient:
     def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> MCPResponse:
         if not tool_name or tool_name != tool_name.strip():
             raise ValueError("tool_name must be non-empty")
+        self._ensure_session()
         return self._request(
             "tools/call",
             {"name": "call_tool", "arguments": {"tool_name": tool_name, "arguments": arguments or {}}},
@@ -112,6 +117,7 @@ class UnrealMCPClient:
     ) -> MCPResponse:
         if not toolset_name.strip() or not tool_name.strip():
             raise ValueError("toolset_name and tool_name are required")
+        self._ensure_session()
         return self._request(
             "tools/call",
             {
@@ -123,6 +129,14 @@ class UnrealMCPClient:
                 },
             },
         )
+
+    def _ensure_session(self) -> None:
+        if self._session_initialized:
+            return
+        response = self.initialize()
+        if response.is_error:
+            raise UnrealMCPProtocolError(f"MCP initialize failed: {response.error}")
+        self.notify_initialized()
 
     def _notification(self, method: str) -> int:
         payload = {"jsonrpc": "2.0", "method": method}
