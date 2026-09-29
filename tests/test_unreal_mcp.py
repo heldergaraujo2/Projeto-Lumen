@@ -102,16 +102,31 @@ def test_transport_error_is_wrapped():
         UnrealMCPClient(opener=Broken()).initialize()
 
 
-def test_call_toolset_tool_uses_unprefixed_tool_name():
-    opener = FakeOpener([rpc({"content": []})])
+def test_call_toolset_tool_uses_unprefixed_tool_name_and_auto_initializes():
+    opener = FakeOpener([
+        rpc({"protocolVersion": "2025-06-18"}, session="abc"),
+        FakeResponse("", status=202),
+        rpc({"content": []}),
+    ])
     client = UnrealMCPClient(opener=opener)
     client.call_toolset_tool(
         "SlateInspectorToolset.SlateInspectorToolset",
         "Snapshot",
-        {"ref": "", "maxDepth": 12},
+        {"ref": "w1", "maxDepth": 12},
     )
-    request = opener.requests[0][0]
+    request = opener.requests[2][0]
     payload = json.loads(request.data.decode())
     assert payload["params"]["name"] == "call_tool"
     assert payload["params"]["arguments"]["tool_name"] == "Snapshot"
     assert payload["params"]["arguments"]["toolset_name"] == "SlateInspectorToolset.SlateInspectorToolset"
+    assert payload["params"]["arguments"]["arguments"]["ref"] == "w1"
+    assert request.headers.get("Mcp-session-id") == "abc"
+
+
+def test_initialize_marks_session_ready_only_on_success():
+    opener = FakeOpener([rpc({"protocolVersion": "2025-06-18"}, session="abc")])
+    client = UnrealMCPClient(opener=opener)
+    response = client.initialize()
+    assert not response.is_error
+    assert client.session_id == "abc"
+    assert client._session_initialized is True
