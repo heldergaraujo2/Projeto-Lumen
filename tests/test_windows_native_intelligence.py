@@ -49,3 +49,57 @@ def test_windows_backend_is_lazy_on_non_windows():
         try:__import__("app.computer.windows_uia",fromlist=["WindowsUIABackend"]).WindowsUIABackend()
         except OSError:pass
         else:raise AssertionError("expected Windows-only backend")
+
+
+def test_windows_uia_initializer_uses_registered_clsid(monkeypatch):
+    import sys
+    import types
+
+    calls = {}
+
+    class FakeCUIAutomation:
+        pass
+
+    class FakeIUIAutomation:
+        pass
+
+    class FakeClient:
+        def GetModule(self, name):
+            calls["module"] = name
+            return object()
+        def CreateObject(self, cls, *, interface, clsctx):
+            calls["cls"] = cls
+            calls["interface"] = interface
+            calls["clsctx"] = clsctx
+            return object()
+
+    fake_comtypes = types.ModuleType("comtypes")
+    fake_comtypes.CLSCTX_INPROC_SERVER = 1
+    fake_comtypes.COMError = type("COMError", (Exception,), {})
+    fake_client = FakeClient()
+    fake_comtypes.client = fake_client
+
+    fake_gen = types.ModuleType("comtypes.gen")
+    fake_uia_client = types.SimpleNamespace(
+        CUIAutomation=FakeCUIAutomation,
+        IUIAutomation=FakeIUIAutomation,
+    )
+    fake_gen.UIAutomationClient = fake_uia_client
+
+    monkeypatch.setitem(sys.modules, "comtypes", fake_comtypes)
+    monkeypatch.setitem(sys.modules, "comtypes.client", fake_client)
+    monkeypatch.setitem(sys.modules, "comtypes.gen", fake_gen)
+
+    class FakeOS:
+        name = "nt"
+
+    monkeypatch.setattr("os.name", "nt")
+
+    from app.computer_control.windows.uia import WindowsUIAutomation
+
+    adapter = WindowsUIAutomation()
+    assert adapter._uia is not None
+    assert calls["module"] == "UIAutomationCore.dll"
+    assert calls["cls"] is FakeCUIAutomation
+    assert calls["interface"] is FakeIUIAutomation
+    assert calls["clsctx"] == 1
