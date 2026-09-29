@@ -216,3 +216,37 @@ def test_windows_uia_descendant_scope_targets_window_children(monkeypatch):
     assert backend.descendants(window) == ()
     assert calls["condition"] == (7, 4130744)
     assert calls["find_first"][0] == 32
+
+
+def test_windows_uia_walk_skips_invalid_sibling_com_pointer():
+    from app.computer.windows_uia import WindowsUIABackend
+
+    class FakeElement:
+        pass
+
+    root = FakeElement()
+    child = FakeElement()
+
+    class FakeAdapter:
+        def element_info(self, element):
+            from app.computer_control.windows.uia import UIElementInfo
+            if element is child:
+                return UIElementInfo("Play", "button", ScreenRegion(10, 20, 80, 30))
+            return UIElementInfo("Root", "window", ScreenRegion(0, 0, 100, 100))
+
+    class FakeWalker:
+        def GetFirstChildElement(self, element):
+            if element is root:
+                return child
+            return None
+        def GetNextSiblingElement(self, element):
+            raise RuntimeError("NULL COM pointer access")
+
+    import types
+    backend = object.__new__(WindowsUIABackend)
+    backend._adapter = FakeAdapter()
+    backend._adapter._uia = types.SimpleNamespace(ControlViewWalker=FakeWalker())
+    window = NativeWindow(1, "Unreal Editor", ScreenRegion(0, 0, 1280, 720), 42, "UnrealEditor.exe")
+
+    elements = backend._walk(root, window, max_depth=2, max_elements=8)
+    assert [e.name for e in elements] == ["Root", "Play"]
