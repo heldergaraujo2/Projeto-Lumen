@@ -38,7 +38,14 @@ class WindowsUIABackend:
                 continue
             out.append(NativeElement(info.name,info.control_type,info.bounds,info.automation_id,info.class_name,info.enabled,window.target(),element))
             if depth>=max_depth: continue
-            child=walker.GetFirstChildElement(element)
+            try:
+                child=walker.GetFirstChildElement(element)
+            except Exception:
+                child=None
             while child is not None and len(out)+len(queue)<max_elements:
-                queue.append((child,depth+1));child=walker.GetNextSiblingElement(child)
+                queue.append((child,depth+1))
+                try:
+                    child=walker.GetNextSiblingElement(child)
+                except Exception:
+                    child=None
         return tuple(out)
