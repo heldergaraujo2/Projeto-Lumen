@@ -82,7 +82,7 @@ def _dict_targets(value: Any, window: CCTarget | None) -> Iterable[GroundedTarge
         for item in value:
             yield from _dict_targets(item, window)
 
-def _line_target(line: str, window: CCTarget | None) -> GroundedTarget | None:
+def _line_target(line: str, window: CCTarget | None, *, origin_x: int = 0, origin_y: int = 0) -> GroundedTarget | None:
     ref_match = _REF.search(line)
     geometry = _POS_SIZE.search(line)
     if not ref_match or not geometry:
@@ -95,7 +95,7 @@ def _line_target(line: str, window: CCTarget | None) -> GroundedTarget | None:
         label,
         GroundingSource.SLATE,
         1.0,
-        int(g["x"]), int(g["y"]), int(g["w"]), int(g["h"]),
+        int(g["x"]) - origin_x, int(g["y"]) - origin_y, int(g["w"]), int(g["h"]),
         window,
         evidence=f"slate_ref={ref_match.group('ref') or ref_match.group('ref2')}",
     )
@@ -123,7 +123,7 @@ class SlateGroundingAdapter:
         candidates.extend(_dict_targets(result, window))
         for text in _text_items(result):
             for line in text.splitlines():
-                target = _line_target(line, window)
+                target = _line_target(line, window, origin_x=origin_x, origin_y=origin_y)
                 if target is not None:
                     candidates.append(target)
         unique: dict[tuple[str, int, int, int, int], GroundedTarget] = {}
