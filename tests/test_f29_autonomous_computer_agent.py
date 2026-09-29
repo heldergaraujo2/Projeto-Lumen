@@ -115,3 +115,58 @@ def test_replan_budget_is_bounded():
                     target_label="Compile")
     assert run.state is ComputerAgentState.FAILED
     assert run.replans == 0
+
+
+def test_approved_checkpoint_resume_is_forwarded_to_service():
+    provider = FakeVisionProvider([obs(), obs()])
+    pipeline = VisionGroundingPipeline(provider)
+    checkpoint = type("CP", (), {"id": "CP-2"})()
+    results = [
+        CCExecutionResult(False, object(), object(), "checkpoint_required", checkpoint),
+        CCExecutionResult(True, object(), object()),
+    ]
+
+    class RecordingCC:
+        def __init__(self):
+            self.calls = []
+        def execute(self, **kwargs):
+            self.calls.append(kwargs)
+            return results.pop(0)
+
+    class MovePlanner:
+        def plan(self, *, goal, observation, previous_reason=""):
+            return ComputerPlan(
+                CCActionRequest(CCActionType.MOUSE_MOVE, target=observation.target),
+                VerificationExpectation("target_visible", "Compile"),
+                "Compile",
+            )
+
+    class VisibleVerifier:
+        def verify(self, *, expectation, observation):
+            return VerificationResult(VerificationStatus.VERIFIED, "target_visible")
+
+    cc = RecordingCC()
+    agent = VisionComputerAgent(
+        computer_control=cc,
+        vision=pipeline,
+        planner=MovePlanner(),
+        verifier=VisibleVerifier(),
+    )
+    first = agent.run(
+        goal="move to Compile",
+        scope=make_scope(),
+        screenshot_request=VisionRequest(Path("fake"), "move Compile"),
+        target_label="Compile",
+    )
+    assert first.state is ComputerAgentState.WAITING_APPROVAL
+    assert first.pending_checkpoint_id == "CP-2"
+
+    second = agent.run(
+        goal="move to Compile",
+        scope=make_scope(),
+        screenshot_request=VisionRequest(Path("fake"), "move Compile"),
+        target_label="Compile",
+        approved_checkpoint_id=first.pending_checkpoint_id,
+    )
+    assert second.state is ComputerAgentState.COMPLETED
+    assert cc.calls[1]["approved_checkpoint_id"] == "CP-2"
