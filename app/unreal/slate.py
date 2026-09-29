@@ -121,7 +121,17 @@ class SlateGroundingAdapter:
     ) -> tuple[GroundedTarget, ...]:
         candidates: list[GroundedTarget] = []
         candidates.extend(_dict_targets(result, window))
-        for text in _text_items(result):
+        texts = tuple(_text_items(result))
+        # Unreal Slate reports coordinates in virtual-desktop space. When the
+        # editor is on a monitor left of the primary display, x can be negative.
+        # Normalize that origin into the observation's non-negative coordinate
+        # space while preserving relative geometry.
+        if origin_x == 0:
+            positions = [_POS_SIZE.search(line) for text in texts for line in text.splitlines()]
+            negative_x = [int(match.group("x")) for match in positions if match and int(match.group("x")) < 0]
+            if negative_x:
+                origin_x = min(negative_x)
+        for text in texts:
             for line in text.splitlines():
                 target = _line_target(line, window, origin_x=origin_x, origin_y=origin_y)
                 if target is not None:
