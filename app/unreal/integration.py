@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 from app.computer_control.api import CCTarget
-from app.computer.models import ComputerObservation
+from app.computer.models import ComputerObservation, ExecutionMechanism
+from app.computer.actions import ActionPlanner, ExecutionResolver
+from app.computer_control.actions import CCActionRequest
+from app.computer.targeting import TargetingEngine
 from app.computer.windows_native import NativeElement, NativeWindow, WindowsNativeIntelligence
 from .mcp import MCPResponse, UnrealMCPClient
 from .slate import SlateGroundingAdapter
@@ -138,6 +141,48 @@ class UnrealIntegration:
         )
         observation.validate()
         return observation
+
+    def plan_slate_click(
+        self,
+        *,
+        label: str,
+        ref: str = "",
+        max_depth: int = 30,
+        width: int,
+        height: int,
+        window: CCTarget | None = None,
+        scope_region=None,
+    ) -> CCActionRequest:
+        """Resolve a Slate target into a normal ComputerControl request.
+
+        This method only observes, grounds and plans. It never invokes a driver
+        or mutating Unreal MCP tool; execution remains behind ComputerControlService.
+        """
+        observation = self.mcp_slate_observation(
+            ref=ref,
+            max_depth=max_depth,
+            width=width,
+            height=height,
+            window=window,
+        )
+        if scope_region is not None:
+            observation = ComputerObservation(
+                width=observation.width,
+                height=observation.height,
+                elements=observation.elements,
+                active_window=observation.active_window,
+                allowed_region=scope_region,
+                metadata=observation.metadata,
+            )
+        resolution = TargetingEngine().resolve(observation, label)
+        if resolution.target is None:
+            raise LookupError(resolution.reason)
+        intent = ActionPlanner().click(resolution.target, rationale=f"Slate target: {label}")
+        plan = ActionPlanner().build(observation.fingerprint, intent, rationale=f"Slate target: {label}")
+        return ExecutionResolver().resolve(
+            plan.intents[0],
+            mechanism=resolution.mechanism,
+        )
 
     def mcp_snapshot(self, *, ref: str = "", max_depth: int = 30, include_source_locations: bool = False) -> MCPResponse:
         """Read the real Unreal Slate tree through MCP; never performs UI input."""
