@@ -55,7 +55,7 @@ def test_initialize_captures_session_and_uses_mcp_headers():
     assert client.session_id == "abc"
     request = opener.requests[0][0]
     assert request.headers.get("Mcp-session-id") is None
-    assert request.headers.get("Mcp-Protocol-Version") == "2025-06-18"
+    assert request.get_header("Mcp-Protocol-Version") == "2025-06-18"
 
 
 def test_second_request_reuses_session_id():
@@ -71,7 +71,7 @@ def test_second_request_reuses_session_id():
 
 
 def test_sse_response_is_parsed():
-    body = 'event: message\\ndata: {"jsonrpc":"2.0","id":2,"result":{"ok":true}}\\n\\n'
+    body = "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"ok\":true}}\n\n"
     assert parse_mcp_body(body)["result"]["ok"] is True
 
 
