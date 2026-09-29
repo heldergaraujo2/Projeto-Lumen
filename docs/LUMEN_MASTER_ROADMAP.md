@@ -21,7 +21,7 @@
 | F26 | Learning Runtime & Continuous Knowledge | 🟩 CONCLUÍDA |
 | F27 | Real Windows Computer Validation | 🟩 VALIDADA EM MÁQUINA REAL |
 | F28 | Real Vision + Grounding | 🟩 VALIDADA EM MÁQUINA REAL |
-| F29 | Real Autonomous Computer Agent | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO FÍSICA EXTERNA PENDENTE |
+| F29 | Real Autonomous Computer Agent | 🟩 VALIDADA EM MÁQUINA REAL |
 | F30 | Unreal Real Integration | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO UNREAL PENDENTE |
 | F31 | Experience & Workflow Intelligence | 🟩 CONCLUÍDA — implementação, integração, segurança, persistência e testes |
 | F32 | Closed-Loop Lumen Evolution | 🟩 CONCLUÍDA — implementação, integração F22/F24, persistência, segurança e CI |
@@ -253,7 +253,26 @@ Validação final:
 - F25 não concede Permission, altera Policy/Sandbox/Checkpoint/Audit, executa tools/drivers/browser/processos ou promove automaticamente;
 - validação física do daemon Ollama/Windows continua separada e não é inferida da CI Linux.
 
-## 5.4 F29 — REAL AUTONOMOUS COMPUTER AGENT — 🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FÍSICA EXTERNA PENDENTE\n\nImplementado:\n- Goal → Plan → Observe → Target → Action → Verify → Recover → Replan;\n- VisionComputerAgent;\n- budgets bounded;\n- integração com VisionGroundingPipeline e ComputerControlService;\n- pausa segura em checkpoint;\n- testes dedicados e documentação.\n\nLimite de evidência:\n- CI e testes fake validam contratos, segurança e regressão, mas não provam execução física em Windows;\n- o gate físico exige sessão Windows interativa, provider multimodal real, ação benigna e verificação observável.\n\n## 6. CRITÉRIO UNIVERSAL DE CONCLUSÃO
+## 5.4 F29 — REAL AUTONOMOUS COMPUTER AGENT — 🟩 VALIDADA EM MÁQUINA REAL
+
+Implementado:
+- Goal → Plan → Observe → Target → Action → Verify → Recover → Replan;
+- VisionComputerAgent;
+- budgets bounded;
+- integração com VisionGroundingPipeline e ComputerControlService;
+- pausa segura em checkpoint;
+- testes dedicados e documentação.
+
+Evidência real:
+- screenshot real: PASS (3840x1125);
+- provider local real: `ollama:qwen3-vl:2b-instruct`;
+- checkpoint criado: `CC-CP-000001`;
+- retomada do checkpoint: PASS;
+- estado final: `completed`;
+- ciclos: 1; replans: 0; recoveries: 0;
+- ação física: `MOUSE_MOVE` somente;
+- clique, digitação, scroll e foco: não executados;
+- fluxo comprovado: Goal → Plan → Observe → Target → Checkpoint → Action → Verify → Success.\n\n## 6. CRITÉRIO UNIVERSAL DE CONCLUSÃO
 
 Uma fase só pode ser 🟩 com:
 1. SPEC;
