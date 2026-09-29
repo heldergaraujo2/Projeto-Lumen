@@ -5,7 +5,7 @@ import json
 import mimetypes
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
@@ -115,7 +115,7 @@ def _repair_truncated_json(payload: str) -> dict | list | None:
             stack.append("}")
         elif char == "[":
             stack.append("]")
-        elif char in "}]" :
+        elif char in "}]":
             if not stack or stack[-1] != char:
                 return None
             stack.pop()
@@ -198,29 +198,49 @@ class OllamaVisionProvider(JsonVisionProvider):
         base_url: str = "http://127.0.0.1:11434",
         timeout_seconds: float = 60.0,
         max_response_bytes: int = 2 * 1024 * 1024,
+        max_image_dimension: int = 1280,
     ):
         super().__init__(name="ollama", model=model)
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be > 0")
         if max_response_bytes <= 0:
             raise ValueError("max_response_bytes must be > 0")
+        if max_image_dimension <= 0:
+            raise ValueError("max_image_dimension must be > 0")
         if not base_url.startswith(("http://", "https://")):
             raise ValueError("base_url must use http or https")
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
         self.max_response_bytes = max_response_bytes
+        self.max_image_dimension = max_image_dimension
 
     def observe(self, request: VisionRequest) -> VisionObservation:
         request.validate()
         try:
+            from io import BytesIO
+
             from PIL import Image
+
             with Image.open(request.image_path) as image:
                 width, height = image.size
+                vision_width, vision_height = width, height
+                if max(width, height) > self.max_image_dimension:
+                    vision_image = image.copy()
+                    vision_image.thumbnail(
+                        (self.max_image_dimension, self.max_image_dimension),
+                        Image.Resampling.LANCZOS,
+                    )
+                    vision_width, vision_height = vision_image.size
+                    encoded = BytesIO()
+                    vision_image.save(encoded, format="PNG")
+                    raw_bytes = encoded.getvalue()
+                    vision_image.close()
+                else:
+                    raw_bytes = request.image_path.read_bytes()
         except Exception as exc:
             raise ValueError("invalid or unreadable vision image") from exc
 
-        raw = base64.b64encode(request.image_path.read_bytes()).decode("ascii")
-        mime = mimetypes.guess_type(request.image_path.name)[0] or "application/octet-stream"
+        raw = base64.b64encode(raw_bytes).decode("ascii")
         prompt = (
             request.prompt.strip()
             + "\nReturn ONLY a JSON object with keys text and elements. "
@@ -259,10 +279,43 @@ class OllamaVisionProvider(JsonVisionProvider):
             raise RuntimeError("vision provider returned invalid response JSON") from exc
         if not isinstance(data, dict) or not isinstance(data.get("response"), str):
             raise RuntimeError("Ollama response missing response")
-        # Keep the MIME value observable to callers only through validation;
-        # actual request format remains Ollama's native base64 image contract.
-        _ = mime
-        return self.parse(data["response"], width=width, height=height)
+        observation = self.parse(
+            data["response"],
+            width=vision_width,
+            height=vision_height,
+        )
+        if (vision_width, vision_height) == (width, height):
+            return observation
+
+        scale_x = width / vision_width
+        scale_y = height / vision_height
+        elements = []
+        for element in observation.elements:
+            x1 = round(element.x * scale_x)
+            y1 = round(element.y * scale_y)
+            x2 = round((element.x + element.width) * scale_x)
+            y2 = round((element.y + element.height) * scale_y)
+            x1 = max(0, min(width - 1, x1))
+            y1 = max(0, min(height - 1, y1))
+            x2 = max(x1 + 1, min(width, x2))
+            y2 = max(y1 + 1, min(height, y2))
+            elements.append(
+                replace(
+                    element,
+                    x=x1,
+                    y=y1,
+                    width=x2 - x1,
+                    height=y2 - y1,
+                )
+            )
+        remapped = replace(
+            observation,
+            width=width,
+            height=height,
+            elements=tuple(elements),
+        )
+        remapped.validate()
+        return remapped
 
 
 class VisionProviderManager:
