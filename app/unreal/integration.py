@@ -1,6 +1,7 @@
 """F30 — Unreal Engine project discovery and controlled editor integration."""
 from __future__ import annotations
 import json
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -125,6 +126,12 @@ class UnrealIntegration:
         """Convert a read-only Slate snapshot into the shared perception model."""
         if width <= 0 or height <= 0:
             raise ValueError("observation dimensions must be positive")
+        if ref.strip():
+            observe_response = self.mcp_observe(ref=ref, max_depth=max_depth)
+            if observe_response.is_error:
+                raise RuntimeError(f"Unreal MCP observe failed: {observe_response.error}")
+
+        adapter = SlateGroundingAdapter()
         response = self.mcp_snapshot(
             ref=ref,
             max_depth=max_depth,
@@ -132,7 +139,24 @@ class UnrealIntegration:
         )
         if response.is_error:
             raise RuntimeError(f"Unreal MCP snapshot failed: {response.error}")
-        targets = SlateGroundingAdapter().targets_from_snapshot(response.result, window=window)
+
+        targets = adapter.targets_from_snapshot(response.result, window=window)
+        for _ in range(3):
+            if targets or not ref.strip():
+                break
+            time.sleep(0.5)
+            observe_response = self.mcp_observe(ref=ref, max_depth=max_depth)
+            if observe_response.is_error:
+                raise RuntimeError(f"Unreal MCP observe failed: {observe_response.error}")
+            response = self.mcp_snapshot(
+                ref=ref,
+                max_depth=max_depth,
+                include_source_locations=include_source_locations,
+            )
+            if response.is_error:
+                raise RuntimeError(f"Unreal MCP snapshot failed: {response.error}")
+            targets = adapter.targets_from_snapshot(response.result, window=window)
+
         observation = ComputerObservation(
             width=width,
             height=height,
