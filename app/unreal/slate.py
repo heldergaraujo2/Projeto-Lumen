@@ -130,11 +130,15 @@ class SlateGroundingAdapter:
         # editor is on a monitor left of the primary display, x can be negative.
         # Normalize that origin into the observation's non-negative coordinate
         # space while preserving relative geometry.
+        positions = [_POS_SIZE.search(line) for text in texts for line in text.splitlines()]
         if origin_x == 0:
-            positions = [_POS_SIZE.search(line) for text in texts for line in text.splitlines()]
             negative_x = [int(match.group("x")) for match in positions if match and int(match.group("x")) < 0]
             if negative_x:
                 origin_x = min(negative_x)
+        if origin_y == 0:
+            negative_y = [int(match.group("y")) for match in positions if match and int(match.group("y")) < 0]
+            if negative_y:
+                origin_y = min(negative_y)
         for text in texts:
             for line in text.splitlines():
                 target = _line_target(line, window, origin_x=origin_x, origin_y=origin_y)
@@ -142,7 +146,12 @@ class SlateGroundingAdapter:
                     candidates.append(target)
         unique: dict[tuple[str, int, int, int, int], GroundedTarget] = {}
         for target in candidates:
-            target.validate()
+            try:
+                target.validate()
+            except ValueError:
+                # Ignore malformed/off-screen Slate entries without invalidating
+                # the rest of an otherwise usable snapshot.
+                continue
             if target.width < self.min_width or target.height < self.min_height:
                 continue
             key = (target.label.casefold(), target.x, target.y, target.width, target.height)
