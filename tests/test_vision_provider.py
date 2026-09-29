@@ -30,6 +30,20 @@ def test_request_validation_and_size_limit(tmp_path):
         VisionRequest(path, "inspect", max_output_tokens=0).validate()
 
 
+def test_json_provider_repairs_trailing_truncation_without_inventing_values():
+    provider = JsonVisionProvider(name="test", model="model")
+    payload = '{"elements":[{"label":"PowerShell","confidence":0.9,"x":10,"y":20,"width":30,"height":40}'
+    observation = provider.parse(payload, width=100, height=100)
+    assert observation.elements[0].label == "PowerShell"
+    assert observation.elements[0].width == 30
+
+
+def test_json_provider_rejects_truncation_inside_string():
+    provider = JsonVisionProvider(name="test", model="model")
+    with pytest.raises(ValueError):
+        provider.parse('{"elements":[{"label":"PowerShell"', width=100, height=100)
+
+
 def test_json_provider_accepts_structured_payload():
     provider = JsonVisionProvider(name="qwen3-vl", model="8b")
     observation = provider.parse(
