@@ -8,6 +8,24 @@ class WindowsComputerControlDriver:
         self.artifact_dir=Path(artifact_dir).resolve();self.artifact_dir.mkdir(parents=True,exist_ok=True)
     def _u(self):
         import ctypes;return ctypes.windll.user32
+    def _process_info(self,hwnd):
+        import ctypes
+        kernel32=ctypes.windll.kernel32
+        pid=ctypes.c_ulong()
+        if not kernel32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd),ctypes.byref(pid)) or not pid.value:
+            return None,None
+        handle=kernel32.OpenProcess(0x1000,False,pid.value)
+        if not handle:
+            return int(pid.value),None
+        try:
+            size=ctypes.c_ulong(32768)
+            buffer=ctypes.create_unicode_buffer(size.value)
+            if kernel32.QueryFullProcessImageNameW(handle,0,buffer,ctypes.byref(size)):
+                import ntpath
+                return int(pid.value),ntpath.basename(buffer.value)
+        finally:
+            kernel32.CloseHandle(handle)
+        return int(pid.value),None
     def screenshot(self,*,target=None,region=None):
         try:from PIL import ImageGrab
         except ImportError as e:raise RuntimeError("Pillow required for screenshots") from e
@@ -22,7 +40,7 @@ class WindowsComputerControlDriver:
     def mouse_double_click(self,x,y,*,button="left"):self.mouse_click(x,y,button=button);self.mouse_click(x,y,button=button)
     def mouse_drag(self,x1,y1,x2,y2,*,button="left"):
         self.mouse_move(x1,y1);flags={"left":(2,4),"right":(8,16)}
-        if button not in flags:raise ValueError("unsupported drag button")
+        if button not in flags:raise ValueError("unsupported mouse button")
         self._u().mouse_event(flags[button][0],0,0,0,0);self.mouse_move(x2,y2);self._u().mouse_event(flags[button][1],0,0,0,0)
     def scroll(self,delta):self._u().mouse_event(0x0800,0,0,int(delta),0)
     def key_press(self,key):self._keybd(self._vk(key))
@@ -44,7 +62,9 @@ class WindowsComputerControlDriver:
         def cb(hwnd,_):
             if not u.IsWindowVisible(hwnd):return True
             n=u.GetWindowTextLengthW(hwnd);b=ctypes.create_unicode_buffer(n+1);u.GetWindowTextW(hwnd,b,n+1)
-            if b.value:out.append(WindowInfo(int(hwnd),b.value))
+            if b.value:
+                pid,process_name=self._process_info(int(hwnd))
+                out.append(WindowInfo(int(hwnd),b.value,process_id=pid,process_name=process_name))
             return True
         u.EnumWindows(CB(cb),0);return tuple(out)
     def _find_window(self,target):
