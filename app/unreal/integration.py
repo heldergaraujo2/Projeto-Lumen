@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 from app.computer_control.api import CCTarget
+from app.computer.models import ComputerObservation
 from app.computer.windows_native import NativeElement, NativeWindow, WindowsNativeIntelligence
 from .mcp import MCPResponse, UnrealMCPClient
+from .slate import SlateGroundingAdapter
 
 @dataclass(frozen=True)
 class UnrealProject:
@@ -92,6 +94,50 @@ class UnrealIntegration:
 
     def discover_project(self, root: str | Path) -> UnrealProject:
         return self.discovery.discover(root)
+
+    def mcp_observe(self, *, ref: str, max_depth: int = 30) -> MCPResponse:
+        """Register/refresh a Slate observer without performing UI input."""
+        if self.mcp is None:
+            raise RuntimeError("Unreal MCP client is required for Slate observation")
+        if not ref.strip():
+            raise ValueError("ref is required for Slate observation")
+        if max_depth < 0:
+            raise ValueError("max_depth must be non-negative")
+        return self.mcp.call_toolset_tool(
+            "SlateInspectorToolset.SlateInspectorToolset",
+            "Observe",
+            {"ref": ref, "maxDepth": max_depth},
+        )
+
+    def mcp_slate_observation(
+        self,
+        *,
+        ref: str = "",
+        max_depth: int = 30,
+        width: int,
+        height: int,
+        window: CCTarget | None = None,
+        include_source_locations: bool = False,
+    ) -> ComputerObservation:
+        """Convert a read-only Slate snapshot into the shared perception model."""
+        if width <= 0 or height <= 0:
+            raise ValueError("observation dimensions must be positive")
+        response = self.mcp_snapshot(
+            ref=ref,
+            max_depth=max_depth,
+            include_source_locations=include_source_locations,
+        )
+        if response.is_error:
+            raise RuntimeError(f"Unreal MCP snapshot failed: {response.error}")
+        targets = SlateGroundingAdapter().targets_from_snapshot(response.result, window=window)
+        observation = ComputerObservation(
+            width=width,
+            height=height,
+            elements=targets,
+            active_window=window,
+        )
+        observation.validate()
+        return observation
 
     def mcp_snapshot(self, *, ref: str = "", max_depth: int = 30, include_source_locations: bool = False) -> MCPResponse:
         """Read the real Unreal Slate tree through MCP; never performs UI input."""
