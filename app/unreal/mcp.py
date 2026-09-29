@@ -112,12 +112,15 @@ class UnrealMCPClient:
     ) -> MCPResponse:
         if not toolset_name.strip() or not tool_name.strip():
             raise ValueError("toolset_name and tool_name are required")
-        return self.call_tool(
-            "call_tool",
+        return self._request(
+            "tools/call",
             {
-                "toolset_name": toolset_name,
-                "tool_name": tool_name,
-                "arguments": arguments or {},
+                "name": "call_tool",
+                "arguments": {
+                    "toolset_name": toolset_name,
+                    "tool_name": tool_name,
+                    "arguments": arguments or {},
+                },
             },
         )
 
