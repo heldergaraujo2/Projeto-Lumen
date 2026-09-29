@@ -25,7 +25,7 @@ class WindowsUIABackend:
             native_root=root.FindFirst(UIAutomationClient.TreeScope_Descendants,condition)
         except Exception:
             native_root=None
-        if native_root is None: return ()
+        if not native_root: return ()
         return self._walk(native_root,window,max_depth=max_depth,max_elements=max_elements)
     def _walk(self,root,window,*,max_depth,max_elements):
         from collections import deque
@@ -42,7 +42,7 @@ class WindowsUIABackend:
                 child=walker.GetFirstChildElement(element)
             except Exception:
                 child=None
-            while child is not None and len(out)+len(queue)<max_elements:
+            while child and len(out)+len(queue)<max_elements:
                 queue.append((child,depth+1))
                 try:
                     child=walker.GetNextSiblingElement(child)
