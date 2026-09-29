@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from app.computer_control.api import ScreenRegion
 from app.computer.windows_native import NativeWindow, FakeWindowsNativeBackend, WindowsNativeIntelligence
-from app.unreal import UnrealDiscovery, UnrealIntegration
+from app.unreal import MCPResponse, UnrealDiscovery, UnrealIntegration
 
 def make_project(tmp_path: Path, name: str = "MyGame") -> Path:
     root = tmp_path / name; root.mkdir()
@@ -68,3 +68,30 @@ def test_operation_allowlist_and_approval(tmp_path):
     assert plan.steps[2].requires_approval
     with pytest.raises(ValueError):
         integration.plan_operation(project, "delete_everything")
+
+
+class FakeMCP:
+    def __init__(self):
+        self.calls = []
+
+    def call_toolset_tool(self, toolset_name, tool_name, arguments=None):
+        self.calls.append((toolset_name, tool_name, arguments))
+        return MCPResponse(result={"content": [{"type": "text", "text": "window [ref=w1]"}]})
+
+
+def test_mcp_snapshot_is_read_only_and_uses_slate_toolset(tmp_path):
+    project = UnrealDiscovery().discover(make_project(tmp_path))
+    mcp = FakeMCP()
+    response = UnrealIntegration(mcp=mcp).mcp_snapshot(ref="w1", max_depth=12)
+    assert response.result["content"]
+    assert mcp.calls == [(
+        "SlateInspectorToolset.SlateInspectorToolset",
+        "Snapshot",
+        {"ref": "w1", "maxDepth": 12, "bIncludeSourceLocations": False},
+    )]
+
+
+def test_mcp_snapshot_requires_client(tmp_path):
+    project = UnrealDiscovery().discover(make_project(tmp_path))
+    with pytest.raises(RuntimeError, match="MCP client"):
+        UnrealIntegration().mcp_snapshot()
