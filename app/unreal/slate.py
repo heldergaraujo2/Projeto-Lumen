@@ -10,8 +10,8 @@ from app.computer_control.grounding import GroundedTarget, GroundingSource
 
 _REF = re.compile(r"\[ref=(?P<ref>[A-Za-z0-9_-]+)\]|\bref=(?P<ref2>[A-Za-z0-9_-]+)")
 _POS_SIZE = re.compile(
-    r"\bpos=\(\s*(?P<x>-?\d+)\s*,\s*(?P<y>-?\d+)\s*\)"
-    r"\s+size=\(\s*(?P<w>\d+)\s*,\s*(?P<h>\d+)\s*\)"
+    r"\bpos=\(?\s*(?P<x>-?\d+)\s*,\s*(?P<y>-?\d+)\s*\)?"
+    r"\s+size=\(?\s*(?P<w>\d+)\s*,\s*(?P<h>\d+)\s*\)?"
 )
 _QUOTED_LABEL = re.compile(r'(?P<label>"[^"]+"|\'[^\']+\')')
 
