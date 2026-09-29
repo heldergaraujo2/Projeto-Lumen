@@ -118,6 +118,8 @@ class SlateGroundingAdapter:
         result: Any,
         *,
         window: CCTarget | None = None,
+        origin_x: int = 0,
+        origin_y: int = 0,
     ) -> tuple[GroundedTarget, ...]:
         candidates: list[GroundedTarget] = []
         candidates.extend(_dict_targets(result, window))
