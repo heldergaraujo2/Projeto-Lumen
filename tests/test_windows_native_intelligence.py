@@ -103,3 +103,32 @@ def test_windows_uia_initializer_uses_registered_clsid(monkeypatch):
     assert calls["cls"] is FakeCUIAutomation
     assert calls["interface"] is FakeIUIAutomation
     assert calls["clsctx"] == 1
+
+
+def test_windows_process_info_extracts_pid_and_executable_name(monkeypatch):
+    import ctypes
+    from app.computer_control.windows.driver import WindowsComputerControlDriver
+
+    class FakeKernel32:
+        def GetWindowThreadProcessId(self, hwnd, pid_ptr):
+            pid_ptr._obj.value = 6764
+            return 1
+        def OpenProcess(self, access, inherit_handle, pid):
+            assert access == 0x1000
+            assert pid == 6764
+            return 123
+        def QueryFullProcessImageNameW(self, handle, flags, buffer, size_ptr):
+            assert handle == 123
+            buffer.value = r"C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe"
+            size_ptr._obj.value = len(buffer.value)
+            return 1
+        def CloseHandle(self, handle):
+            assert handle == 123
+            return 1
+
+    class FakeWindll:
+        kernel32 = FakeKernel32()
+
+    monkeypatch.setattr(ctypes, "windll", FakeWindll(), raising=False)
+    driver = object.__new__(WindowsComputerControlDriver)
+    assert driver._process_info(999) == (6764, "UnrealEditor.exe")
