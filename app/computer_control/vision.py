@@ -86,6 +86,53 @@ class VisionProvider(Protocol):
         ...
 
 
+def _repair_truncated_json(payload: str) -> dict | list | None:
+    """Repair only missing closing JSON delimiters at the end of a complete value.
+
+    This never invents fields, values, commas, or string content. If the payload
+    ends inside a string or is otherwise structurally incomplete, it is rejected.
+    """
+    text = payload.strip()
+    if not text or text[0] not in "{[":
+        return None
+
+    stack: list[str] = []
+    in_string = False
+    escaped = False
+
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            stack.append("}")
+        elif char == "[":
+            stack.append("]")
+        elif char in "}]" :
+            if not stack or stack[-1] != char:
+                return None
+            stack.pop()
+
+    if in_string or escaped:
+        return None
+    if not stack:
+        return None
+
+    candidate = text + "".join(reversed(stack))
+    try:
+        data = json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, (dict, list)) else None
+
+
 class JsonVisionProvider:
     def __init__(self, *, name: str, model: str):
         if not name.strip() or not model.strip():
@@ -94,10 +141,15 @@ class JsonVisionProvider:
         self.model = model
 
     def parse(self, payload: str | dict, *, width: int, height: int) -> VisionObservation:
-        try:
-            data = json.loads(payload) if isinstance(payload, str) else payload
-        except json.JSONDecodeError as exc:
-            raise ValueError("vision provider returned invalid JSON") from exc
+        if isinstance(payload, str):
+            try:
+                data = json.loads(payload)
+            except json.JSONDecodeError as exc:
+                data = _repair_truncated_json(payload)
+                if data is None:
+                    raise ValueError("vision provider returned invalid JSON") from exc
+        else:
+            data = payload
         if not isinstance(data, dict):
             raise ValueError("vision payload must be an object")
         elements = data.get("elements", [])
