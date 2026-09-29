@@ -56,6 +56,7 @@ def test_slate_real_mcp_geometry_without_parentheses_and_virtual_desktop_origin(
     assert len(targets) == 1
     target = targets[0]
     assert target.label == "Gaveta de Conteúdo"
+    assert target.source is GroundingSource.SLATE
     assert target.x == 3
     assert target.y == 1047
     assert target.width == 151
