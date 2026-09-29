@@ -109,10 +109,13 @@ def test_windows_process_info_extracts_pid_and_executable_name(monkeypatch):
     import ctypes
     from app.computer_control.windows.driver import WindowsComputerControlDriver
 
-    class FakeKernel32:
+    class FakeUser32:
         def GetWindowThreadProcessId(self, hwnd, pid_ptr):
+            assert hwnd.value == 999
             pid_ptr._obj.value = 6764
             return 1
+
+    class FakeKernel32:
         def OpenProcess(self, access, inherit_handle, pid):
             assert access == 0x1000
             assert pid == 6764
@@ -127,6 +130,7 @@ def test_windows_process_info_extracts_pid_and_executable_name(monkeypatch):
             return 1
 
     class FakeWindll:
+        user32 = FakeUser32()
         kernel32 = FakeKernel32()
 
     monkeypatch.setattr(ctypes, "windll", FakeWindll(), raising=False)
