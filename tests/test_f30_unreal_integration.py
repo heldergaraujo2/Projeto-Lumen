@@ -44,6 +44,9 @@ def test_windows_editor_discovery_fails_without_backend(tmp_path):
     with pytest.raises(RuntimeError, match="native backend"): UnrealIntegration().find_editor(project)
 
 from app.computer.windows_native import NativeElement
+from app.security.permissions import PermissionLevel, PermissionManager, PermissionDeniedError
+from app.tools.base import ToolRegistry
+from app.unreal.tool import UnrealSnapshotTool
 
 def test_editor_inspection_maps_unreal_surfaces(tmp_path):
     project = UnrealDiscovery().discover(make_project(tmp_path))
@@ -95,3 +98,32 @@ def test_mcp_snapshot_requires_client(tmp_path):
     project = UnrealDiscovery().discover(make_project(tmp_path))
     with pytest.raises(RuntimeError, match="MCP client"):
         UnrealIntegration().mcp_snapshot()
+
+
+def test_unreal_snapshot_tool_is_read_only_and_permission_gated():
+    mcp = FakeMCP()
+    tool = UnrealSnapshotTool(UnrealIntegration(mcp=mcp))
+    registry = ToolRegistry(PermissionManager())
+    registry.register(tool)
+    with pytest.raises(PermissionDeniedError):
+        registry.execute("unreal_snapshot", ref="w1")
+    permissions = PermissionManager([PermissionLevel.CHAT, PermissionLevel.COMPUTER_CONTROL])
+    registry = ToolRegistry(permissions)
+    registry.register(tool)
+    payload = json.loads(registry.execute(
+        "unreal_snapshot",
+        ref="w1",
+        max_depth=12,
+        include_source_locations=False,
+    ))
+    assert payload["ok"] is True
+    assert payload["data"]["read_only"] is True
+    assert mcp.calls[-1][1] == "Snapshot"
+
+
+def test_catalog_exposes_unreal_only_when_enabled():
+    from app.planner.catalog import build_catalog
+    assert "unreal_snapshot" not in build_catalog(include_terminal=False)
+    catalog = build_catalog(include_terminal=False, include_unreal=True)
+    assert "unreal_snapshot" in catalog
+    assert catalog["unreal_snapshot"]["parameters"][1]["name"] == "max_depth"
