@@ -39,3 +39,19 @@ A validação automatizada pode provar contrato e integração, mas não pode
 provar que Ollama está instalado com um modelo multimodal na máquina do usuário.
 O smoke real de F28 requer um screenshot benigno e um provider multimodal
 disponível, mantendo a execução física desligada.
+
+
+## Compatibilidade com capturas de alta resolução
+
+Capturas físicas podem ter resolução muito superior àquela em que um modelo
+multimodal pequeno consegue gerar uma resposta estruturada com estabilidade.
+O `OllamaVisionProvider` reduz, de forma não destrutiva, a maior dimensão da
+imagem enviada ao modelo para no máximo 1280 pixels, preservando a captura
+original como evidência. Após a observação, as caixas retornadas pelo modelo
+são remapeadas para as dimensões originais antes da validação e do grounding.
+Assim, a otimização de entrada não concede ao provider nenhuma autoridade física
+nem altera a fronteira de execução do ComputerControlService.
+
+A validação F28 deve usar um modelo multimodal local realmente disponível na
+máquina. O smoke atual aceita `LUMEN_OLLAMA_VISION_MODEL` e usa
+`qwen3-vl:2b-instruct` como padrão.
