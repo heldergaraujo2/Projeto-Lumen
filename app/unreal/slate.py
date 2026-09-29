@@ -40,6 +40,7 @@ def _text_items(value: Any) -> Iterable[str]:
                 decoded = None
             if decoded is not None:
                 yield from _text_items(decoded)
+                return
     elif isinstance(value, dict):
         for key in ("text", "returnValue", "result"):
             if key in value:
