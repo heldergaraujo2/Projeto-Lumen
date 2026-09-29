@@ -17,6 +17,7 @@ class GroundingSource(str, Enum):
     TEMPLATE = "template"
     OCR = "ocr"
     VISION = "vision"
+    SLATE = "slate"
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,7 @@ class GroundingEngine:
         GroundingSource.TEMPLATE,
         GroundingSource.OCR,
         GroundingSource.VISION,
+        GroundingSource.SLATE,
     )
 
     def __init__(
