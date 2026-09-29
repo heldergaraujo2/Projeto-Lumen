@@ -118,7 +118,7 @@ def test_replan_budget_is_bounded():
 
 
 def test_approved_checkpoint_resume_is_forwarded_to_service():
-    provider = FakeVisionProvider([obs(), obs()])
+    provider = FakeVisionProvider([obs(), obs(), obs()])
     pipeline = VisionGroundingPipeline(provider)
     checkpoint = type("CP", (), {"id": "CP-2"})()
     results = [
