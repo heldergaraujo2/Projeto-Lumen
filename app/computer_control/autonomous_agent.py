@@ -120,6 +120,7 @@ class VisionComputerAgent:
         target_label: str,
         expected_window: CCTarget | None = None,
         scope_region: ScreenRegion | None = None,
+        approved_checkpoint_id: str | None = None,
     ) -> ComputerAgentRun:
         if not isinstance(goal, str) or not goal.strip():
             raise ValueError("goal is required")
@@ -162,7 +163,11 @@ class VisionComputerAgent:
                 )
             steps.append(ComputerAgentStep(cycle, ComputerAgentState.TARGET, plan.action, "target_grounded"))
 
-            result: CCExecutionResult = self.computer_control.execute(scope=scope, request=plan.action)
+            result: CCExecutionResult = self.computer_control.execute(
+                scope=scope,
+                request=plan.action,
+                approved_checkpoint_id=approved_checkpoint_id,
+            )
             if not result.success and result.checkpoint is not None and result.error == "checkpoint_required":
                 steps.append(ComputerAgentStep(cycle, ComputerAgentState.WAITING_APPROVAL, plan.action, "checkpoint_required"))
                 return ComputerAgentRun(
