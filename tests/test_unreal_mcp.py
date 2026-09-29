@@ -55,7 +55,7 @@ def test_initialize_captures_session_and_uses_mcp_headers():
     assert client.session_id == "abc"
     request = opener.requests[0][0]
     assert request.headers.get("Mcp-session-id") is None
-    assert request.get_header("Mcp-Protocol-Version") == "2025-06-18"
+    assert request.headers.get("Mcp-protocol-version") == "2025-06-18"
 
 
 def test_second_request_reuses_session_id():
