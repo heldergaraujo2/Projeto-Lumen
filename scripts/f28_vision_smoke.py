@@ -43,13 +43,17 @@ def main() -> int:
     info = driver.screenshot()
 
     model = os.environ.get("LUMEN_OLLAMA_VISION_MODEL", "qwen3-vl:2b-instruct")
+    target_label = os.environ.get("LUMEN_F28_TARGET_LABEL", "Compile")
     provider = OllamaVisionProvider(model=model)
     result = VisionGroundingPipeline(provider).observe_and_resolve(
         VisionRequest(
             Path(info.artifact_ref),
-            "Identify visible interactive UI elements. Return their labels and pixel bounding boxes.",
+            "Find ONE visible interactive UI element matching this target label: "
+            f"{target_label!r}. Return ONLY that one candidate in the required JSON "
+            "structure. If no matching element is visible, return an empty elements list.",
+            max_output_tokens=128,
         ),
-        label=os.environ.get("LUMEN_F28_TARGET_LABEL", "Compile"),
+        label=target_label,
     )
 
     print(f"F28 screenshot: PASS ({info.width}x{info.height}) -> {info.artifact_ref}")
