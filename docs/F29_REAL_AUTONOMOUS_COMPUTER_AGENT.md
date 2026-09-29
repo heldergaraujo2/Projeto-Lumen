@@ -52,3 +52,16 @@ fluxo oficial do serviço.
 - REAL ENVIRONMENT: smoke físico continua separado e somente evidência real
   pode marcar F27/F28 como validadas;
 - DOCUMENTATION: este documento + estado/roadmap canônicos.
+
+
+## Smoke real
+
+O repositório fornece `scripts/f29_autonomous_computer_smoke.py` para validação
+em Windows com Ollama multimodal real. O smoke exige duas confirmações explícitas:
+`LUMEN_F29_PHYSICAL_CONFIRM=YES` para armar o teste e
+`LUMEN_F29_APPROVE=YES` para aprovar o checkpoint de ação.
+
+A única ação física do smoke é `MOUSE_MOVE` para o alvo grounded. Não há
+clique, digitação, scroll, foco ou fechamento de janela. O checkpoint continua
+sendo criado pelo `ComputerControlService` e a retomada usa o ID do checkpoint
+aprovado; um mismatch de escopo ou fingerprint permanece bloqueado pelo serviço.
