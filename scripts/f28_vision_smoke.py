@@ -7,10 +7,11 @@ granted by this script.
 
 PowerShell:
     $env:LUMEN_F28_PHYSICAL_CONFIRM="YES"
+    $env:LUMEN_OLLAMA_VISION_MODEL="qwen3-vl:2b-instruct"
     python scripts/f28_vision_smoke.py
 
 Optional:
-    $env:LUMEN_OLLAMA_VISION_MODEL="qwen3-vl:8b"
+    $env:LUMEN_OLLAMA_VISION_MODEL="qwen3-vl:2b-instruct"
 """
 from __future__ import annotations
 
@@ -41,7 +42,7 @@ def main() -> int:
     # Screenshot is observation only; physical input remains disarmed.
     info = driver.screenshot()
 
-    model = os.environ.get("LUMEN_OLLAMA_VISION_MODEL", "qwen3-vl:8b")
+    model = os.environ.get("LUMEN_OLLAMA_VISION_MODEL", "qwen3-vl:2b-instruct")
     provider = OllamaVisionProvider(model=model)
     result = VisionGroundingPipeline(provider).observe_and_resolve(
         VisionRequest(
