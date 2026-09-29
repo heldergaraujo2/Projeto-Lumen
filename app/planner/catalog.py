@@ -46,6 +46,7 @@ class ToolSpec:
     parameters: tuple[ParameterSpec, ...]
     terminal: bool = False
     web: bool = False    # ferramenta Web: exige WEB_ACCESS
+    unreal: bool = False  # inspeção Unreal via MCP
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -133,6 +134,19 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
                 "Texto substituto (literal, não vazio).",
             ),
         ),
+    ),
+    ToolSpec(
+        name="unreal_snapshot",
+        description=(
+            "Inspeciona o Unreal Editor via MCP/Slate Inspector em modo "
+            "somente leitura. Não clica, digita, salva, compila ou altera o projeto."
+        ),
+        parameters=(
+            ParameterSpec("ref", "string", False, "Referência Slate opcional; vazio inspeciona a janela raiz."),
+            ParameterSpec("max_depth", "integer", False, "Profundidade máxima do snapshot (0..100; default 30)."),
+            ParameterSpec("include_source_locations", "boolean", False, "Inclui localizações de origem quando disponíveis."),
+        ),
+        unreal=True,
     ),
     ToolSpec(
         name="web_search",
@@ -225,7 +239,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
 )
 
 
-def build_catalog(*, include_terminal: bool) -> dict[str, dict]:
+def build_catalog(*, include_terminal: bool, include_unreal: bool = False) -> dict[str, dict]:
     """Allowlist de planejamento como dict serializável (para o prompt).
 
     ``include_terminal=False`` (default quando o terminal não está
@@ -235,6 +249,8 @@ def build_catalog(*, include_terminal: bool) -> dict[str, dict]:
     catalog: dict[str, dict] = {}
     for spec in TOOL_SPECS:
         if spec.terminal and not include_terminal:
+            continue
+        if spec.unreal and not include_unreal:
             continue
         catalog[spec.name] = {
             "description": spec.description,
