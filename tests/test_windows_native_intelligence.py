@@ -136,3 +136,40 @@ def test_windows_process_info_extracts_pid_and_executable_name(monkeypatch):
     monkeypatch.setattr(ctypes, "windll", FakeWindll(), raising=False)
     driver = object.__new__(WindowsComputerControlDriver)
     assert driver._process_info(999) == (6764, "UnrealEditor.exe")
+
+
+def test_windows_uia_walk_skips_null_com_element(monkeypatch):
+    import types
+    from app.computer.windows_uia import WindowsUIABackend
+
+    class FakeElement:
+        pass
+
+    valid = FakeElement()
+    invalid = FakeElement()
+    child = FakeElement()
+
+    class FakeAdapter:
+        def element_info(self, element):
+            if element is invalid:
+                raise ValueError("NULL COM pointer access")
+            from app.computer_control.windows.uia import UIElementInfo
+            return UIElementInfo("Play", "button", ScreenRegion(10, 20, 80, 30))
+
+    class FakeWalker:
+        def GetFirstChildElement(self, element):
+            return None
+        def GetNextSiblingElement(self, element):
+            return None
+
+    fake_uia = types.SimpleNamespace(ControlViewWalker=FakeWalker())
+    backend = object.__new__(WindowsUIABackend)
+    backend._adapter = FakeAdapter()
+    backend._adapter._uia = fake_uia
+    window = NativeWindow(1, "Unreal Editor", ScreenRegion(0, 0, 1280, 720), 42, "UnrealEditor.exe")
+
+    elements = backend._walk(invalid, window, max_depth=1, max_elements=8)
+    assert elements == ()
+    elements = backend._walk(valid, window, max_depth=1, max_elements=8)
+    assert len(elements) == 1
+    assert elements[0].name == "Play"
