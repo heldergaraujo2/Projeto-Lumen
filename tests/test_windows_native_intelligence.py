@@ -173,3 +173,46 @@ def test_windows_uia_walk_skips_null_com_element(monkeypatch):
     elements = backend._walk(valid, window, max_depth=1, max_elements=8)
     assert len(elements) == 1
     assert elements[0].name == "Play"
+
+
+def test_windows_uia_descendant_scope_targets_window_children(monkeypatch):
+    from app.computer.windows_uia import WindowsUIABackend
+
+    class FakeUIAutomationClient:
+        UIA_NativeWindowHandlePropertyId = 7
+        TreeScope_Descendants = 32
+
+    class FakeComtypesGen:
+        UIAutomationClient = FakeUIAutomationClient
+
+    calls = {}
+
+    class FakeCondition:
+        pass
+
+    class FakeUIA:
+        def CreatePropertyCondition(self, prop, value):
+            calls["condition"] = (prop, value)
+            return FakeCondition()
+
+    class FakeRoot:
+        def FindFirst(self, scope, condition):
+            calls["find_first"] = (scope, condition)
+            return object()
+
+    class FakeAdapter:
+        _uia = FakeUIA()
+        def root(self):
+            return FakeRoot()
+
+    import sys
+    monkeypatch.setitem(sys.modules, "comtypes.gen", FakeComtypesGen())
+
+    backend = object.__new__(WindowsUIABackend)
+    backend._adapter = FakeAdapter()
+    backend._walk = lambda root, window, **kwargs: ()
+
+    window = NativeWindow(4130744, "AgeOfAether — Unreal Editor", None, 6764, "UnrealEditor.exe")
+    assert backend.descendants(window) == ()
+    assert calls["condition"] == (7, 4130744)
+    assert calls["find_first"][0] == 32
