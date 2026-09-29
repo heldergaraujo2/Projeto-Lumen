@@ -10,9 +10,10 @@ class WindowsComputerControlDriver:
         import ctypes;return ctypes.windll.user32
     def _process_info(self,hwnd):
         import ctypes
+        user32=ctypes.windll.user32
         kernel32=ctypes.windll.kernel32
         pid=ctypes.c_ulong()
-        if not kernel32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd),ctypes.byref(pid)) or not pid.value:
+        if not user32.GetWindowThreadProcessId(ctypes.c_void_p(hwnd),ctypes.byref(pid)) or not pid.value:
             return None,None
         handle=kernel32.OpenProcess(0x1000,False,pid.value)
         if not handle:
