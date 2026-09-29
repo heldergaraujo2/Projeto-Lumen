@@ -41,6 +41,8 @@ def test_mcp_slate_observation_builds_shared_computer_observation():
     assert observation.active_window == window
     assert observation.elements[0].label == "Gaveta de Conteúdo"
     assert observation.elements[0].source.value == "slate"
+    assert mcp.calls[0][1] == "Observe"
+    assert mcp.calls[1][1] == "Snapshot"
 
 
 def test_slate_click_planning_stops_at_computer_control_request():
