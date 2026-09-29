@@ -65,3 +65,13 @@ A única ação física do smoke é `MOUSE_MOVE` para o alvo grounded. Não há
 clique, digitação, scroll, foco ou fechamento de janela. O checkpoint continua
 sendo criado pelo `ComputerControlService` e a retomada usa o ID do checkpoint
 aprovado; um mismatch de escopo ou fingerprint permanece bloqueado pelo serviço.
+
+
+### Retomada de checkpoint
+
+Quando uma ação entra em `WAITING_APPROVAL`, o agente mantém o plano associado
+ao checkpoint. Uma retomada com o ID do checkpoint reutiliza exatamente a mesma
+ação e expectativa antes de chamar o `ComputerControlService`; não há nova
+inferência visual ou novo planejamento entre a aprovação e a execução. O serviço
+continua validando permissão, política, escopo e fingerprint, portanto a
+retomada não cria autoridade adicional.
