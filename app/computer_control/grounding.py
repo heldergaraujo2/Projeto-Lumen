@@ -56,11 +56,11 @@ class GroundingEngine:
         GroundingSource.UI_AUTOMATION,
         GroundingSource.ACCESSIBILITY,
         GroundingSource.NATIVE,
+        GroundingSource.SLATE,
         GroundingSource.DOM,
         GroundingSource.TEMPLATE,
         GroundingSource.OCR,
         GroundingSource.VISION,
-        GroundingSource.SLATE,
     )
 
     def __init__(
