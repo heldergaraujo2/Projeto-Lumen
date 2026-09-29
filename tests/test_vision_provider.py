@@ -139,3 +139,83 @@ def test_ollama_provider_rejects_oversized_response(tmp_path, monkeypatch):
     monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: Response())
     with pytest.raises(RuntimeError, match="exceeds"):
         provider.observe(VisionRequest(path, "inspect"))
+
+
+def test_ollama_provider_downscales_large_images_and_remaps_coordinates(tmp_path, monkeypatch):
+    path = make_image(tmp_path, size=(3840, 1125))
+    provider = OllamaVisionProvider(timeout_seconds=1, max_image_dimension=1280)
+    captured = {}
+
+    class Response:
+        def read(self, limit=-1):
+            return json.dumps({
+                "response": json.dumps({
+                    "elements": [{
+                        "label": "Compile", "confidence": 0.9,
+                        "x": 480, "y": 125, "width": 100, "height": 10,
+                    }],
+                })
+            }).encode()
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data.decode())
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    result = provider.observe(VisionRequest(path, "inspect"))
+
+    sent = base64.b64decode(captured["payload"]["images"][0])
+    sent_path = tmp_path / "sent.png"
+    sent_path.write_bytes(sent)
+    with Image.open(sent_path) as sent_image:
+        assert sent_image.size == (1280, 375)
+
+    assert result.width == 3840
+    assert result.height == 1125
+    assert result.elements[0].x == 1440
+    assert result.elements[0].y == 375
+    assert result.elements[0].width == 300
+    assert result.elements[0].height == 30
+
+
+def test_ollama_provider_preserves_small_image_dimensions(tmp_path, monkeypatch):
+    path = make_image(tmp_path, size=(800, 600))
+    provider = OllamaVisionProvider(timeout_seconds=1, max_image_dimension=1280)
+    captured = {}
+
+    class Response:
+        def read(self, limit=-1):
+            return json.dumps({
+                "response": json.dumps({
+                    "elements": [{
+                        "label": "Compile", "confidence": 0.9,
+                        "x": 10, "y": 20, "width": 30, "height": 8,
+                    }],
+                })
+            }).encode()
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data.decode())
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    result = provider.observe(VisionRequest(path, "inspect"))
+
+    sent = base64.b64decode(captured["payload"]["images"][0])
+    sent_path = tmp_path / "sent_small.png"
+    sent_path.write_bytes(sent)
+    with Image.open(sent_path) as sent_image:
+        assert sent_image.size == (800, 600)
+
+    assert result.width == 800
+    assert result.height == 600
+    assert result.elements[0].x == 10
+    assert result.elements[0].y == 20
