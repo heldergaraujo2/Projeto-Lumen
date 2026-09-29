@@ -68,8 +68,8 @@ class UnrealMCPClient:
             return
         try:
             is_loopback = ipaddress_is_loopback(parsed.hostname)
-        except ValueError as exc:
-            raise ValueError("invalid Unreal MCP host") from exc
+        except ValueError:
+            is_loopback = parsed.hostname.lower() == "localhost"
         if not is_loopback:
             raise ValueError("Unreal MCP endpoint must be loopback by default")
 
