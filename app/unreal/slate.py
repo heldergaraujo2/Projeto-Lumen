@@ -31,7 +31,6 @@ def _clean_label(value: str) -> str:
 
 def _text_items(value: Any) -> Iterable[str]:
     if isinstance(value, str):
-        yield value
         # Unreal MCP wraps the Slate tree as JSON inside the text content.
         stripped = value.strip()
         if stripped.startswith("{") or stripped.startswith("["):
@@ -42,6 +41,7 @@ def _text_items(value: Any) -> Iterable[str]:
             if decoded is not None:
                 yield from _text_items(decoded)
                 return
+        yield value
     elif isinstance(value, dict):
         for key in ("text", "returnValue", "result"):
             if key in value:
