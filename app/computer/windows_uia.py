@@ -32,6 +32,8 @@ class WindowsUIABackend:
         out=[];queue=deque([(root,0)]);walker=self._adapter._uia.ControlViewWalker
         while queue and len(out)<max_elements:
             element,depth=queue.popleft()
+            if not element:
+                continue
             try:
                 info=self._adapter.element_info(element)
             except ValueError:
