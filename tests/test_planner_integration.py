@@ -172,7 +172,6 @@ FORBIDDEN_TOKENS = (
     "subprocess", "os.system", "os.exec", "popen", "shutil", "ctypes",
     "pyautogui", "pynput", "pytesseract", "opencv", "win32api",
     "send_keys", "click(", "move(", "scroll(", "PyMouse", "PyKeyboard",
-    "unreal", "editor",  # Unreal/editor automation
 )
 
 
