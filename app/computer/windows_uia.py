@@ -22,7 +22,7 @@ class WindowsUIABackend:
         try:
             from comtypes.gen import UIAutomationClient
             condition=self._adapter._uia.CreatePropertyCondition(UIAutomationClient.UIA_NativeWindowHandlePropertyId,int(window.handle))
-            native_root=root.FindFirst(UIAutomationClient.TreeScope_Element,condition)
+            native_root=root.FindFirst(UIAutomationClient.TreeScope_Descendants,condition)
         except Exception:
             native_root=None
         if native_root is None: return ()
