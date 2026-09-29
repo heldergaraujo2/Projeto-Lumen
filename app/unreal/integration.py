@@ -141,7 +141,7 @@ class UnrealIntegration:
             raise RuntimeError(f"Unreal MCP snapshot failed: {response.error}")
 
         targets = adapter.targets_from_snapshot(response.result, window=window)
-        for _ in range(3):
+        for _ in range(4):
             if targets or not ref.strip():
                 break
             time.sleep(0.5)
