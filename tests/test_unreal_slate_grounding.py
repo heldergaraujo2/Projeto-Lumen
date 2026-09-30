@@ -44,14 +44,18 @@ def test_slate_target_resolves_through_computer_control():
     assert resolution.target is target
     assert resolution.mechanism is ExecutionMechanism.COMPUTER_CONTROL
 
+
 def test_slate_real_mcp_geometry_without_parentheses_and_virtual_desktop_origin():
     result = {
         "content": [{
             "type": "text",
-            "text": '{"returnValue":"window \\\"AgeOfAether — Unreal Editor\\\" [pos=-1920,45 size=1920,1032] [ref=w1]\\nbutton \\\"Gaveta de Conteúdo\\\" [pos=-1917,1047 size=151,28] [ref=b16]"}'
+            "text": '{"returnValue":"window \\"AgeOfAether — Unreal Editor\\" [pos=-1920,45 size=1920,1032] [ref=w1]\\nbutton \\"Gaveta de Conteúdo\\" [pos=-1917,1047 size=151,28] [ref=b16]"}'
         }]
     }
-    targets = SlateGroundingAdapter().targets_from_snapshot(result)
+    adapter = SlateGroundingAdapter()
+    origin = adapter.coordinate_origin_from_snapshot(result)
+    assert origin == (-1920, 0)
+    targets = adapter.targets_from_snapshot(result)
     assert len(targets) == 2
     target = next(t for t in targets if t.label == "Gaveta de Conteúdo")
     assert target.source is GroundingSource.SLATE
@@ -66,10 +70,13 @@ def test_slate_negative_virtual_desktop_y_is_normalized():
     result = {
         "content": [{
             "type": "text",
-            "text": '{"returnValue":"window \\\"Unreal\\\" [pos=-10,-50 size=1920,1080] [ref=w1]\\nbutton \\\"Play\\\" [pos=20,-20 size=80,30] [ref=b1]"}'
+            "text": '{"returnValue":"window \\"Unreal\\" [pos=-10,-50 size=1920,1080] [ref=w1]\\nbutton \\"Play\\" [pos=20,-20 size=80,30] [ref=b1]"}'
         }]
     }
-    targets = SlateGroundingAdapter().targets_from_snapshot(result)
+    adapter = SlateGroundingAdapter()
+    origin = adapter.coordinate_origin_from_snapshot(result)
+    assert origin == (-10, -50)
+    targets = adapter.targets_from_snapshot(result)
     target = next(t for t in targets if t.label == "Play")
     assert target.x == 30
     assert target.y == 30

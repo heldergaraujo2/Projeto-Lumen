@@ -41,6 +41,11 @@ def test_mcp_slate_observation_builds_shared_computer_observation():
     assert observation.active_window == window
     assert observation.elements[0].label == "Gaveta de Conteúdo"
     assert observation.elements[0].source.value == "slate"
+    assert observation.metadata == {
+        "coordinate_space": "observation",
+        "coordinate_origin_x": 0,
+        "coordinate_origin_y": 0,
+    }
     assert mcp.calls[0][1] == "Observe"
     assert mcp.calls[1][1] == "Snapshot"
 
@@ -60,4 +65,9 @@ def test_slate_click_planning_stops_at_computer_control_request():
     assert request.target is not None
     assert request.target.source.value == "slate"
     assert request.target.center() == (70, 35)
+    assert request.metadata == {
+        "coordinate_space": "observation",
+        "coordinate_origin_x": 0,
+        "coordinate_origin_y": 0,
+    }
     assert all(call[1] != "Click" for call in mcp.calls)

@@ -388,7 +388,10 @@ def test_startup_registers_no_terminal_tool(controller, ws):
                      "search_files", "edit_file",
                      # 11K: restore_snapshot é tool não-terminal, registrada
                      # incondicionalmente (mesmo sem enable_terminal).
-                     "restore_snapshot"]
+                     "restore_snapshot",
+                     # Web tools são capacidades registradas desde o startup;
+                     # WEB_ACCESS continua protegido pela permissão explícita.
+                     "web_search", "web_fetch", "web_research"]
 
 
 def test_permission_gate_blocks_before_tool_code_via_handler(ws):
