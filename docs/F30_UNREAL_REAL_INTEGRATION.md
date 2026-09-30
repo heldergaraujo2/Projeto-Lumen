@@ -48,7 +48,7 @@ Para F30 ser declarada verde, é necessária uma sessão Windows interativa com 
 - 🟢 `SlateGroundingAdapter` produz `GroundedTarget` com `GroundingSource.SLATE`.
 - 🟢 `TargetingEngine` resolve alvo Slate para `ExecutionMechanism.COMPUTER_CONTROL`.
 - 🟢 `plan_slate_click("Gaveta de Conteúdo")` produziu ação `mouse_click`, centro `(78,1061)`, sem executar driver.
-- 🟢 Driver controlado recebeu exatamente `(78,1061,"left")` após aprovação, usando fake driver; nenhuma entrada física do Windows foi realizada.
+- 🟢 Driver controlado recebeu o ponto transformado para o espaço Windows `(−1842,1061,"left")` após aprovação, usando fake driver; nenhuma entrada física do Windows foi realizada.
 
 ### Segurança do ComputerControlService
 - 🟢 Sem checkpoint: execução retorna `checkpoint_required`.
@@ -60,8 +60,8 @@ Para F30 ser declarada verde, é necessária uma sessão Windows interativa com 
 
 ### Suíte automatizada
 - 🟢 Suíte completa: **1475 passed, 49 skipped, 0 failed**, em 20,61 s.
-- 🟢 Suíte F30/Slate relacionada: **29 passed** no último ciclo direcionado.
-- 🟢 Branch e PC sincronizados no commit `93df6010174608738230474d3aa5dc2d99e1ebac`.
+- 🟢 Suíte F30/Slate relacionada: **29 passed** no último ciclo direcionado; a correção de coordenadas adicionou regressões específicas para conversão no limite do driver.
+- 🟢 Branch e PC sincronizados no commit integrado `7e599d97079a66a770531afb08f9858249070475`.
 - 🟡 `data/audit/` permanece como conteúdo local não rastreado e não foi removido.
 
 ### Classificação atual
