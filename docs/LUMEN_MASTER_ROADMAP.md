@@ -1,6 +1,6 @@
 # LUMEN — ROADMAP E CONTINUIDADE OFICIAL
 
-**Atualização:** 2026-09-28  
+**Atualização:** 2026-09-30  
 **Branch oficial:** `master`  
 **Fonte de verdade:** este documento + código/testes do repositório GitHub.
 
@@ -22,9 +22,9 @@
 | F27 | Real Windows Computer Validation | 🟩 VALIDADA EM MÁQUINA REAL |
 | F28 | Real Vision + Grounding | 🟩 VALIDADA EM MÁQUINA REAL |
 | F29 | Real Autonomous Computer Agent | 🟩 VALIDADA EM MÁQUINA REAL |
-| F30 | Unreal Real Integration | 🟨 IMPLEMENTAÇÃO CONCLUÍDA — VALIDAÇÃO REAL DO UNREAL PENDENTE |
-| F31 | Experience & Workflow Intelligence | 🟩 CONCLUÍDA — implementação, integração, segurança, persistência e testes |
-| F32 | Closed-Loop Lumen Evolution | 🟩 CONCLUÍDA — implementação, integração F22/F24, persistência, segurança e CI |
+| F30 | Unreal Real Integration | 🟩 VALIDADA EM AMBIENTE REAL — clique físico controlado + verificação MCP/Slate |
+| F31 | Experience & Workflow Intelligence | 🟩 IMPLEMENTAÇÃO/CI CONCLUÍDAS — E2E recomendado pendente |
+| F32 | Closed-Loop Lumen Evolution | 🟩 IMPLEMENTAÇÃO/CI CONCLUÍDAS — E2E recomendado pendente |
 
 ## F32 — CLOSED-LOOP LUMEN EVOLUTION
 
@@ -131,7 +131,7 @@ UIA/Win32, foco, janelas, controles, menus, diálogos, mouse, teclado e cadeia P
 `Goal → Plan → Observe → Target → Action → Verify → Recover → Replan → Success`.
 
 ### F30 — Unreal Real Integration
-Descoberta do projeto, Editor, Content Browser, Blueprints, C++, build/compile, PIE, logs, erros e recovery.
+Descoberta do projeto, Editor, Content Browser/Slate, grounding e execução física controlada pelo ComputerControlService. **Validação real aprovada em 2026-09-30** com AgeOfAether, UE 5.8, MCP/Slate, checkpoint, clique físico e verificação pós-ação. Não reabrir F30.
 
 ### F31 — Experience & Workflow Intelligence
 `observe → understand → record → generalize → store → reuse → adapt → verify`.
@@ -272,7 +272,17 @@ Evidência real:
 - ciclos: 1; replans: 0; recoveries: 0;
 - ação física: `MOUSE_MOVE` somente;
 - clique, digitação, scroll e foco: não executados;
-- fluxo comprovado: Goal → Plan → Observe → Target → Checkpoint → Action → Verify → Success.\n\n## 6. CRITÉRIO UNIVERSAL DE CONCLUSÃO
+- fluxo comprovado: Goal → Plan → Observe → Target → Checkpoint → Action → Verify → Success.\n\n## PRÓXIMA CONTINUIDADE — APÓS F30
+
+F30 está encerrada. A próxima sequência de validação é:
+1. F31 E2E recomendado: workflow real → registro → persistência → reinício → recall → reuse/adaptação controlada;
+2. F32 E2E recomendado: evidência real → trigger → plan → gates → approval → promotion/monitoring, sem execução direta;
+3. teste integrado final;
+4. auditoria final e fechamento documental.
+
+Não criar novo gate físico artificial para F31/F32 e não repetir F30.
+
+## 6. CRITÉRIO UNIVERSAL DE CONCLUSÃO
 
 Uma fase só pode ser 🟩 com:
 1. SPEC;
