@@ -10,6 +10,7 @@ from app.security.permissions import PermissionLevel, PermissionManager
 from .actions import CCActionRequest, action_point
 from .api import CCActionType, ComputerControlDriver
 from .audit import CCAuditEvent, make_cc_audit_event
+from .coordinates import CoordinateTransform
 from .policy import CCDecision, evaluate_cc_action
 from .scopes import CCScope
 
@@ -77,6 +78,7 @@ def _request_fingerprint(scope: CCScope, request: CCActionRequest) -> str:
             if request.region
             else None
         ),
+        "metadata": request.metadata,
     }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -91,6 +93,7 @@ class ComputerControlService:
     -> policy
     -> scope
     -> one-shot checkpoint approval
+    -> coordinate conversion
     -> driver
     -> metadata-only audit.
     """
@@ -285,6 +288,11 @@ class ComputerControlService:
             if not scope.allows_point(x, y):
                 raise PermissionError("point outside authorized region")
 
+    def _driver_point(self, request: CCActionRequest) -> tuple[int, int]:
+        x, y = action_point(request)
+        transform = CoordinateTransform.from_metadata(request.metadata)
+        return transform.to_windows_screen(x, y)
+
     def _execute_driver(self, scope, request):
         if request.action == CCActionType.SCREENSHOT:
             self.driver.screenshot(
@@ -301,7 +309,7 @@ class ComputerControlService:
             CCActionType.MOUSE_DOUBLE_CLICK,
             CCActionType.MOUSE_RIGHT_CLICK,
         }:
-            x, y = action_point(request)
+            x, y = self._driver_point(request)
             if request.action == CCActionType.MOUSE_MOVE:
                 self.driver.mouse_move(x, y)
             elif request.action == CCActionType.MOUSE_CLICK:
