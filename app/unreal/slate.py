@@ -15,6 +15,7 @@ _POS_SIZE = re.compile(
 )
 _QUOTED_LABEL = re.compile(r'(?P<label>"[^"]+"|\'[^\']+\')')
 
+
 def _clean_label(value: str) -> str:
     value = re.sub(r"\[ref=[^]]+\]", "", value)
     value = re.sub(r"\bref=[A-Za-z0-9_-]+", "", value)
@@ -29,9 +30,9 @@ def _clean_label(value: str) -> str:
     value = value.strip(' "\\')
     return value.strip()
 
+
 def _text_items(value: Any) -> Iterable[str]:
     if isinstance(value, str):
-        # Unreal MCP wraps the Slate tree as JSON inside the text content.
         stripped = value.strip()
         if stripped.startswith("{") or stripped.startswith("["):
             try:
@@ -53,6 +54,7 @@ def _text_items(value: Any) -> Iterable[str]:
         for item in value:
             yield from _text_items(item)
 
+
 def _dict_target(value: dict[str, Any], window: CCTarget | None) -> GroundedTarget | None:
     ref = value.get("ref") or value.get("reference")
     bounds = value.get("bounds") or value.get("rect")
@@ -73,6 +75,7 @@ def _dict_target(value: dict[str, Any], window: CCTarget | None) -> GroundedTarg
         evidence=f"slate_ref={ref}",
     )
 
+
 def _dict_targets(value: Any, window: CCTarget | None) -> Iterable[GroundedTarget]:
     if isinstance(value, dict):
         target = _dict_target(value, window)
@@ -84,7 +87,14 @@ def _dict_targets(value: Any, window: CCTarget | None) -> Iterable[GroundedTarge
         for item in value:
             yield from _dict_targets(item, window)
 
-def _line_target(line: str, window: CCTarget | None, *, origin_x: int = 0, origin_y: int = 0) -> GroundedTarget | None:
+
+def _line_target(
+    line: str,
+    window: CCTarget | None,
+    *,
+    origin_x: int = 0,
+    origin_y: int = 0,
+) -> GroundedTarget | None:
     ref_match = _REF.search(line)
     geometry = _POS_SIZE.search(line)
     if not ref_match or not geometry:
@@ -97,10 +107,14 @@ def _line_target(line: str, window: CCTarget | None, *, origin_x: int = 0, origi
         label,
         GroundingSource.SLATE,
         1.0,
-        int(g["x"]) - origin_x, int(g["y"]) - origin_y, int(g["w"]), int(g["h"]),
+        int(g["x"]) - origin_x,
+        int(g["y"]) - origin_y,
+        int(g["w"]),
+        int(g["h"]),
         window,
         evidence=f"slate_ref={ref_match.group('ref') or ref_match.group('ref2')}",
     )
+
 
 class SlateGroundingAdapter:
     """Parse only structured Slate geometry into GroundedTarget values.
@@ -115,6 +129,34 @@ class SlateGroundingAdapter:
         self.min_width = min_width
         self.min_height = min_height
 
+    @staticmethod
+    def coordinate_origin_from_snapshot(
+        result: Any,
+        *,
+        origin_x: int = 0,
+        origin_y: int = 0,
+    ) -> tuple[int, int]:
+        """Return the explicit observation origin used for Slate normalization."""
+        texts = tuple(_text_items(result))
+        positions = [_POS_SIZE.search(line) for text in texts for line in text.splitlines()]
+        if origin_x == 0:
+            negative_x = [
+                int(match.group("x"))
+                for match in positions
+                if match and int(match.group("x")) < 0
+            ]
+            if negative_x:
+                origin_x = min(negative_x)
+        if origin_y == 0:
+            negative_y = [
+                int(match.group("y"))
+                for match in positions
+                if match and int(match.group("y")) < 0
+            ]
+            if negative_y:
+                origin_y = min(negative_y)
+        return origin_x, origin_y
+
     def targets_from_snapshot(
         self,
         result: Any,
@@ -125,23 +167,14 @@ class SlateGroundingAdapter:
     ) -> tuple[GroundedTarget, ...]:
         candidates: list[GroundedTarget] = []
         candidates.extend(_dict_targets(result, window))
-        texts = tuple(_text_items(result))
-        # Unreal Slate reports coordinates in virtual-desktop space. When the
-        # editor is on a monitor left of the primary display, x can be negative.
-        # Normalize that origin into the observation's non-negative coordinate
-        # space while preserving relative geometry.
-        positions = [_POS_SIZE.search(line) for text in texts for line in text.splitlines()]
-        if origin_x == 0:
-            negative_x = [int(match.group("x")) for match in positions if match and int(match.group("x")) < 0]
-            if negative_x:
-                origin_x = min(negative_x)
-        if origin_y == 0:
-            negative_y = [int(match.group("y")) for match in positions if match and int(match.group("y")) < 0]
-            if negative_y:
-                origin_y = min(negative_y)
-        for text in texts:
+        origin_x, origin_y = self.coordinate_origin_from_snapshot(
+            result, origin_x=origin_x, origin_y=origin_y
+        )
+        for text in _text_items(result):
             for line in text.splitlines():
-                target = _line_target(line, window, origin_x=origin_x, origin_y=origin_y)
+                target = _line_target(
+                    line, window, origin_x=origin_x, origin_y=origin_y
+                )
                 if target is not None:
                     candidates.append(target)
         unique: dict[tuple[str, int, int, int, int], GroundedTarget] = {}
@@ -149,8 +182,6 @@ class SlateGroundingAdapter:
             try:
                 target.validate()
             except ValueError:
-                # Ignore malformed/off-screen Slate entries without invalidating
-                # the rest of an otherwise usable snapshot.
                 continue
             if target.width < self.min_width or target.height < self.min_height:
                 continue
