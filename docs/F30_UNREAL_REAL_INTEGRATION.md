@@ -19,52 +19,56 @@ A CI valida contratos e regressões, mas não prova Unreal Editor instalado, pro
 
 Para F30 ser declarada verde, é necessária uma sessão Windows interativa com projeto Unreal existente e evidência das operações reais.
 
-
-## Estado real de validação — 2026-09-29
+## Estado real de validação — 2026-09-30
 
 ### Ambiente
 - 🟢 Unreal Engine real detectado: UE 5.8.
 - 🟢 Projeto real: AgeOfAether.
-- 🟢 Unreal Editor real identificado como `UnrealEditor.exe`.
+- 🟢 Unreal Editor real identificado como UnrealEditor.exe.
 - 🟢 SlateInspectorToolset e ToolsetRegistry habilitados no projeto real.
 - 🟢 ModelContextProtocol carregado.
-- 🟢 MCP real disponível em `127.0.0.1:8000/mcp`.
+- 🟢 MCP real disponível em 127.0.0.1:8000/mcp.
 
 ### Evidências MCP/Slate
 - 🟢 initialize real: HTTP 200, sessão MCP estabelecida.
 - 🟢 notifications/initialized + tools/list.
 - 🟢 list_toolsets: AgentSkillToolset e SlateInspectorToolset.
 - 🟢 describe_toolset do SlateInspectorToolset.
-- 🟢 Snapshot real do `AgeOfAether — Unreal Editor`, ref `w1`.
-- 🟢 Observe real até `maxDepth=30`.
-- 🟢 WaitFor semântico real para `Gaveta de Conteúdo`.
-- 🟢 Screenshot real do widget `b16`.
-- 🟢 Snapshot profundo real confirmou refs e controles Slate, incluindo `Gaveta de Conteúdo`.
+- 🟢 Snapshot real do AgeOfAether — Unreal Editor, ref w1.
+- 🟢 Observe real até maxDepth=30.
+- 🟢 WaitFor semântico real para Gaveta de Conteúdo.
+- 🟢 Screenshot real do widget b16.
+- 🟢 Snapshot profundo real confirmou refs e controles Slate, incluindo Gaveta de Conteúdo.
 
 ### Ponte Slate → Computer Control
 - 🟢 Snapshot MCP aninhado em JSON é decodificado corretamente.
-- 🟢 Coordenadas virtuais negativas do desktop são normalizadas para coordenadas de tela.
-- 🟢 Formato real `[pos=x,y size=w,h]` é aceito.
-- 🟢 `SlateGroundingAdapter` produz `GroundedTarget` com `GroundingSource.SLATE`.
-- 🟢 `TargetingEngine` resolve alvo Slate para `ExecutionMechanism.COMPUTER_CONTROL`.
-- 🟢 `plan_slate_click("Gaveta de Conteúdo")` produziu ação `mouse_click`, centro `(78,1061)`, sem executar driver.
-- 🟢 Driver controlado recebeu o ponto transformado para o espaço Windows `(−1842,1061,"left")` após aprovação, usando fake driver; nenhuma entrada física do Windows foi realizada.
+- 🟢 Coordenadas virtuais negativas do desktop são normalizadas para coordenadas de observação.
+- 🟢 Formato real [pos=x,y size=w,h] é aceito.
+- 🟢 SlateGroundingAdapter produz GroundedTarget com GroundingSource.SLATE.
+- 🟢 TargetingEngine resolve alvo Slate para ExecutionMechanism.COMPUTER_CONTROL.
+- 🟢 plan_slate_click("Gaveta de Conteúdo") produziu ação mouse_click, centro (78,1061), sem executar driver.
+- 🟢 A conversão no limite físico transforma o centro de observação (78,1061) no ponto Windows (-1842,1061).
 
 ### Segurança do ComputerControlService
-- 🟢 Sem checkpoint: execução retorna `checkpoint_required`.
+- 🟢 Sem checkpoint: execução retorna checkpoint_required.
 - 🟢 Após aprovação controlada: execução autorizada e checkpoint consumido.
-- 🟢 Região autorizada incompatível: execução bloqueada com `point outside authorized region`.
-- 🟢 Reutilização do checkpoint com alvo alterado: bloqueada com `checkpoint_request_mismatch`.
-- 🟢 Em todos os testes controlados, o driver físico não foi acionado.
-- 🟡 Clique físico real no Unreal Editor ainda NÃO foi executado; permanece deliberadamente pendente e requer autorização explícita.
+- 🟢 Região autorizada incompatível: execução bloqueada com point outside authorized region.
+- 🟢 Reutilização do checkpoint com alvo alterado: bloqueada com checkpoint_request_mismatch.
+- 🟢 Clique físico real no Unreal Editor executado exclusivamente pelo ComputerControlService, com Permission → Policy → Scope → Checkpoint → Driver.
+- 🟢 O clique físico retornou SUCCESS=True, ERROR=None, DECISION=allowed, CHECKPOINT_STATUS=CONSUMED.
+- 🟢 Verificação pós-ação via MCP/Slate confirmou o estado funcional do Content Browser, expondo Tudo → Conteúdo → Aether → Characters → Mago (ref=b52).
+- 🟢 Nenhuma entrada física foi executada fora do fluxo oficial.
 
 ### Suíte automatizada
-- 🟢 Suíte completa: **1475 passed, 49 skipped, 0 failed**, em 20,61 s.
-- 🟢 Suíte F30/Slate relacionada: **29 passed** no último ciclo direcionado; a correção de coordenadas adicionou regressões específicas para conversão no limite do driver.
-- 🟢 Branch e PC sincronizados no commit integrado `7e599d97079a66a770531afb08f9858249070475`.
-- 🟡 `data/audit/` permanece como conteúdo local não rastreado e não foi removido.
+- 🟢 tests/test_cc_service.py: 14 passed nesta continuidade.
+- 🟢 Suíte Slate direcionada: 8 passed nesta continuidade.
+- 🟢 CI pós-correção de coordenadas: test, validation ubuntu, validation windows e windows — success.
+- 🟢 Suíte histórica completa antes da correção: 1475 passed, 49 skipped, 0 failed.
+- 🟢 Suíte F30/Slate relacionada: 29 passed no último ciclo direcionado.
+- 🟢 Branch integrada anteriormente no commit 7e599d97079a66a770531afb08f9858249070475.
+- 🟡 data/audit/ permanece como conteúdo local não rastreado e não foi removido.
 
 ### Classificação atual
-**F30 — validação real segura: APROVADA até o limite sem entrada física.**
+**F30 — validação real segura: APROVADA, incluindo o primeiro clique físico controlado e sua verificação funcional no Unreal Editor.**
 
-Não declarar clique físico real como concluído. O próximo teste de retomada é a decisão explícita sobre executar ou não uma ação física controlada no Unreal Editor. Caso a ação física seja autorizada, ela deve continuar exclusivamente pelo fluxo Permission → Policy → Scope → Checkpoint → ComputerControlService → Driver → Audit/Verification.
+O clique físico foi executado uma única vez no alvo Gaveta de Conteúdo, com coordenadas de observação (78,1061) e conversão no limite físico para (-1842,1061). A verificação pós-ação foi read-only via MCP/Slate.
