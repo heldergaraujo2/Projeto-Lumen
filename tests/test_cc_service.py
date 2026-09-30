@@ -187,3 +187,53 @@ def test_unsupported_driver_action_fails_closed_after_approval():
     assert not result.success
     assert "mouse_drag" in (result.error or "")
     assert svc.driver.calls == []
+
+
+def test_observation_coordinates_are_transformed_only_at_driver_boundary():
+    svc = service()
+    scope = make_scope(region=ScreenRegion(0, 1000, 200, 100))
+    target = GroundedTarget("Gaveta de Conteúdo", GroundingSource.SLATE, 1.0, 3, 1047, 151, 28)
+    request = CCActionRequest(
+        CCActionType.MOUSE_CLICK,
+        target=target,
+        metadata={
+            "coordinate_space": "observation",
+            "coordinate_origin_x": -1920,
+            "coordinate_origin_y": 0,
+        },
+    )
+    pending = svc.execute(scope=scope, request=request)
+    assert pending.checkpoint is not None
+    approved = svc.approve(pending.checkpoint.id, scope=scope, request=request)
+    assert approved.success
+    assert svc.driver.calls == [("click", -1842, 1061, "left")]
+
+
+def test_checkpoint_binds_coordinate_metadata():
+    svc = service()
+    scope = make_scope()
+    request = CCActionRequest(
+        CCActionType.MOUSE_CLICK,
+        x=78,
+        y=1061,
+        metadata={
+            "coordinate_space": "observation",
+            "coordinate_origin_x": -1920,
+            "coordinate_origin_y": 0,
+        },
+    )
+    pending = svc.execute(scope=scope, request=request)
+    tampered = CCActionRequest(
+        CCActionType.MOUSE_CLICK,
+        x=78,
+        y=1061,
+        metadata={
+            "coordinate_space": "observation",
+            "coordinate_origin_x": 0,
+            "coordinate_origin_y": 0,
+        },
+    )
+    result = svc.approve(pending.checkpoint.id, scope=scope, request=tampered)
+    assert not result.success
+    assert result.error == "checkpoint_request_mismatch"
+    assert svc.driver.calls == []
