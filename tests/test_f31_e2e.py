@@ -120,7 +120,7 @@ print(json.dumps({
 
     # Final evidence remains metadata only; this test never invokes a driver.
     registry = PersistentWorkflowRegistry(workflow_path)
-    evidence = registry.evidence("asset.open")
-    assert evidence
-    assert evidence[-1].outcome is WorkflowOutcome.SUCCESS
-    assert evidence[-1].verification_status == "verified"
+    stats = registry.stats("asset.open")
+    assert stats.attempts == 1
+    assert stats.successes == 1
+    assert stats.last_outcome is WorkflowOutcome.SUCCESS
