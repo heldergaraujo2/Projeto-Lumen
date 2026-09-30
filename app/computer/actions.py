@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from app.computer_control.actions import CCActionRequest
 from app.computer_control.api import CCActionType
 from app.computer_control.grounding import GroundedTarget
@@ -41,7 +43,13 @@ class ActionPlanner:
 class ExecutionResolver:
     """Converts an intent into the existing request contract, but never executes."""
 
-    def resolve(self, intent: ActionIntent, *, mechanism: ExecutionMechanism) -> CCActionRequest:
+    def resolve(
+        self,
+        intent: ActionIntent,
+        *,
+        mechanism: ExecutionMechanism,
+        metadata: dict[str, Any] | None = None,
+    ) -> CCActionRequest:
         intent.validate()
         if mechanism is ExecutionMechanism.NONE:
             raise PermissionError("no execution mechanism resolved")
@@ -53,4 +61,5 @@ class ExecutionResolver:
             target=intent.target,
             text=intent.parameters.get("text"),
             keys=tuple(intent.parameters.get("keys", ())),
+            metadata=dict(metadata or {}),
         )
