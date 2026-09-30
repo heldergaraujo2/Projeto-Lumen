@@ -1,8 +1,8 @@
 # LUMEN — ESTADO OFICIAL ATUAL
 
-**Atualização:** 2026-09-28  
+**Atualização:** 2026-09-30  
 **Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
-**Estado:** 🟩 F0–F32 com implementação concluída e validação automatizada concluída. 🟨 F27–F30 ainda aguardam validações físicas/externas específicas (Windows, provider multimodal e Unreal). F31–F32 possuem implementação, integração, segurança, persistência e validação automatizada registradas; nenhuma validação física é inferida da CI.
+**Estado:** 🟩 F0–F30 com implementação e gates reais correspondentes concluídos; 🟩 F31–F32 com implementação, integração, segurança, persistência e CI concluídas; 🟨 F31/F32 ainda possuem E2E recomendado pendente e o teste integrado final permanece pendente. A validação física não é inferida da CI.
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
@@ -16,7 +16,7 @@
 - **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.
 - **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
-- **Próximo passo:** auditar a próxima fase oficialmente documentada no roadmap.
+- **Próximo passo oficial:** executar, de forma sequencial, o E2E recomendado de F31, depois o E2E recomendado de F32 e então o teste integrado final. Não criar novo F30 nem nova fase.
 
 # F32 — CLOSED-LOOP LUMEN EVOLUTION — CURRENT OFFICIAL STATUS
 
@@ -77,7 +77,7 @@ Validação:
 
 # F30 — UNREAL REAL INTEGRATION — CURRENT OFFICIAL STATUS
 
-🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL DO UNREAL PENDENTE
+🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL APROVADA
 
 Entregas:
 - descoberta read-only de um único .uproject existente;
@@ -89,14 +89,20 @@ Entregas:
 - testes dedicados em tests/test_f30_unreal_integration.py;
 - documentação em docs/F30_UNREAL_REAL_INTEGRATION.md.
 
-Gate restante:
-- executar em Windows com Unreal Editor real e projeto existente;
-- comprovar UI Automation, Blueprint/C++, compile/build, PIE, logs e recovery reais;
-- nenhum PASS real é inferido de testes fake ou CI.
+Validação real concluída em 2026-09-30:
+- Unreal 5.8 + AgeOfAether + UnrealEditor.exe;
+- MCP/Slate real, Snapshot/Observe/WaitFor/Screenshot;
+- grounding Slate → Computer Control;
+- checkpoint, aprovação e clique físico controlado;
+- verificação pós-ação read-only confirmou o estado do Content Browser;
+- correção de coordenadas virtuais validada e integrada;
+- nenhuma entrada física fora da cadeia oficial.
+
+F30 está encerrada. Não repetir F30 como gate pendente.
 
 # F29 — REAL AUTONOMOUS COMPUTER AGENT — CURRENT OFFICIAL STATUS
 
-🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FÍSICA EXTERNA PENDENTE
+🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FÍSICA APROVADA
 
 Entregas:
 - VisionComputerAgent em app/computer_control/autonomous_agent.py;
@@ -113,7 +119,7 @@ Gate restante:
 
 # F28 — REAL VISION + GROUNDING — CURRENT OFFICIAL STATUS
 
-🟨 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL DO PROVIDER PENDENTE
+🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO REAL APROVADA
 
 Entregas:
 - VisionGroundingPipeline em app/computer_control/vision_grounding.py;
@@ -131,7 +137,7 @@ Gate restante:
 
 # F27 — REAL WINDOWS COMPUTER VALIDATION — CURRENT OFFICIAL STATUS
 
-🟨 IMPLEMENTAÇÃO CONCLUÍDA / GATE FÍSICO EXTERNO PENDENTE
+🟩 IMPLEMENTAÇÃO CONCLUÍDA / GATE FÍSICO APROVADO
 
 Entregas:
 - driver nativo real em app/computer_control/windows_driver.py;
