@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Mapping
 
 
 class CoordinateSpace(str, Enum):
@@ -51,3 +52,26 @@ class CoordinateTransform:
             "coordinate_origin_x": self.origin_x,
             "coordinate_origin_y": self.origin_y,
         }
+
+    @classmethod
+    def from_metadata(cls, metadata: Mapping[str, object] | None) -> "CoordinateTransform":
+        """Build a transform from explicit request metadata.
+
+        Missing metadata means the request is already expressed in Windows
+        screen coordinates for backwards compatibility with direct
+        ComputerControlService callers.
+        """
+        if metadata is None:
+            return cls(CoordinateSpace.WINDOWS_SCREEN)
+        if not isinstance(metadata, Mapping):
+            raise TypeError("coordinate metadata must be a mapping")
+        space_value = metadata.get("coordinate_space")
+        if space_value is None:
+            return cls(CoordinateSpace.WINDOWS_SCREEN)
+        try:
+            space = CoordinateSpace(str(space_value))
+        except ValueError as exc:
+            raise ValueError("unsupported coordinate space") from exc
+        origin_x = metadata.get("coordinate_origin_x", 0)
+        origin_y = metadata.get("coordinate_origin_y", 0)
+        return cls(space, origin_x, origin_y)
