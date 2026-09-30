@@ -4,6 +4,7 @@ Exercises the real F31 persistence/restart/reuse/adaptation contract without
 granting execution authority or touching external applications.
 """
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -102,11 +103,17 @@ print(json.dumps({
 """,
         encoding="utf-8",
     )
+    repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = str(repo_root) if not existing_pythonpath else f"{repo_root}{os.pathsep}{existing_pythonpath}"
     completed = subprocess.run(
         [sys.executable, str(probe), str(experience_path), str(workflow_path)],
         check=True,
         capture_output=True,
         text=True,
+        cwd=repo_root,
+        env=env,
     )
     result_after_restart = json.loads(completed.stdout)
 
