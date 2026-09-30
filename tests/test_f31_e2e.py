@@ -16,7 +16,7 @@ from app.experience import (
     PersistentWorkflowRegistry,
     WorkflowIntelligence,
 )
-from app.workflows import WorkflowEvidence, WorkflowOutcome
+from app.workflows import WorkflowOutcome
 
 
 def _trace(experience_id: str, path: str, value: str, fingerprint: str) -> ExperienceTrace:
@@ -90,13 +90,14 @@ intel = WorkflowIntelligence(experience_store=store, workflow_registry=registry)
 experience = store.get("e2e-1")
 matches = intel.reuse("abrir asset Unreal")
 adapted = intel.adapt("asset.open", {"step0_path": "/Game/C", "step1_value": "C"})
+stats = registry.stats("asset.open")
 print(json.dumps({
     "experience_reloaded": experience is not None,
     "experience_goal": None if experience is None else experience.goal,
     "match_count": len(matches),
     "workflow_reloaded": registry.get("asset.open") is not None,
     "adapted_path": dict(adapted.steps[0].parameters)["path"],
-    "evidence_count": len(registry.evidence("asset.open")),
+    "evidence_count": stats.attempts,
 }))
 """,
         encoding="utf-8",
