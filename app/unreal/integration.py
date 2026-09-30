@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 from app.computer_control.api import CCTarget
+from app.computer_control.coordinates import CoordinateSpace, CoordinateTransform
 from app.computer.models import ComputerObservation, ExecutionMechanism
 from app.computer.actions import ActionPlanner, ExecutionResolver
 from app.computer_control.actions import CCActionRequest
@@ -140,6 +141,7 @@ class UnrealIntegration:
         if response.is_error:
             raise RuntimeError(f"Unreal MCP snapshot failed: {response.error}")
 
+        origin_x, origin_y = adapter.coordinate_origin_from_snapshot(response.result)
         targets = adapter.targets_from_snapshot(response.result, window=window)
         for _ in range(4):
             if targets or not ref.strip():
@@ -155,13 +157,20 @@ class UnrealIntegration:
             )
             if response.is_error:
                 raise RuntimeError(f"Unreal MCP snapshot failed: {response.error}")
+            origin_x, origin_y = adapter.coordinate_origin_from_snapshot(response.result)
             targets = adapter.targets_from_snapshot(response.result, window=window)
 
+        coordinate_metadata = CoordinateTransform(
+            CoordinateSpace.OBSERVATION,
+            origin_x,
+            origin_y,
+        ).metadata()
         observation = ComputerObservation(
             width=width,
             height=height,
             elements=targets,
             active_window=window,
+            metadata=coordinate_metadata,
         )
         observation.validate()
         return observation
@@ -206,6 +215,7 @@ class UnrealIntegration:
         return ExecutionResolver().resolve(
             plan.intents[0],
             mechanism=resolution.mechanism,
+            metadata=observation.metadata,
         )
 
     def mcp_snapshot(self, *, ref: str = "", max_depth: int = 30, include_source_locations: bool = False) -> MCPResponse:
