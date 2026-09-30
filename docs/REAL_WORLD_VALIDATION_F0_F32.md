@@ -702,7 +702,7 @@ Em caso de falha:
 2. F27 Windows físico
 3. F28 Vision/Grounding real
 4. F29 Autonomous Agent real
-5. F30 Unreal real
+5. F30 Unreal real — CONCLUÍDO
 6. F31 E2E recomendado
 7. F32 E2E recomendado
 8. Teste integrado final
@@ -721,7 +721,7 @@ Não pular F27/F28 para testar autonomia. F29 depende das fundações reais de C
 - [ ] ❌ F27 PASS real.
 - [ ] ❌ F28 PASS real.
 - [ ] ❌ F29 PASS real.
-- [ ] ❌ F30 PASS real.
+- [x] ✅ F30 PASS real.
 - [ ] ❌ F31 E2E recomendado concluído ou justificativa documentada.
 - [ ] ❌ F32 E2E recomendado concluído ou justificativa documentada.
 - [ ] ❌ Teste integrado final PASS.
@@ -742,7 +742,7 @@ Estado atual:
 - F27 real: **✅ PASS REAL**
 - F28 real: **✅ PASS REAL**
 - F29 real: **✅ PASS REAL**
-- F30 real: **⚠️ PARCIAL / PENDENTE**
+- F30 real: **✅ PASS REAL — APROVADA**
 - F31 E2E: **❌ PENDENTE**
 - F32 E2E: **❌ PENDENTE**
 - Final integrado: **❌ PENDENTE**
@@ -805,11 +805,11 @@ Estado atual:
 
 ## Próximo ponto oficial da validação
 
-Investigar, de forma somente leitura, o mecanismo real de ToolsetRegistry/MCP/ToolCall utilizado pelo Unreal 5.8 para expor e invocar o SlateInspectorToolset. Não assumir HTTP, porta ou interface sem evidência no ambiente real.
+F30 está encerrada e não deve ser repetida. A ponte real MCP/Slate, o grounding, a conversão de coordenadas, o checkpoint, o clique físico controlado e a verificação pós-ação já foram comprovados.
 
-Depois de comprovar Snapshot/árvore Slate, continuar o gate F30 conforme esta documentação e somente então avaliar Blueprint/C++/Compile/Build/PIE/Logs/Recovery.
+Próximo: executar o E2E recomendado de F31; depois o E2E recomendado de F32; por fim, o teste integrado final.
 
-**Não declarar F30 🟩 enquanto o acesso real ao Slate e o workflow exigido pelo gate não estiverem comprovados.**
+**Não criar novo gate físico artificial para F31/F32.**
 **Não criar outra Lumen, outro projeto Unreal ou bypassar Permission/Policy/Scope/Checkpoint/Audit/Sandbox.**
 
 Este arquivo é o checklist operacional oficial dos testes reais e deve acompanhar as evidências efetivamente executadas no ambiente do operador.
