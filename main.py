@@ -32,6 +32,7 @@ from app.computer_control.service import ComputerControlService
 from app.computer_control.windows_driver import WindowsComputerControlDriver
 from app.unreal.integration import UnrealIntegration
 from app.unreal.mcp import UnrealMCPClient
+from app.runtime.plugins import PluginManager
 
 LOGGER = logging.getLogger("lumen")
 
@@ -120,6 +121,10 @@ def main() -> int:
         settings.tasks_file,
     )
 
+    plugin_manager = PluginManager()
+    plugin_reports = plugin_manager.discover()
+    LOGGER.info("Runtime: %s", "; ".join(f"{r.descriptor.id}={r.status.value}" for r in plugin_reports))
+
     try:
         root = tk_root()
     except Exception:
@@ -168,6 +173,7 @@ def main() -> int:
             root, agent,
             config_service=config_service,
             tools_controller=tools_controller,
+            plugin_reports=plugin_reports,
         )
         window.run()
     finally:
