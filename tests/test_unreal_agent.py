@@ -53,6 +53,23 @@ def test_goal_planner_accepts_known_safe_goal():
     assert plan.actions[0].operation is UnrealOperation.FOCUS_EDITOR
     assert plan.actions[1].operation is UnrealOperation.SAVE
 
+def test_goal_planner_accepts_explicit_asset_goal():
+    plan = UnrealAgent().plan(project=project(), goal="abrir asset /Game/BP_Player")
+    assert [a.operation for a in plan.actions] == [
+        UnrealOperation.FOCUS_EDITOR,
+        UnrealOperation.OPEN_ASSET,
+    ]
+    assert plan.actions[1].value == "/Game/BP_Player"
+
+
+def test_goal_planner_accepts_explicit_level_goal():
+    plan = UnrealAgent().plan(project=project(), goal="abrir nível /Game/Maps/Main")
+    assert [a.operation for a in plan.actions] == [
+        UnrealOperation.FOCUS_EDITOR,
+        UnrealOperation.OPEN_LEVEL,
+    ]
+    assert plan.actions[1].value == "/Game/Maps/Main"
+
 
 def test_to_action_plan_does_not_execute():
     plan = UnrealAgent().save_and_play(project=project())
