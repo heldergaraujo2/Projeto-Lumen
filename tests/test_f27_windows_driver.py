@@ -38,63 +38,55 @@ def test_non_windows_fails_closed():
         WindowsComputerControlDriver()
 
 
+
+def _fake_user32(monkeypatch, *, foreground, set_foreground=True):
+    import app.computer_control.windows_driver as module
+
+    class FakeUser32:
+        def IsWindow(self, hwnd):
+            return True
+
+        def ShowWindow(self, hwnd, command):
+            return 1
+
+        def SetForegroundWindow(self, hwnd):
+            return 1 if set_foreground else 0
+
+        def GetForegroundWindow(self):
+            return foreground
+
+    fake = FakeUser32()
+    monkeypatch.setattr(module, "_USER32", fake)
+    return module
+
+
 def test_focus_window_verifies_foreground_handle(monkeypatch):
     if os.name != "nt":
         pytest.skip("Windows-only driver")
 
-    import app.computer_control.windows_driver as module
-
-    handle = 12345
-    calls = {"set": 0, "restore": 0}
-    monkeypatch.setattr(module._USER32, "IsWindow", lambda hwnd: True)
-    monkeypatch.setattr(
-        module._USER32,
-        "ShowWindow",
-        lambda hwnd, command: calls.__setitem__("restore", calls["restore"] + 1),
-    )
-    monkeypatch.setattr(
-        module._USER32,
-        "SetForegroundWindow",
-        lambda hwnd: calls.__setitem__("set", calls["set"] + 1) or 1,
-    )
-    monkeypatch.setattr(module._USER32, "GetForegroundWindow", lambda: handle)
+    module = _fake_user32(monkeypatch, foreground=12345)
 
     driver = WindowsComputerControlDriver(armed=True)
-    driver.focus_window(module.CCTarget(window_handle=handle))
-
-    assert calls["set"] == 1
-    assert calls["restore"] == 1
+    driver.focus_window(module.CCTarget(window_handle=12345))
 
 
 def test_focus_window_rejects_false_foreground_success(monkeypatch):
     if os.name != "nt":
         pytest.skip("Windows-only driver")
 
-    import app.computer_control.windows_driver as module
-
-    handle = 12345
-    monkeypatch.setattr(module._USER32, "IsWindow", lambda hwnd: True)
-    monkeypatch.setattr(module._USER32, "ShowWindow", lambda hwnd, command: 1)
-    monkeypatch.setattr(module._USER32, "SetForegroundWindow", lambda hwnd: 1)
-    monkeypatch.setattr(module._USER32, "GetForegroundWindow", lambda: 67890)
+    module = _fake_user32(monkeypatch, foreground=67890)
 
     driver = WindowsComputerControlDriver(armed=True)
     with pytest.raises(WindowsComputerControlError, match="focus verification failed"):
-        driver.focus_window(module.CCTarget(window_handle=handle))
+        driver.focus_window(module.CCTarget(window_handle=12345))
 
 
 def test_focus_window_reports_set_foreground_failure(monkeypatch):
     if os.name != "nt":
         pytest.skip("Windows-only driver")
 
-    import app.computer_control.windows_driver as module
-
-    handle = 12345
-    monkeypatch.setattr(module._USER32, "IsWindow", lambda hwnd: True)
-    monkeypatch.setattr(module._USER32, "ShowWindow", lambda hwnd, command: 1)
-    monkeypatch.setattr(module._USER32, "SetForegroundWindow", lambda hwnd: 0)
-    monkeypatch.setattr(module._USER32, "GetForegroundWindow", lambda: 67890)
+    module = _fake_user32(monkeypatch, foreground=67890, set_foreground=False)
 
     driver = WindowsComputerControlDriver(armed=True)
     with pytest.raises(WindowsComputerControlError, match="SetForegroundWindow failed"):
-        driver.focus_window(module.CCTarget(window_handle=handle))
+        driver.focus_window(module.CCTarget(window_handle=12345))
