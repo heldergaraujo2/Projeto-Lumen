@@ -353,6 +353,8 @@ class ToolsDialog:
             ("CHAT", "Conversar (padrão: sempre ativa)"),
             ("READ", "Ler arquivos dos workspaces"),
             ("WRITE", "Criar/modificar arquivos dos workspaces"),
+            ("UNREAL", "Planejar/inspecionar workflows do Unreal"),
+            ("COMPUTER_CONTROL", "Executar ações físicas — sempre protegidas por escopo/checkpoint"),
         ):
             line = tk.Frame(self.perm_frame, bg=_PANEL)
             line.pack(fill=tk.X, pady=1)
@@ -380,7 +382,7 @@ class ToolsDialog:
 
     def _refresh_permissions(self) -> None:
         rows = {row["level"]: row for row in self._controller.permission_status()}
-        for level in ("CHAT", "READ", "WRITE"):
+        for level in ("CHAT", "READ", "WRITE", "UNREAL", "COMPUTER_CONTROL"):
             granted = rows[level]["granted"]
             self.perm_rows[level]["status"].configure(
                 text=("● concedida — " if granted else "○ não concedida — ")
