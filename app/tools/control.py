@@ -78,6 +78,8 @@ from app.tools.correction import (
 from app.tools.workspaces import MultiWorkspaceSandbox, WorkspaceStore
 from app.unreal.integration import UnrealIntegration
 from app.unreal.tool import UnrealSnapshotTool, UnrealPlanTool
+from app.unreal.agent import UnrealAgent
+from app.unreal.models import UnrealPlan, UnrealProject
 from app.unreal.integration import UnrealIntegration
 
 logger = logging.getLogger("lumen.tools.control")
@@ -371,6 +373,7 @@ class ToolsController:
             )
         self._permissions = permissions
         self._unreal = unreal
+        self._pending_unreal_plan: UnrealPlan | None = None
         self._store = WorkspaceStore(workspaces_file)
         self._audit_file = Path(audit_file)
         self._audit = FilesystemAudit(sink=JsonlAuditSink(self._audit_file))
@@ -822,6 +825,27 @@ class ToolsController:
             replacement_tool=cycle.replacement_tool,
             note=(cycle.decision_note or "")[:160],
         )
+
+    # ---------------------------------------------------------- Unreal planejado
+    def stage_unreal_plan(self, *, goal: str, project_name: str, project_root: str,
+                          engine_version: str | None = None) -> UnrealPlan:
+        """Registra um plano Unreal para autorização posterior; não executa nada."""
+        if self._unreal is None:
+            raise ToolsControlError("Integração Unreal não está disponível.")
+        plan = UnrealAgent().plan(
+            project=UnrealProject(
+                name=project_name,
+                root=project_root,
+                engine_version=engine_version,
+            ),
+            goal=goal,
+        )
+        self._pending_unreal_plan = plan
+        return plan
+
+    def pending_unreal_plan(self) -> UnrealPlan | None:
+        """Retorna o plano Unreal aguardando autorização física, se houver."""
+        return self._pending_unreal_plan
 
     # -------------------------------------------------------------- permissões
     def permission_status(self) -> list[dict]:
