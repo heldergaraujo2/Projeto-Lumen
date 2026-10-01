@@ -28,10 +28,14 @@ class UnrealProject:
     name: str
     root: str
     engine_version: str | None = None
-    # Unreal UI plans must default to the explicit editor application target.
+    # The default target remains explicit and resolvable by both the native
+    # perception layer and the Windows driver: app identity plus title pattern.
     # Callers may still provide a narrower process/title/handle target.
     editor_window: CCTarget = field(
-        default_factory=lambda: CCTarget(app_name="UnrealEditor")
+        default_factory=lambda: CCTarget(
+            app_name="UnrealEditor",
+            window_title_pattern=r"Unreal Editor",
+        )
     )
 
     def validate(self) -> None:
