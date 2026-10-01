@@ -108,7 +108,7 @@ OPERATION_LABELS = {
 }
 
 #: Níveis gerenciáveis pela UI (DELETE é opt-in de workspace, não nível).
-MANAGEABLE_LEVELS = (PermissionLevel.CHAT, PermissionLevel.READ, PermissionLevel.WRITE, PermissionLevel.UNREAL)
+MANAGEABLE_LEVELS = (PermissionLevel.CHAT, PermissionLevel.READ, PermissionLevel.WRITE, PermissionLevel.UNREAL, PermissionLevel.COMPUTER_CONTROL)
 
 #: 11F — tools contadas como WRITE para o auto-anexo de ``run_pytest``.
 _AUTO_PYTEST_WRITE_TOOLS = frozenset({
@@ -839,6 +839,8 @@ class ToolsController:
                     else "Criar/modificar arquivos dos workspaces"
                     if level is PermissionLevel.WRITE
                     else "Inspecionar o Unreal Editor via MCP (somente leitura)"
+                    if level is PermissionLevel.UNREAL
+                    else "Executar ações físicas do computador; cada ação continua sujeita a Policy, Scope e Checkpoint"
                 ),
             })
         rows.append({
@@ -867,13 +869,13 @@ class ToolsController:
         return rows
 
     def grant_permission(self, level: str) -> None:
-        """Concede CHAT/READ/WRITE/UNREAL explicitamente."""
+        """Concede permissões operacionais explicitamente; COMPUTER_CONTROL não cria escopo nem aprova checkpoints."""
         resolved = self._resolve_manageable(level)
         self._permissions.grant(resolved)
         logger.info("Permissão concedida pela UI: %s.", resolved.name)
 
     def revoke_permission(self, level: str) -> None:
-        """Revoga CHAT/READ/WRITE/UNREAL explicitamente."""
+        """Revoga permissões operacionais explicitamente; não altera escopos ou checkpoints existentes."""
         resolved = self._resolve_manageable(level)
         self._permissions.revoke(resolved)
         logger.info("Permissão revogada pela UI: %s.", resolved.name)
