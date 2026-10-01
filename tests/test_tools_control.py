@@ -13,6 +13,7 @@ import pytest
 
 from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
 from app.security.permissions import PermissionLevel, PermissionManager
+from app.computer_control.service import ComputerControlService
 from app.tools.control import ToolsControlError, ToolsController
 from app.unreal.integration import UnrealIntegration
 
