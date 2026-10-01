@@ -2,7 +2,7 @@
 
 **Atualização:** 2026-09-30  
 **Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
-**Estado:** 🟩 F0–F30 com implementação e gates reais correspondentes concluídos; 🟩 F31–F32 com implementação, integração, segurança, persistência e CI concluídas; 🟨 F31/F32 ainda possuem E2E recomendado pendente e o teste integrado final permanece pendente. A validação física não é inferida da CI.
+**Estado:** 🟩 F0–F32 com implementação, gates reais aplicáveis e validações correspondentes concluídos; F30 possui validação física real aprovada; F31, F32 e o E2E integrado final estão validados em execução local segura. A validação física não é inferida da CI.
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
@@ -16,7 +16,7 @@
 - **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.
 - **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
-- **Próximo passo oficial:** executar, de forma sequencial, o E2E recomendado de F31, depois o E2E recomendado de F32 e então o teste integrado final. Não criar novo F30 nem nova fase.
+- **Sequência F31/F32 encerrada:** F31 E2E, F32 E2E e teste integrado final passaram. O próximo passo é auditoria final e consolidação documental; não criar novo F30 nem nova fase.
 
 # F32 — CLOSED-LOOP LUMEN EVOLUTION — CURRENT OFFICIAL STATUS
 
@@ -43,7 +43,8 @@ Segurança:
 
 Validação:
 - F32 possui testes unitários, negativos, atomicidade, persistência, limites e superfície de segurança;
-- CI é o gate final antes do merge;
+- F32 E2E local: **PASS — 1 passed**;
+- teste integrado final F30→F31→F32: **PASS — 1 passed**;
 - validação física Windows/Unreal continua separada.
 
 # F31 — EXPERIENCE & WORKFLOW INTELLIGENCE — CURRENT OFFICIAL STATUS
@@ -72,7 +73,8 @@ Segurança:
 
 Validação:
 - implementação e testes adicionados ao PR F31;
-- CI do repositório deve fornecer a evidência automatizada final;
+- F31 E2E local: **PASS — 1 passed**;
+- teste integrado final F30→F31→F32: **PASS — 1 passed**;
 - validação física Windows/Unreal continua separada e não é inferida.
 
 # F30 — UNREAL REAL INTEGRATION — CURRENT OFFICIAL STATUS
