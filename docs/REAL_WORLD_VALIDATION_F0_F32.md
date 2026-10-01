@@ -1,8 +1,8 @@
 # LUMEN — PLANO OFICIAL DE TESTES REAIS F0–F32
 
 **Atualização:** 2026-09-30  
-**Base:** `master` após F32 e consolidação de `LUMEN_STATE.md`.  
-**Finalidade:** checklist operacional para o novo chat que executará exclusivamente validações em ambiente real.
+**Base:** `feature/web-research-agent` após F32 e consolidação de `LUMEN_STATE.md`.  
+**Finalidade atual:** registro consolidado das validações reais F0–F32. Checklists históricos abaixo são evidência de critérios/procedimentos e NÃO representam pendências quando contradizem o estado consolidado da seção final. A fonte operacional atual é `docs/LUMEN_MASTER_ROADMAP.md` + `LUMEN_STATE.md`.
 
 ## LEGENDA
 
