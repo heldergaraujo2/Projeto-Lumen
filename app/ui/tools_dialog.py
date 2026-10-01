@@ -245,6 +245,27 @@ class ToolsDialog:
             state=tk.DISABLED, command=self._discard_unreal_plan,
         )
         self.unreal_discard_button.pack(anchor=tk.W, padx=18, pady=(2, 5))
+        unreal_buttons = tk.Frame(self.top, bg=_PANEL)
+        unreal_buttons.pack(anchor=tk.W, padx=18, pady=(0, 5))
+        self.unreal_authorize_button = tk.Button(
+            unreal_buttons, text="Autorizar sessão Unreal",
+            relief=tk.FLAT, cursor="hand2", bg=_OK_GREEN, fg="#0d1220",
+            font=("Segoe UI", 9, "bold"), state=tk.DISABLED,
+            command=self._authorize_unreal,
+        )
+        self.unreal_authorize_button.pack(side=tk.LEFT, padx=(0, 8))
+        self.unreal_revoke_button = tk.Button(
+            unreal_buttons, text="Revogar sessão",
+            relief=tk.FLAT, cursor="hand2", bg=_PANEL, fg=_ERR_RED,
+            font=("Segoe UI", 9), state=tk.DISABLED,
+            command=self._revoke_unreal,
+        )
+        self.unreal_revoke_button.pack(side=tk.LEFT)
+        self.unreal_scope_label = tk.Label(
+            self.top, text="Nenhum escopo Unreal autorizado.",
+            fg=_MUTED, bg=_PANEL, font=("Segoe UI", 8), justify=tk.LEFT,
+        )
+        self.unreal_scope_label.pack(anchor=tk.W, padx=18)
 
     def _refresh_unreal(self) -> None:
         status = self._controller.unreal_plan_status()
@@ -274,6 +295,40 @@ class ToolsDialog:
         )
         self.unreal_plan_label.configure(text=text, fg=_WARN)
         self.unreal_discard_button.configure(state=tk.NORMAL)
+        self.unreal_authorize_button.configure(
+            state=tk.NORMAL
+            if self._controller.unreal_scope_status() is None
+            and self._controller.permission_status()
+            else tk.DISABLED
+        )
+
+    def _authorize_unreal(self) -> None:
+        try:
+            scope = self._controller.authorize_pending_unreal()
+        except Exception as exc:
+            logger.exception("Falha ao autorizar sessão Unreal.")
+            self._set_status(False, f"🔴 Não foi possível autorizar: {exc}")
+            self.refresh()
+            return
+        self._set_status(
+            True,
+            f"🟢 Sessão Unreal autorizada até {scope.expires_at.isoformat()}. "
+            "Nenhuma ação física foi executada; o checkpoint continua obrigatório.",
+        )
+        self.refresh()
+
+    def _revoke_unreal(self) -> None:
+        try:
+            changed = self._controller.revoke_unreal_scope()
+        except Exception as exc:
+            logger.exception("Falha ao revogar sessão Unreal.")
+            self._set_status(False, f"🔴 Não foi possível revogar: {exc}")
+            return
+        self._set_status(
+            True if changed else None,
+            "🟢 Sessão Unreal revogada." if changed else "Nenhuma sessão Unreal ativa.",
+        )
+        self.refresh()
 
     def _discard_unreal_plan(self) -> None:
         try:
@@ -787,6 +842,21 @@ class ToolsDialog:
         """Re-renderiza todas as seções a partir do controller."""
         self._refresh_pending()
         self._refresh_unreal()
+        scope = self._controller.unreal_scope_status()
+        if scope is None:
+            self.unreal_scope_label.configure(text="Nenhum escopo Unreal autorizado.", fg=_MUTED)
+            self.unreal_revoke_button.configure(state=tk.DISABLED)
+        else:
+            self.unreal_scope_label.configure(
+                text=(
+                    f"🟢 Escopo: {scope['scope_id']} · ações restantes: "
+                    f"{scope['remaining_actions']} · expira: {scope['expires_at']}\n"
+                    f"Ações permitidas: {', '.join(scope['allowed_actions'])}"
+                ),
+                fg=_OK_GREEN,
+            )
+            self.unreal_revoke_button.configure(state=tk.NORMAL)
+            self.unreal_authorize_button.configure(state=tk.DISABLED)
         self._refresh_workspaces()
         self._refresh_permissions()
         self._refresh_terminal()
