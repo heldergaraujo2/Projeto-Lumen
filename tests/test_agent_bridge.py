@@ -265,6 +265,9 @@ def test_unreal_plan_is_not_reported_as_physically_executed(env, tmp_path):
     assert "nenhuma ação física foi executada" in outcome.text.lower()
     assert "computer_control" in outcome.text.lower()
     assert not controller.has_pending
+    pending = controller.pending_unreal_plan()
+    assert pending is not None
+    assert pending.goal == "abrir asset /Game/BP_Player"
 
 
 
