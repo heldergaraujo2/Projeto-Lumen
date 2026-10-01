@@ -236,6 +236,37 @@ def test_all_request_states_exist_and_are_documented():
         assert hasattr(RequestState, name)
 
 
+
+def test_unreal_plan_is_not_reported_as_physically_executed(env, tmp_path):
+    """UnrealPlanTool only prepares a plan; the bridge must not claim execution."""
+    perms = env[1]._permissions
+    perms.grant(PermissionLevel.UNREAL)
+    controller = ToolsController(
+        perms,
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        unreal=object(),
+    )
+    agent = env[0]
+    agent.set_tools_controller(controller)
+    use(agent, ScriptedProvider(plan_json(
+        "unreal_plan",
+        {
+            "goal": "abrir asset /Game/BP_Player",
+            "project_name": "AgeOfAether",
+            "project_root": str(tmp_path),
+        },
+    )))
+
+    outcome = agent.process_message("Abra o asset /Game/BP_Player no Unreal.")
+
+    assert outcome.state is RequestState.PLAN_READY
+    assert "não foi executado" in outcome.text.lower()
+    assert "computer_control" in outcome.text.lower()
+    assert not controller.has_pending
+
+
+
 # ============================================ plano inválido (FASE 3)
 def test_invalid_plan_never_executes(env, ws):
     agent, controller, _ = env
