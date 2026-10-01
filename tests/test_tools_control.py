@@ -58,16 +58,13 @@ def test_default_permissions_and_no_silent_grants(controller):
 
 def test_web_access_is_default_and_controller_can_revoke(controller):
     rows = {row["level"]: row for row in controller.permission_status()}
-    assert rows["WEB_ACCESS"]["granted"] is False
-    controller.revoke_web_access()
-    rows = {row["level"]: row for row in controller.permission_status()}
     assert rows["WEB_ACCESS"]["granted"] is True
     controller.revoke_web_access()
     rows = {row["level"]: row for row in controller.permission_status()}
     assert rows["WEB_ACCESS"]["granted"] is False
     controller.grant_web_access()
     rows = {row["level"]: row for row in controller.permission_status()}
-    assert rows["WEB_ACCESS"]["granted"] is False
+    assert rows["WEB_ACCESS"]["granted"] is True
 
 
 def test_grant_and_revoke_read_write(controller):
