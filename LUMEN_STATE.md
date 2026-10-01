@@ -6,7 +6,7 @@
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
-## F19–F23 — Auditoria e correções
+## F19–F32 — Auditoria, integração e fechamento
 
 - **F19:** revisão concluída; nenhum defeito estrutural adicional identificado.
 - **F20:** corrigidas semântica de maximize/minimize, delta de target e exposição do weight; validada na suíte completa.
@@ -16,7 +16,7 @@
 - **F24:** Evolution Runtime Orchestrator concluída. Suíte completa: **1347 passed / 1 skipped / 0 failed**; Lumen Tests, F0 Validation e F23 Validation verdes.
 - **F25:** Provider Runtime Independence concluída. Implementado ProviderRuntime com fallback real, retries bounded, compatibilidade, custo, contexto normalizado, verificação, auditoria, autorização explícita e evidência de tentativas. O OllamaProvider existente continua sendo o provider local oficial e foi integrado sem duplicação. Validação final: **1366 passed / 1 skipped / 0 failed**, compileall SUCCESS, F0 Validation SUCCESS e F23 Validation SUCCESS.
 - **F26:** Learning Runtime & Continuous Knowledge concluída. Implementada aprendizagem explícita e contínua por uso, memória persistente, knowledge/experience/strategy, verificação, consolidação, recall seguro e redaction de segredos. Testes dedicados em `tests/test_learning_runtime.py`; documentação em `docs/F26_LEARNING_RUNTIME.md`.
-- **Sequência F31/F32 encerrada:** F31 E2E, F32 E2E e teste integrado final passaram. O próximo passo é auditoria final e consolidação documental; não criar novo F30 nem nova fase.
+- **Sequência F31/F32 encerrada:** F31 E2E, F32 E2E e teste integrado final passaram. A auditoria final e a consolidação documental foram concluídas. Não criar novo F30, não repetir F31/F32 e não inventar F33 sem decisão arquitetural explícita.
 
 # F32 — CLOSED-LOOP LUMEN EVOLUTION — CURRENT OFFICIAL STATUS
 
@@ -115,9 +115,7 @@ Entregas:
 - testes dedicados em tests/test_f29_autonomous_computer_agent.py;
 - documentação em docs/F29_REAL_AUTONOMOUS_COMPUTER_AGENT.md.
 
-Gate restante:
-- validar em Windows interativo uma tarefa benigna com provider multimodal real e evidência de ação + verificação;
-- nenhum PASS físico é inferido da CI.
+Nota de evidência: o smoke específico de F29 não deve ser confundido com a validação física de F30. A integração real exercitada em F30 é evidência do caminho compartilhado, mas não substitui um registro específico do smoke F29.
 
 # F28 — REAL VISION + GROUNDING — CURRENT OFFICIAL STATUS
 
@@ -132,10 +130,7 @@ Entregas:
 - testes dedicados em tests/test_vision_grounding.py;
 - documentação em docs/F28_REAL_VISION_GROUNDING.md.
 
-Gate restante:
-- executar provider multimodal real disponível na máquina alvo sobre screenshot benigno;
-- registrar evidência de observação + bounding box + resolução do target;
-- nenhuma ação física é necessária para validar F28.
+Nota de evidência: a documentação específica de F28 descreve um smoke de provider multimodal real separado. Não tratar esse smoke específico como executado apenas por causa da validação física F30.
 
 # F27 — REAL WINDOWS COMPUTER VALIDATION — CURRENT OFFICIAL STATUS
 
@@ -165,12 +160,7 @@ Validação automatizada prevista:
 - import do driver nativo no Windows;
 - testes negativos de driver desarmado e execução fora do Windows.
 
-Gate restante:
-- execução real na sessão interativa Windows do usuário com LUMEN_F27_PHYSICAL_CONFIRM=YES;
-- evidência de screenshot, movimento de mouse e digitação;
-- sem clique, fechamento de janela, exclusão, lançamento de processo ou concessão de permissão.
-
-Até essa evidência existir, F27 não deve ser marcada como 🟩 para não transformar disponibilidade de Windows em falsa validação física.
+Nota de evidência: a documentação específica de F27 define um smoke físico separado. A validação física posterior de F30 comprova a cadeia compartilhada e uma ação controlada, mas não deve ser usada para inventar um registro do smoke F27 que não esteja documentado.
 
 ## Regra de continuidade
 
