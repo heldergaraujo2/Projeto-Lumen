@@ -95,13 +95,22 @@ def _client(*outcomes, max_bytes=1_000_000, max_redirects=5, timeout_s=20.0):
     return client, opener
 
 
-def test_web_tools_require_explicit_permission():
+def test_web_tools_are_available_with_default_web_permission():
     permissions = PermissionManager()
+    registry = ToolRegistry(permissions)
+    registry.register(WebSearchTool(provider=FakeSearch()))
+    result = json.loads(registry.execute("web_search", query="teste"))
+    assert result["ok"] is True
+    assert result["data"]["sources"][0]["url"] == "https://example.com"
+
+
+def test_web_search_is_blocked_after_web_permission_is_revoked():
+    permissions = PermissionManager()
+    permissions.revoke(PermissionLevel.WEB_ACCESS)
     registry = ToolRegistry(permissions)
     registry.register(WebSearchTool(provider=FakeSearch()))
     with pytest.raises(PermissionDeniedError):
         registry.execute("web_search", query="teste")
-
 
 def test_web_search_returns_structured_sources():
     permissions = PermissionManager([PermissionLevel.CHAT, PermissionLevel.WEB_ACCESS])
@@ -196,15 +205,26 @@ def test_web_research_returns_controlled_error_when_search_provider_fails():
     assert result["error"] == "falha total simulada na pesquisa"
 
 
-def test_web_research_requires_explicit_permission():
+def test_web_research_is_available_with_default_web_permission():
     permissions = PermissionManager()
+    registry = ToolRegistry(permissions)
+    registry.register(
+        WebResearchTool(search_provider=FakeSearch(), fetch_provider=FakeFetch())
+    )
+    result = json.loads(registry.execute("web_research", query="teste"))
+    assert result["ok"] is True
+    assert result["data"]["sources"][0]["url"] == "https://example.com"
+
+
+def test_web_research_is_blocked_after_web_permission_is_revoked():
+    permissions = PermissionManager()
+    permissions.revoke(PermissionLevel.WEB_ACCESS)
     registry = ToolRegistry(permissions)
     registry.register(
         WebResearchTool(search_provider=FakeSearch(), fetch_provider=FakeFetch())
     )
     with pytest.raises(PermissionDeniedError):
         registry.execute("web_research", query="teste")
-
 
 @pytest.mark.parametrize(
     "kwargs",
