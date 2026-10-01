@@ -168,7 +168,11 @@ class ToolCallingBridge:
                     if data.get("executed") is False:
                         actions = data.get("actions") or []
                         try:
-                            params = dict(task.parameters or {})
+                            planned_task = next(
+                                (item for item in plan.tasks if item.id == task.id),
+                                None,
+                            )
+                            params = dict(planned_task.parameters or {}) if planned_task else {}
                             self._controller.stage_unreal_plan(
                                 goal=str(params.get("goal") or ""),
                                 project_name=str(params.get("project_name") or ""),
