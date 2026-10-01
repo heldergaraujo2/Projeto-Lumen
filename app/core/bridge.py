@@ -167,6 +167,16 @@ class ToolCallingBridge:
                     data = payload["data"]
                     if data.get("executed") is False:
                         actions = data.get("actions") or []
+                        try:
+                            params = dict(task.parameters or {})
+                            self._controller.stage_unreal_plan(
+                                goal=str(params.get("goal") or ""),
+                                project_name=str(params.get("project_name") or ""),
+                                project_root=str(params.get("project_root") or ""),
+                                engine_version=params.get("engine_version"),
+                            )
+                        except Exception:
+                            logger.exception("Falha ao registrar plano Unreal para autorização posterior.")
                         details.append(
                             f"Plano Unreal preparado com {len(actions)} ação(ões)."
                         )
