@@ -79,3 +79,7 @@ def test_operational_panel_rejects_unknown_tab(root):
     with pytest.raises(ValueError, match="Aba operacional desconhecida"):
         panel.select_tab("desconhecida")
     panel.top.destroy()
+
+
+def test_operational_panel_exposes_autonomous_mode_contract():
+    assert hasattr(OperationsDialog, "_toggle_autonomous")
