@@ -25,6 +25,7 @@ from app.planner.catalog import build_catalog
 from app.planner.models import PlanStatus
 from app.security.permissions import PermissionLevel, PermissionManager
 from app.tools.control import ToolsController
+from app.unreal.integration import UnrealIntegration
 from app.web.provider import WebFetchResponse, WebSearchResponse, WebSource
 
 CREATE_MSG = (
@@ -245,7 +246,7 @@ def test_unreal_plan_is_not_reported_as_physically_executed(env, tmp_path):
         perms,
         workspaces_file=tmp_path / "workspaces.json",
         audit_file=tmp_path / "audit" / "audit.jsonl",
-        unreal=object(),
+        unreal=UnrealIntegration(),
     )
     agent = env[0]
     agent.set_tools_controller(controller)
