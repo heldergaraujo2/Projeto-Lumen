@@ -131,6 +131,13 @@ class ToolCallingBridge:
             self._remember(cleaned, message)
             return AgentOutcome(RequestState.FAILED, message, plan.id)
 
+
+        # 5) UnrealPlanTool é deliberadamente NÃO EXECUTÁVEL: ele apenas
+        # prepara uma operação Unreal. Nunca reporte "concluído" como se o
+        # ComputerControl/Unreal tivesse sido executado fisicamente.
+        if any(task.tool == "unreal_plan" for task in plan.tasks):
+            return self._unreal_plan_outcome(cleaned, plan, report)
+
         # 5) Pesquisa Web: transforma as evidências reais em resposta natural.
         if any(task.tool == "web_research" for task in plan.tasks):
             if getattr(report.status, "value", None) == "COMPLETED":
@@ -141,6 +148,40 @@ class ToolCallingBridge:
 
         # 6) Demais planos mantêm o desfecho existente.
         return self.outcome_for_report(cleaned, plan.id, report)
+
+    def _unreal_plan_outcome(self, request: str | None, plan, report) -> AgentOutcome:
+        """Reporta planejamento Unreal sem confundir planejamento com execução física."""
+        from app.planner.models import PlanStatus
+
+        if report.status is not PlanStatus.COMPLETED:
+            return self.outcome_for_report(request, plan.id, report)
+
+        details = []
+        for task in report.tasks:
+            if task.result:
+                try:
+                    payload = json.loads(task.result)
+                except (TypeError, ValueError):
+                    continue
+                if isinstance(payload, dict) and isinstance(payload.get("data"), dict):
+                    data = payload["data"]
+                    if data.get("executed") is False:
+                        actions = data.get("actions") or []
+                        details.append(
+                            f"Plano Unreal preparado com {len(actions)} ação(ões)."
+                        )
+                        if data.get("requires_computer_control"):
+                            details.append(
+                                "A execução física requer COMPUTER_CONTROL e "
+                                "aprovação por checkpoint; nenhuma ação física foi executada."
+                            )
+        if not details:
+            details.append(
+                "O plano Unreal foi preparado, mas nenhuma ação física foi executada."
+            )
+        message = "✔ " + " ".join(details)
+        self._remember(request, message)
+        return AgentOutcome(RequestState.PLAN_READY, message, plan.id)
 
     def _web_research_answer(self, request: str | None, plan, report) -> str | None:
         """Sintetiza evidências de ``web_research`` sem confiar no conteúdo Web."""
