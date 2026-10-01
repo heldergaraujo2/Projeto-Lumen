@@ -93,12 +93,12 @@ def test_final_integrated_e2e_f30_evidence_to_f31_to_f32(tmp_path: Path) -> None
 
     started = loop.start("unreal_asset_workflow", 0.90)
     observation = IntelligenceObservation(
-        observation_id="CI-EV-INTEGRATED-000001",
-        capability_id="unreal_asset_workflow",
-        score=0.60,
-        sample_size=1,
-        evidence=f30_verification,
-        baseline=0.90,
+        "CI-EV-INTEGRATED-000001",
+        "unreal_asset_workflow",
+        0.60,
+        1,
+        f30_verification,
+        0.90,
     )
     observed = loop.observe(started.loop_id, observation)
     assert observed.state == ClosedLoopState.TRIGGERED
