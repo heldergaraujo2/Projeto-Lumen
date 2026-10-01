@@ -45,10 +45,17 @@ def _ollama_available() -> bool:
         return False
 
 def _mcp_available() -> bool:
+    """Probe the real Unreal MCP protocol, not only its TCP port."""
     try:
-        with socket.create_connection(("127.0.0.1", 8000), timeout=0.35):
-            return True
-    except OSError:
+        from app.unreal.mcp import UnrealMCPClient
+
+        client = UnrealMCPClient(
+            endpoint="http://127.0.0.1:8000/mcp",
+            timeout=0.8,
+        )
+        response = client.list_tools()
+        return not response.is_error
+    except Exception:
         return False
 
 class PluginManager:
