@@ -51,18 +51,18 @@ def test_default_permissions_and_no_silent_grants(controller):
     assert rows["CHAT"]["granted"] is True
     assert rows["READ"]["granted"] is False
     assert rows["WRITE"]["granted"] is False
-    assert rows["WEB_ACCESS"]["granted"] is False
+    assert rows["WEB_ACCESS"]["granted"] is True
     assert rows["DELETE"]["kind"] == "workspace_opt_in"
     assert rows["DELETE"]["granted"] is False
 
 
-def test_web_access_requires_explicit_controller_grant(controller):
+def test_web_access_is_default_and_controller_can_revoke(controller):
+    rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["WEB_ACCESS"]["granted"] is False
+    controller.revoke_web_access()
     rows = {row["level"]: row for row in controller.permission_status()}
     assert rows["WEB_ACCESS"]["granted"] is False
     controller.grant_web_access()
-    rows = {row["level"]: row for row in controller.permission_status()}
-    assert rows["WEB_ACCESS"]["granted"] is True
-    controller.revoke_web_access()
     rows = {row["level"]: row for row in controller.permission_status()}
     assert rows["WEB_ACCESS"]["granted"] is False
 
@@ -77,8 +77,14 @@ def test_grant_and_revoke_read_write(controller):
     assert rows["WRITE"]["granted"] is False and rows["READ"]["granted"] is True
 
 
-def test_terminal_computer_control_and_delete_are_rejected(controller):
-    for level in ("TERMINAL", "COMPUTER_CONTROL", "DELETE", "inexistente"):
+def test_terminal_and_delete_are_rejected_but_computer_control_is_explicitly_manageable(controller):
+    controller.grant_permission("COMPUTER_CONTROL")
+    rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["COMPUTER_CONTROL"]["granted"] is True
+    controller.revoke_permission("COMPUTER_CONTROL")
+    rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["COMPUTER_CONTROL"]["granted"] is False
+    for level in ("TERMINAL", "DELETE", "inexistente"):
         with pytest.raises(ToolsControlError):
             controller.grant_permission(level)
         with pytest.raises(ToolsControlError):
