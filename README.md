@@ -727,3 +727,7 @@ Roadmap completo: [`docs/ROADMAP.md`](docs/ROADMAP.md).
   estruturada.
 - Logs registram somente metadados (tamanhos, tipos de erro) — nunca o
   conteúdo das mensagens do usuário.
+\n## Inicialização como aplicativo Windows
+
+A Lumen agora possui uma entrada de duplo clique em `Lumen.pyw` e uma especificação de build em `packaging/Lumen.spec`. O usuário não precisa conhecer os módulos internos para abrir a UI. No startup, `PluginManager` faz diagnóstico somente-leitura dos componentes built-in e serviços locais relevantes (Computer Control, Web Research, Unreal, Ollama e MCP) e mostra o estado na UI. Descoberta nunca concede permissões, cria scopes, arma drivers ou inicia serviços externos. Para gerar o executável Windows, consulte `packaging/BUILD_WINDOWS.md`.
+
