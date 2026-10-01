@@ -931,6 +931,16 @@ class ToolsController:
         self._unreal_scope_id = scope.scope_id
         return scope
 
+    def unreal_authorization_ready(self) -> bool:
+        """Indica se a autorização explícita pode ser oferecida pela UI."""
+        return (
+            self._pending_unreal_plan is not None
+            and self._computer_control_service is not None
+            and self._permissions.is_granted(PermissionLevel.UNREAL)
+            and self._permissions.is_granted(PermissionLevel.COMPUTER_CONTROL)
+            and self.unreal_scope_status() is None
+        )
+
     def unreal_scope_status(self) -> dict | None:
         if self._unreal_scope_id is None:
             return None
