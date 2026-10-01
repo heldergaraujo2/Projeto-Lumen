@@ -77,9 +77,8 @@ from app.tools.correction import (
 )
 from app.tools.workspaces import MultiWorkspaceSandbox, WorkspaceStore
 from app.unreal.integration import UnrealIntegration
-from app.unreal.tool import UnrealSnapshotTool
+from app.unreal.tool import UnrealSnapshotTool, UnrealPlanTool
 from app.unreal.integration import UnrealIntegration
-from app.unreal.tool import UnrealSnapshotTool
 
 logger = logging.getLogger("lumen.tools.control")
 
@@ -991,6 +990,7 @@ class ToolsController:
         registry.register(WebResearchTool(audit=self._audit))
         if self._unreal is not None:
             registry.register(UnrealSnapshotTool(self._unreal))
+            registry.register(UnrealPlanTool())
         return registry
 
     # ---------------------------------------------------------- F2 protocol
