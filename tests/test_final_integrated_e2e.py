@@ -105,14 +105,14 @@ def test_final_integrated_e2e_f30_evidence_to_f31_to_f32(tmp_path: Path) -> None
 
     trigger = loop.trigger(started.loop_id)
     assert trigger is not None
-    assert trigger.evidence_ids == ("CI-INTEGRATED-000001",)
+    assert trigger.evidence_ids == ("CI-EV-INTEGRATED-000001",)
 
     planned = loop.plan(
         started.loop_id,
         actions=("research", "benchmark", "security_review"),
         evidence_ids=trigger.evidence_ids,
     )
-    assert planned.evidence_ids == ("CI-INTEGRATED-000001",)
+    assert planned.evidence_ids == ("CI-EV-INTEGRATED-000001",)
 
     context = loop.open_evolution_gate(
         started.loop_id,
