@@ -157,6 +157,14 @@ class OperationsDialog:
         self.tools_summary = tk.Label(f, text="", font=("Segoe UI", 10),
                                       fg=_TEXT, bg=_PANEL, justify=tk.LEFT)
         self.tools_summary.pack(anchor=tk.W, padx=20, pady=12)
+        self.autonomous_status = tk.Label(f, text="", font=("Segoe UI", 10, "bold"), fg=_MUTED, bg=_PANEL)
+        self.autonomous_status.pack(anchor=tk.W, padx=20, pady=(4, 2))
+        self.autonomous_button = tk.Button(
+            f, text="CONCEDER TUDO — Modo Autônomo",
+            command=self._toggle_autonomous, relief=tk.FLAT, cursor="hand2",
+            bg=_ACCENT, fg="#0d1220", font=("Segoe UI", 10, "bold")
+        )
+        self.autonomous_button.pack(anchor=tk.W, padx=20, pady=8)
         tk.Button(f, text="Abrir ferramentas e aprovações",
                   command=self._open_tools, relief=tk.FLAT,
                   bg=_ACCENT, fg="#0d1220", font=("Segoe UI", 10, "bold")
@@ -208,6 +216,18 @@ class OperationsDialog:
                 text="Permissão UNREAL: " + ("CONCEDIDA" if perms.get("UNREAL") else "NÃO CONCEDIDA")
                 + "\nPlano pendente: " + ("SIM — aguarda autorização/execução" if self._tools_controller.pending_unreal_plan() else "NÃO")
             )
+            autonomous = self._tools_controller.autonomous_mode
+            self.autonomous_status.configure(
+                text=("MODO AUTÔNOMO ATIVO — concessão global da sessão"
+                      if autonomous else "Modo normal — autorizações manuais ativas"),
+                fg=_OK if autonomous else _MUTED,
+            )
+            self.autonomous_button.configure(
+                text=("DESATIVAR MODO AUTÔNOMO" if autonomous
+                      else "CONCEDER TUDO — Modo Autônomo"),
+                bg=_ERR if autonomous else _ACCENT,
+                fg="#0d1220",
+            )
             self.tools_summary.configure(
                 text="Permissões ativas: " + ", ".join(k for k,v in perms.items() if v)
                 + "\nOperação aguardando aprovação: " + ("SIM" if pending else "NÃO")
@@ -217,6 +237,18 @@ class OperationsDialog:
             self.web_details.configure(text="ToolsController indisponível.")
             self.unreal_details.configure(text="ToolsController indisponível.")
             self.tools_summary.configure(text="ToolsController indisponível.")
+
+    def _toggle_autonomous(self):
+        if self._tools_controller is None:
+            return
+        try:
+            if self._tools_controller.autonomous_mode:
+                self._tools_controller.disable_autonomous_mode()
+            else:
+                self._tools_controller.enable_autonomous_mode()
+        except Exception as exc:
+            self.tools_summary.configure(text=f"Erro ao alterar Modo Autônomo: {exc}")
+        self._refresh_capabilities()
 
     def _refresh_settings(self):
         provider = getattr(self._agent.provider, "name", "?")
