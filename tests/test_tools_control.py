@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
-from app.security.permissions import PermissionManager
+from app.security.permissions import PermissionLevel, PermissionManager
 from app.tools.control import ToolsControlError, ToolsController
 from app.unreal.integration import UnrealIntegration
 
@@ -60,7 +60,7 @@ def test_stage_unreal_plan_does_not_grant_physical_authority(controller, tmp_pat
     )
     assert controller.pending_unreal_plan() == plan
     assert controller.permission_status()[0]["level"] == "CHAT"
-    assert controller._permissions.is_granted(__import__("app.security.permissions", fromlist=["PermissionLevel"]).PermissionLevel.COMPUTER_CONTROL) is False
+    assert controller._permissions.is_granted(PermissionLevel.COMPUTER_CONTROL) is False
 
 
 # ------------------------------------------------------------- permissões
