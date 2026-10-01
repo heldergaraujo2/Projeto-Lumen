@@ -19,6 +19,7 @@ class _Agent:
 
 class _Controller:
     has_pending = False
+    autonomous_mode = False
 
     def permission_status(self):
         return [
