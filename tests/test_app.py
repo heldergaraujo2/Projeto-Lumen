@@ -152,6 +152,9 @@ def test_expected_project_layout_exists():
         "app/ui/main_window.py",
         "app/ui/settings_dialog.py",
         "app/ui/tools_dialog.py",
+        "app/runtime/plugins.py",
+        "Lumen.pyw",
+        "packaging/Lumen.spec",
     ]
     for relative in expected:
         assert (PROJECT_ROOT / relative).exists(), f"arquivo ausente: {relative}"
