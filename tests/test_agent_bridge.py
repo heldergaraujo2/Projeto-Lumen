@@ -262,7 +262,7 @@ def test_unreal_plan_is_not_reported_as_physically_executed(env, tmp_path):
     outcome = agent.process_message("Abra o asset /Game/BP_Player no Unreal.")
 
     assert outcome.state is RequestState.PLAN_READY
-    assert "não foi executado" in outcome.text.lower()
+    assert "nenhuma ação física foi executada" in outcome.text.lower()
     assert "computer_control" in outcome.text.lower()
     assert not controller.has_pending
 
