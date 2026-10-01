@@ -62,12 +62,14 @@ class LumenWindow:
         on_close: Callable[[], None] | None = None,
         config_service=None,
         tools_controller=None,
+        plugin_reports=(),
     ) -> None:
         self._root = root
         self._agent = agent
         self._on_close = on_close
         self._config_service = config_service
         self._tools_controller = tools_controller
+        self._plugin_reports = tuple(plugin_reports)
         self._busy = False
         self._status = "ready"
         self._streaming = False
@@ -87,6 +89,14 @@ class LumenWindow:
         logger.info("Janela principal construída.")
 
     # ------------------------------------------------------------------ layout
+    def _runtime_summary(self) -> str:
+        """Mostra o diagnóstico read-only dos componentes carregados."""
+        labels = []
+        for report in self._plugin_reports:
+            icon = "🟢" if report.status.value == "AVAILABLE" else "🟡" if report.status.value == "DEGRADED" else "🔴"
+            labels.append(f"{icon} {report.descriptor.name}")
+        return "Runtime: " + " · ".join(labels) if labels else "Runtime: diagnóstico indisponível"
+
     def _provider_subtitle(self) -> str:
         """Texto do cabeçalho: versão + provedor/modelo vigentes."""
         provider = getattr(self._agent.provider, "name", "?")
@@ -149,6 +159,17 @@ class LumenWindow:
         self.tools_button.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 8))
         if self._tools_controller is None:
             self.tools_button.configure(state=tk.DISABLED)
+
+        self.runtime_label = tk.Label(
+            self._root,
+            text=self._runtime_summary(),
+            font=("Segoe UI", 8),
+            fg=_Palette.MUTED,
+            bg=_Palette.BG,
+            justify=tk.LEFT,
+            anchor=tk.W,
+        )
+        self.runtime_label.pack(anchor=tk.W, padx=20, pady=(0, 2))
 
         self.subtitle_label = tk.Label(
             self._root,
