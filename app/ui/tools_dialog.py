@@ -296,9 +296,7 @@ class ToolsDialog:
         self.unreal_plan_label.configure(text=text, fg=_WARN)
         self.unreal_discard_button.configure(state=tk.NORMAL)
         self.unreal_authorize_button.configure(
-            state=tk.NORMAL
-            if self._controller.unreal_scope_status() is None
-            and self._controller.permission_status()
+            state=tk.NORMAL if self._controller.unreal_authorization_ready()
             else tk.DISABLED
         )
 
