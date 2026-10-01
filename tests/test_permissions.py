@@ -9,20 +9,20 @@ from app.security.permissions import (
     PermissionManager,
 )
 
-DANGEROUS_LEVELS = (
+PROTECTED_LEVELS = (
     PermissionLevel.READ,
     PermissionLevel.WRITE,
     PermissionLevel.TERMINAL,
     PermissionLevel.COMPUTER_CONTROL,
-    PermissionLevel.WEB_ACCESS,
 )
 
 
-def test_default_grants_chat_only():
-    """Fase 0: nenhuma permissão perigosa é concedida por padrão."""
+def test_default_grants_chat_and_web():
+    """Conversa e pesquisa Web são capacidades gerais; operações locais continuam protegidas."""
     manager = PermissionManager()
     assert manager.is_granted(PermissionLevel.CHAT)
-    for level in DANGEROUS_LEVELS:
+    assert manager.is_granted(PermissionLevel.WEB_ACCESS)
+    for level in PROTECTED_LEVELS:
         assert not manager.is_granted(level)
 
 
@@ -63,12 +63,11 @@ def test_invalid_level_raises_type_error():
         manager.grant("SUPERUSER")
 
 
-def test_web_access_is_denied_by_default_and_requires_explicit_grant():
+def test_web_access_is_granted_by_default_and_can_be_revoked():
     manager = PermissionManager()
-    assert not manager.is_granted(PermissionLevel.WEB_ACCESS)
-    with pytest.raises(PermissionDeniedError):
-        manager.require(PermissionLevel.WEB_ACCESS)
-    manager.grant(PermissionLevel.WEB_ACCESS)
+    assert manager.is_granted(PermissionLevel.WEB_ACCESS)
     manager.require(PermissionLevel.WEB_ACCESS)
     manager.revoke(PermissionLevel.WEB_ACCESS)
     assert not manager.is_granted(PermissionLevel.WEB_ACCESS)
+    with pytest.raises(PermissionDeniedError):
+        manager.require(PermissionLevel.WEB_ACCESS)
