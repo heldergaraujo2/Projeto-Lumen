@@ -13,13 +13,35 @@ from app.evolution.closed_loop import (
     PersistentClosedLoopEvolution,
 )
 from app.evolution.continuous_intelligence import IntelligenceObservation
-from app.evolution.models import EvolutionRisk
+from app.evolution.models import Capability, CapabilityMeasurement, EvolutionRisk
 
 
 def test_f32_end_to_end_closed_loop_persistence_and_approval(tmp_path: Path) -> None:
     path = tmp_path / "closed-loop.json"
 
     first = PersistentClosedLoopEvolution(path)
+
+    # F24's evolution planner requires a registered capability and baseline
+    # measurement when F32 opens the evolution gate. This is test setup only;
+    # F32 continues to consume evidence and never executes the improvement.
+    evolution = first.orchestrator.evolution
+    evolution.register_capability(
+        Capability(
+            capability_id="reasoning",
+            name="Reasoning",
+            description="E2E test capability",
+        )
+    )
+    evolution.baseline(
+        CapabilityMeasurement(
+            capability_id="reasoning",
+            score=0.80,
+            metric="quality",
+            sample_size=5,
+            evidence=("f31-verified-experience",),
+        )
+    )
+
     started = first.start("reasoning", 0.80)
     observed = first.observe(
         started.loop_id,
