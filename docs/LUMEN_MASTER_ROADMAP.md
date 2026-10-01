@@ -1,7 +1,7 @@
 # LUMEN — ROADMAP E CONTINUIDADE OFICIAL
 
 **Atualização:** 2026-09-30  
-**Branch oficial:** `master`  
+**Branch de trabalho oficial:** `feature/web-research-agent`  
 **Fonte de verdade:** este documento + código/testes do repositório GitHub.
 
 > Este é o único documento canônico de roadmap e continuidade. Os antigos `docs/ROADMAP.md` e `docs/LUMEN_CONTINUITY_PHASES.md` foram consolidados aqui e serão removidos após esta migração.
@@ -23,7 +23,7 @@
 | F28 | Real Vision + Grounding | 🟩 VALIDADA EM MÁQUINA REAL |
 | F29 | Real Autonomous Computer Agent | 🟩 VALIDADA EM MÁQUINA REAL |
 | F30 | Unreal Real Integration | 🟩 VALIDADA EM AMBIENTE REAL — clique físico controlado + verificação MCP/Slate |
-| F31 | Experience & Workflow Intelligence | 🟩 IMPLEMENTAÇÃO/CI CONCLUÍDAS — E2E recomendado pendente |
+| F31 | Experience & Workflow Intelligence | 🟩 IMPLEMENTAÇÃO + E2E CONCLUÍDOS |
 | F32 | Closed-Loop Lumen Evolution | 🟩 IMPLEMENTAÇÃO/CI CONCLUÍDAS — E2E recomendado pendente |
 
 ## F32 — CLOSED-LOOP LUMEN EVOLUTION
