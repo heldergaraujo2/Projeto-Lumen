@@ -61,6 +61,9 @@ def test_web_access_is_default_and_controller_can_revoke(controller):
     assert rows["WEB_ACCESS"]["granted"] is False
     controller.revoke_web_access()
     rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["WEB_ACCESS"]["granted"] is True
+    controller.revoke_web_access()
+    rows = {row["level"]: row for row in controller.permission_status()}
     assert rows["WEB_ACCESS"]["granted"] is False
     controller.grant_web_access()
     rows = {row["level"]: row for row in controller.permission_status()}
