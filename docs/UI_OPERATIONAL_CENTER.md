@@ -40,3 +40,9 @@ O acesso web geral não remove as validações de segurança da política de red
 
 Lumen.pyw continua sendo a entrada gráfica para Windows. O runtime é descoberto durante a inicialização e os estados são apresentados no painel.
 O painel não inicia automaticamente Ollama, MCP ou outros processos externos.
+
+## Modo Autônomo
+
+A aba **Ferramentas / Aprovações** possui o botão **CONCEDER TUDO — Modo Autônomo**. Ele concede todas as `PermissionLevel` somente para a sessão atual e faz o executor aprovar automaticamente checkpoints já validados pelo pipeline. Ao desativar, as permissões anteriores são restauradas.
+
+O Modo Autônomo não remove sandbox, Policy, allowlists, escopos, verificação ou auditoria; ele elimina a intervenção manual nos checkpoints. Terminal continua dependendo da ferramenta/allowlist configurada e Unreal continua respeitando seus escopos de Computer Control.
