@@ -64,6 +64,36 @@ def test_stage_unreal_plan_does_not_grant_physical_authority(controller, tmp_pat
 
 
 # ------------------------------------------------------------- permissões
+
+def test_unreal_plan_status_is_read_only_and_clear_is_local(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        unreal=UnrealIntegration(),
+    )
+    plan = controller.stage_unreal_plan(
+        goal="abrir asset /Game/BP_Player",
+        project_name="AgeOfAether",
+        project_root=str(tmp_path),
+        engine_version="5.8",
+    )
+
+    status = controller.unreal_plan_status()
+    assert status is not None
+    assert status["project"] == "AgeOfAether"
+    assert status["goal"] == plan.goal
+    assert status["requires_computer_control"] is True
+    assert [item["operation"] for item in status["actions"]] == [
+        "focus_editor",
+        "open_asset",
+    ]
+    assert not controller._permissions.is_granted(PermissionLevel.COMPUTER_CONTROL)
+
+    assert controller.clear_pending_unreal_plan() is True
+    assert controller.unreal_plan_status() is None
+    assert controller.clear_pending_unreal_plan() is False
+
 def test_default_permissions_and_no_silent_grants(controller):
     rows = {row["level"]: row for row in controller.permission_status()}
     assert rows["CHAT"]["granted"] is True
