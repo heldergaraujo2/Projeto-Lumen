@@ -136,6 +136,21 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
     ),
     ToolSpec(
+        name="unreal_plan",
+        description=(
+            "Planeja uma operação explícita do Unreal Editor sem executá-la. "
+            "O resultado permanece somente planejamento até passar pela cadeia "
+            "de Computer Control."
+        ),
+        parameters=(
+            ParameterSpec("goal", "string", True, "Objetivo Unreal explícito."),
+            ParameterSpec("project_name", "string", True, "Nome do projeto Unreal."),
+            ParameterSpec("project_root", "string", True, "Raiz declarada do projeto."),
+            ParameterSpec("engine_version", "string", False, "Versão do Unreal, quando conhecida."),
+        ),
+        unreal=True,
+    ),
+    ToolSpec(
         name="unreal_snapshot",
         description=(
             "Inspeciona o Unreal Editor via MCP/Slate Inspector em modo "
