@@ -81,6 +81,8 @@ from app.unreal.tool import UnrealSnapshotTool, UnrealPlanTool
 from app.unreal.agent import UnrealAgent
 from app.unreal.models import UnrealPlan, UnrealProject
 from app.computer_control.service import ComputerControlService
+from app.computer_control.session import CCGrantRequest, CCSessionManager
+from app.computer_control.api import CCActionType
 
 logger = logging.getLogger("lumen.tools.control")
 
@@ -377,6 +379,8 @@ class ToolsController:
         # Serviço de Computer Control injetado pela composição; não concede
         # permissão, não cria scope e não arma o driver no startup.
         self._computer_control_service = computer_control_service
+        self._cc_sessions = CCSessionManager()
+        self._unreal_scope_id: str | None = None
         self._pending_unreal_plan: UnrealPlan | None = None
         self._store = WorkspaceStore(workspaces_file)
         self._audit_file = Path(audit_file)
@@ -884,6 +888,69 @@ class ToolsController:
         if self._pending_unreal_plan is None:
             return False
         self._pending_unreal_plan = None
+        return True
+
+    def authorize_pending_unreal(
+        self,
+        *,
+        duration_seconds: int = 300,
+        max_actions_total: int = 20,
+        max_actions_per_minute: int = 20,
+    ):
+        """Cria um Scope temporário e mínimo para o plano Unreal pendente.
+
+        Esta operação exige que o usuário já tenha concedido UNREAL e
+        COMPUTER_CONTROL. Ela não cria checkpoint e não chama o driver.
+        """
+        plan = self._pending_unreal_plan
+        if plan is None:
+            raise ToolsControlError("Nenhum plano Unreal pendente.")
+        if self._computer_control_service is None:
+            raise ToolsControlError("Computer Control não está disponível.")
+        if not self._permissions.is_granted(PermissionLevel.UNREAL):
+            raise PermissionError("Permissão UNREAL não concedida.")
+        if not self._permissions.is_granted(PermissionLevel.COMPUTER_CONTROL):
+            raise PermissionError("Permissão COMPUTER_CONTROL não concedida.")
+
+        actions = {CCActionType.WINDOW_FOCUS}
+        for action in plan.actions:
+            if action.keys:
+                actions.add(CCActionType.KEY_COMBO if len(action.keys) > 1 else CCActionType.KEY_PRESS)
+            if action.operation.value in {"open_asset", "open_level"}:
+                actions.add(CCActionType.KEY_TYPE)
+
+        scope = self._cc_sessions.grant(
+            CCGrantRequest(
+                target=plan.project.editor_window,
+                actions=frozenset(actions),
+                duration_seconds=duration_seconds,
+                max_actions_total=max_actions_total,
+                max_actions_per_minute=max_actions_per_minute,
+            )
+        )
+        self._unreal_scope_id = scope.scope_id
+        return scope
+
+    def unreal_scope_status(self) -> dict | None:
+        if self._unreal_scope_id is None:
+            return None
+        scope = self._cc_sessions.get(self._unreal_scope_id)
+        if scope is None or scope.is_expired():
+            self._unreal_scope_id = None
+            return None
+        return {
+            "scope_id": scope.scope_id,
+            "target": scope.target,
+            "allowed_actions": tuple(sorted(action.value for action in scope.allowed_actions)),
+            "expires_at": scope.expires_at.isoformat(),
+            "remaining_actions": scope.remaining_actions(),
+        }
+
+    def revoke_unreal_scope(self) -> bool:
+        if self._unreal_scope_id is None:
+            return False
+        self._cc_sessions.revoke(self._unreal_scope_id)
+        self._unreal_scope_id = None
         return True
 
     # -------------------------------------------------------------- permissões
