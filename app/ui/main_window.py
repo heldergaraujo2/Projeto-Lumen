@@ -110,6 +110,18 @@ class LumenWindow:
         """Atualiza o cabeçalho após troca de provedor (tela de configurações)."""
         self.subtitle_label.configure(text=self._provider_subtitle())
 
+    def _open_operations(self) -> None:
+        """Abre o centro operacional com abas de runtime e capacidades."""
+        from app.ui.operations_dialog import OperationsDialog
+        OperationsDialog(
+            self._root,
+            agent=self._agent,
+            config_service=self._config_service,
+            tools_controller=self._tools_controller,
+            plugin_reports=self._plugin_reports,
+            on_provider_saved=self._refresh_provider_label,
+        )
+
     def _build_layout(self) -> None:
         header = tk.Frame(self._root, bg=_Palette.BG)
         header.pack(fill=tk.X, padx=18, pady=(14, 2))
@@ -126,10 +138,10 @@ class LumenWindow:
         )
         self.status_label.pack(side=tk.RIGHT, anchor=tk.N)
 
-        self.settings_button = tk.Button(
+        self.operations_button = tk.Button(
             header,
-            text="⚙ Configurações",
-            command=self._open_settings,
+            text="☷ Painel operacional",
+            command=self._open_operations,
             bg=_Palette.BG,
             fg=_Palette.MUTED,
             activebackground=_Palette.BG,
@@ -139,26 +151,7 @@ class LumenWindow:
             padx=6,
             cursor="hand2",
         )
-        self.settings_button.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 12))
-        if self._config_service is None:
-            self.settings_button.configure(state=tk.DISABLED)
-
-        self.tools_button = tk.Button(
-            header,
-            text="🛡 Ferramentas",
-            command=self._open_tools,
-            bg=_Palette.BG,
-            fg=_Palette.MUTED,
-            activebackground=_Palette.BG,
-            activeforeground=_Palette.TEXT,
-            relief=tk.FLAT,
-            font=("Segoe UI", 9),
-            padx=6,
-            cursor="hand2",
-        )
-        self.tools_button.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 8))
-        if self._tools_controller is None:
-            self.tools_button.configure(state=tk.DISABLED)
+        self.operations_button.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 8))
 
         self.runtime_label = tk.Label(
             self._root,
