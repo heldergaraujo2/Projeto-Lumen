@@ -50,7 +50,7 @@ class ToolsDialog:
 
         self.top = tk.Toplevel(parent)
         self.top.title("Ferramentas e Segurança")
-        self.top.geometry("640x680")  # +60: seção Automação (11H)
+        self.top.geometry("720x760")  # plano Unreal + automação
         self.top.configure(bg=_PANEL)
         self.top.transient(parent)
 
@@ -72,6 +72,7 @@ class ToolsDialog:
         self.status_label.pack(anchor=tk.W, padx=18)
 
         self._build_approval_section()
+        self._build_unreal_section()
         self._build_workspaces_section()
         self._build_permissions_section()
         self._build_terminal_section()
@@ -224,6 +225,67 @@ class ToolsDialog:
         )
         self.refresh()
         self._notify_plan_finished(report)
+
+    # -------------------------------------------------------------- Unreal
+    def _build_unreal_section(self) -> None:
+        tk.Label(
+            self.top, text="PLANO UNREAL PENDENTE",
+            font=("Segoe UI", 10, "bold"), fg=_TEXT, bg=_PANEL,
+        ).pack(anchor=tk.W, padx=18, pady=(6, 2))
+        self.unreal_plan_label = tk.Label(
+            self.top,
+            text="Nenhum plano Unreal aguardando autorização.",
+            fg=_MUTED, bg=_PANEL, font=("Segoe UI", 9),
+            justify=tk.LEFT, wraplength=660,
+        )
+        self.unreal_plan_label.pack(anchor=tk.W, padx=18)
+        self.unreal_discard_button = tk.Button(
+            self.top, text="Descartar plano", relief=tk.FLAT, cursor="hand2",
+            bg=_PANEL, fg=_ERR_RED, font=("Segoe UI", 9),
+            state=tk.DISABLED, command=self._discard_unreal_plan,
+        )
+        self.unreal_discard_button.pack(anchor=tk.W, padx=18, pady=(2, 5))
+
+    def _refresh_unreal(self) -> None:
+        status = self._controller.unreal_plan_status()
+        if status is None:
+            self.unreal_plan_label.configure(
+                text="Nenhum plano Unreal aguardando autorização.",
+                fg=_MUTED,
+            )
+            self.unreal_discard_button.configure(state=tk.DISABLED)
+            return
+
+        actions = []
+        for index, action in enumerate(status["actions"], start=1):
+            value = f" {action['value']}" if action.get("value") else ""
+            actions.append(
+                f"{index}. {action['operation']}{value} · risco {action['risk']}"
+            )
+        text = (
+            "⚠ PLANO PREPARADO — nenhuma ação física foi executada.\n"
+            f"Projeto: {status['project']}\n"
+            f"Raiz: {status['project_root']}\n"
+            f"Engine: {status['engine_version'] or '?'}\n"
+            f"Objetivo: {status['goal']}\n"
+            "Ações:\n" + "\n".join(actions) +
+            "\nRequer COMPUTER_CONTROL + escopo autorizado + checkpoint "
+            "individual antes de qualquer ação física."
+        )
+        self.unreal_plan_label.configure(text=text, fg=_WARN)
+        self.unreal_discard_button.configure(state=tk.NORMAL)
+
+    def _discard_unreal_plan(self) -> None:
+        try:
+            if not self._controller.clear_pending_unreal_plan():
+                self._set_status(None, "Nenhum plano Unreal pendente.")
+                return
+        except Exception as exc:
+            logger.exception("Falha ao descartar plano Unreal.")
+            self._set_status(False, f"🔴 Não foi possível descartar: {exc}")
+            return
+        self._set_status(True, "🟢 Plano Unreal descartado; nenhuma ação física executada.")
+        self.refresh()
 
     # ------------------------------------------------------------ workspaces
     def _build_workspaces_section(self) -> None:
@@ -724,6 +786,7 @@ class ToolsDialog:
     def refresh(self) -> None:
         """Re-renderiza todas as seções a partir do controller."""
         self._refresh_pending()
+        self._refresh_unreal()
         self._refresh_workspaces()
         self._refresh_permissions()
         self._refresh_terminal()
