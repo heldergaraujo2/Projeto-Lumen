@@ -27,6 +27,9 @@ from app.memory.system import MemorySystem
 from app.security.permissions import PermissionManager
 from app.tasks.manager import TaskManager
 from app.tools.control import ToolsController
+from app.computer.windows_native import WindowsNativeIntelligence
+from app.computer_control.service import ComputerControlService
+from app.computer_control.windows_driver import WindowsComputerControlDriver
 from app.unreal.integration import UnrealIntegration
 from app.unreal.mcp import UnrealMCPClient
 
@@ -52,7 +55,7 @@ def build_app(settings: Settings) -> tuple[Agent, ConfigService]:
     provider = create_provider(effective)
     memory = MemoryStore(effective.memory_file)
     task_manager = TaskManager(effective.tasks_file)
-    permissions = PermissionManager()  # apenas CHAT nesta fase
+    permissions = PermissionManager()  # CHAT + WEB_ACCESS; capacidades operacionais continuam protegidas
     # Memória estruturada 0.3: montada sem efeitos colaterais (arquivos
     # de domínio só nascem no primeiro save) e usada como contexto de
     # LEITURA pelo Planner (request_plan) — o fluxo de conversa não muda.
@@ -130,7 +133,13 @@ def main() -> int:
         # 0.5.x: camada de controle de ferramentas (workspaces/permissões/
         # checkpoints/auditoria) — construída sem efeitos colaterais (nenhum
         # arquivo nasce, nenhuma permissão é concedida no startup).
-        unreal = UnrealIntegration(mcp=UnrealMCPClient())
+        unreal = UnrealIntegration(mcp=UnrealMCPClient(), native=WindowsNativeIntelligence())
+        computer_driver = WindowsComputerControlDriver(armed=False)
+        computer_control = ComputerControlService(
+            permissions=agent.permissions or PermissionManager(),
+            driver=computer_driver,
+            require_checkpoint=True,
+        )
         tools_controller = ToolsController(
             agent.permissions or PermissionManager(),
             workspaces_file=settings.data_dir / "workspaces.json",
@@ -149,6 +158,7 @@ def main() -> int:
             export_execution_reports=settings.export_execution_reports,
             reports_dir=settings.data_dir / "reports",
             unreal=unreal,
+            computer_control_service=computer_control,
         )
         # 0.6.3: liga o chat à fachada de ferramentas (tool calling via
         # Planner com allowlist). Sem concessões: a autoridade segue no
