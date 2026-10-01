@@ -80,6 +80,7 @@ from app.unreal.integration import UnrealIntegration
 from app.unreal.tool import UnrealSnapshotTool, UnrealPlanTool
 from app.unreal.agent import UnrealAgent
 from app.unreal.models import UnrealPlan, UnrealProject
+from app.computer_control.service import ComputerControlService
 
 logger = logging.getLogger("lumen.tools.control")
 
@@ -364,6 +365,7 @@ class ToolsController:
         snapshots_dir: Path | None = None,
         snapshot_max_bytes: int = 1_000_000,
         unreal: UnrealIntegration | None = None,
+        computer_control_service: ComputerControlService | None = None,
     ) -> None:
         if not isinstance(permissions, PermissionManager):
             raise ToolsControlError(
@@ -372,6 +374,9 @@ class ToolsController:
             )
         self._permissions = permissions
         self._unreal = unreal
+        # Serviço de Computer Control injetado pela composição; não concede
+        # permissão, não cria scope e não arma o driver no startup.
+        self._computer_control_service = computer_control_service
         self._pending_unreal_plan: UnrealPlan | None = None
         self._store = WorkspaceStore(workspaces_file)
         self._audit_file = Path(audit_file)
