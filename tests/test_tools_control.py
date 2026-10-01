@@ -14,6 +14,7 @@ import pytest
 from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
 from app.security.permissions import PermissionManager
 from app.tools.control import ToolsControlError, ToolsController
+from app.unreal.integration import UnrealIntegration
 
 
 @pytest.fixture()
@@ -43,6 +44,23 @@ def armed(task_id: str, tool: str, parameters: dict, order: int = 1,
 def ready(objective: str, *tasks: PlannedTask) -> Plan:
     return Plan(id="PLN-4242", objective=objective, status=PlanStatus.READY,
                 tasks=tasks)
+
+
+def test_stage_unreal_plan_does_not_grant_physical_authority(controller, tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        unreal=UnrealIntegration(),
+    )
+    plan = controller.stage_unreal_plan(
+        goal="abrir asset /Game/BP_Player",
+        project_name="AgeOfAether",
+        project_root=str(tmp_path),
+    )
+    assert controller.pending_unreal_plan() == plan
+    assert controller.permission_status()[0]["level"] == "CHAT"
+    assert controller._permissions.is_granted(__import__("app.security.permissions", fromlist=["PermissionLevel"]).PermissionLevel.COMPUTER_CONTROL) is False
 
 
 # ------------------------------------------------------------- permissões
