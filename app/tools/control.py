@@ -851,6 +851,41 @@ class ToolsController:
         """Retorna o plano Unreal aguardando autorização física, se houver."""
         return self._pending_unreal_plan
 
+    def unreal_plan_status(self) -> dict | None:
+        """Visão somente-leitura do plano Unreal pendente para a UI.
+
+        Não concede permissão, não cria scope, não cria checkpoint e não
+        toca o driver.
+        """
+        plan = self._pending_unreal_plan
+        if plan is None:
+            return None
+        plan.validate()
+        return {
+            "project": plan.project.name,
+            "project_root": plan.project.root,
+            "engine_version": plan.project.engine_version,
+            "goal": plan.goal,
+            "requires_computer_control": plan.requires_computer_control,
+            "actions": tuple(
+                {
+                    "operation": action.operation.value,
+                    "value": action.value,
+                    "keys": action.keys,
+                    "risk": action.risk.value,
+                    "rationale": action.rationale,
+                }
+                for action in plan.actions
+            ),
+        }
+
+    def clear_pending_unreal_plan(self) -> bool:
+        """Descarta apenas o plano pendente; não altera autoridade física."""
+        if self._pending_unreal_plan is None:
+            return False
+        self._pending_unreal_plan = None
+        return True
+
     # -------------------------------------------------------------- permissões
     def permission_status(self) -> list[dict]:
         """Visão das permissões para a UI (CHAT/READ/WRITE + DELETE)."""
