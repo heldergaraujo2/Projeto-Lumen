@@ -42,6 +42,12 @@ class UnrealAgent:
             actions.append(self.play())
         elif normalized in {"parar pie", "stop", "stop play"}:
             actions.append(self.stop_play())
+        elif normalized.startswith("abrir asset ") or normalized.startswith("open asset "):
+            value = goal.split(" ", 2)[2].strip()
+            actions.append(self.open_asset(value))
+        elif normalized.startswith("abrir nível ") or normalized.startswith("abrir level ") or normalized.startswith("open level "):
+            value = goal.split(" ", 2)[2].strip()
+            actions.append(self.open_level(value))
         else:
             raise ValueError("unsupported Unreal goal; use a structured UnrealAgent operation")
 
