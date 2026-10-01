@@ -28,7 +28,11 @@ class UnrealProject:
     name: str
     root: str
     engine_version: str | None = None
-    editor_window: CCTarget = field(default_factory=CCTarget)
+    # Unreal UI plans must default to the explicit editor application target.
+    # Callers may still provide a narrower process/title/handle target.
+    editor_window: CCTarget = field(
+        default_factory=lambda: CCTarget(app_name="UnrealEditor")
+    )
 
     def validate(self) -> None:
         if not self.name.strip():
