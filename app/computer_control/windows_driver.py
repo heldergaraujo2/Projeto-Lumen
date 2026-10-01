@@ -14,6 +14,7 @@ import ctypes
 import os
 import re
 import tempfile
+import time
 from pathlib import Path
 
 from .api import CCTarget, ComputerControlDriver, ScreenRegion, ScreenshotInfo
@@ -178,6 +179,24 @@ class WindowsComputerControlDriver(ComputerControlDriver):
             _USER32.keybd_event(0, code, _KEYEVENTF_UNICODE, 0)
             _USER32.keybd_event(0, code, _KEYEVENTF_UNICODE | _KEYEVENTF_KEYUP, 0)
 
+    def _verify_foreground(self, handle: int) -> None:
+        """Confirm that Windows actually activated the requested window.
+
+        SetForegroundWindow() can return success without the requested window
+        becoming the foreground window immediately (or at all, for example
+        when Windows foreground-activation rules reject the request). Treat
+        that case as a failed focus operation rather than allowing subsequent
+        keyboard input to reach an unrelated window.
+        """
+        deadline = time.monotonic() + 0.5
+        while time.monotonic() < deadline:
+            if int(_USER32.GetForegroundWindow()) == int(handle):
+                return
+            time.sleep(0.01)
+        raise WindowsComputerControlError(
+            f"window focus verification failed for handle {int(handle)}"
+        )
+
     def focus_window(self, target: CCTarget) -> None:
         _require_windows()
         if target.window_handle:
@@ -187,6 +206,7 @@ class WindowsComputerControlDriver(ComputerControlDriver):
             _USER32.ShowWindow(handle, _SW_RESTORE)
             if not _USER32.SetForegroundWindow(handle):
                 raise WindowsComputerControlError("SetForegroundWindow failed")
+            self._verify_foreground(handle)
             return
 
         pattern = target.window_title_pattern
@@ -215,3 +235,4 @@ class WindowsComputerControlDriver(ComputerControlDriver):
         _USER32.ShowWindow(handle, _SW_RESTORE)
         if not _USER32.SetForegroundWindow(handle):
             raise WindowsComputerControlError("SetForegroundWindow failed")
+        self._verify_foreground(handle)
