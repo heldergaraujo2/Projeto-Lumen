@@ -811,3 +811,47 @@ def test_11k_restore_snapshot_missing_manifest_fails_without_checkpoint(
     assert not controller.has_pending  # inviável: NENHUM checkpoint
     assert report.status is PlanStatus.FAILED
     assert "snapshot_not_found" in (report.task_run("T1").error or "")
+
+
+def test_authorize_pending_unreal_requires_permissions_and_creates_bounded_scope(tmp_path):
+    permissions = PermissionManager()
+    controller = ToolsController(
+        permissions,
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        unreal=UnrealIntegration(),
+        computer_control_service=ComputerControlService(
+            permissions=permissions,
+            driver=object(),
+        ),
+    )
+    controller.stage_unreal_plan(
+        goal="abrir asset /Game/BP_Player",
+        project_name="AgeOfAether",
+        project_root=str(tmp_path),
+        engine_version="5.8",
+    )
+
+    with pytest.raises(PermissionError, match="UNREAL"):
+        controller.authorize_pending_unreal()
+
+    permissions.grant(PermissionLevel.UNREAL)
+    with pytest.raises(PermissionError, match="COMPUTER_CONTROL"):
+        controller.authorize_pending_unreal()
+
+    permissions.grant(PermissionLevel.COMPUTER_CONTROL)
+    scope = controller.authorize_pending_unreal(
+        duration_seconds=60,
+        max_actions_total=8,
+        max_actions_per_minute=8,
+    )
+    assert scope.target.app_name == "UnrealEditor"
+    assert scope.remaining_actions() == 8
+    assert "window_focus" in {item.value for item in scope.allowed_actions}
+    assert "key_combo" in {item.value for item in scope.allowed_actions}
+    assert "key_type" in {item.value for item in scope.allowed_actions}
+    assert controller.unreal_scope_status()["scope_id"] == scope.scope_id
+    assert controller.unreal_authorization_ready() is False
+    assert controller.revoke_unreal_scope() is True
+    assert controller.unreal_scope_status() is None
+    assert controller.unreal_authorization_ready() is True
