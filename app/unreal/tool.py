@@ -25,7 +25,7 @@ class UnrealSnapshotTool(StructuredTool):
         "Inspeciona o Unreal Editor por MCP/Slate Inspector e retorna um "
         "snapshot somente leitura da árvore Slate."
     )
-    required_permission = PermissionLevel.COMPUTER_CONTROL
+    required_permission = PermissionLevel.UNREAL
 
     def __init__(self, integration: UnrealIntegration) -> None:
         if not isinstance(integration, UnrealIntegration):
