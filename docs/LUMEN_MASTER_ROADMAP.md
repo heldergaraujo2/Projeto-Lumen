@@ -330,7 +330,7 @@ Antes de implementar:
 
 **Regra obrigatória:** NÃO CRIE OUTRA LUMEN. ALTERE SEMPRE A LUMEN EXISTENTE.
 
-## 10. ARQUIVO HISTÓRICO CONSOLIDADO — CONTINUIDADE ANTERIOR
+## 10. ARQUIVO HISTÓRICO NÃO CANÔNICO — CONTINUIDADE ANTERIOR
 
 # LUMEN — CONTINUIDADE OFICIAL DO PROJETO
 
@@ -1523,6 +1523,6 @@ pip check ok; import main ok; harness 55/55; AST/anti-futuro verde.
 
 ## 12. REGRA FINAL
 
-O conteúdo das seções 1–6 deste documento é canônico. As seções 7–8 preservam histórico e evidências antigas para não perder contexto, mas não podem contradizer o estado canônico atual.
+Os blocos atuais no início deste documento são a fonte canônica de estado. A seção histórica abaixo é preservada apenas para contexto e não representa pendências, próximos passos ou estado operacional atual.
 
-**Próxima fase:** F23 — Runtime Integration & State Machine Hardening.
+**Estado atual:** F0–F32 consolidadas; F30 possui validação física real aprovada; F31, F32 e o E2E integrado final estão aprovados; a suíte local final registrou 1485 passed / 49 skipped / 0 failed. **F33 ainda não foi definida.** Não repetir F30/F31/F32 como gates já encerrados.
