@@ -6,8 +6,8 @@ aqui (testável sem Tk); os diálogos são apenas apresentação.
 
 Garantias:
 
-- permissões: somente ``CHAT``/``READ``/``WRITE`` são gerenciáveis —
-  ``TERMINAL``/``COMPUTER_CONTROL`` são **rejeitados** (nada de concessão
+- permissões: ``CHAT``/``READ``/``WRITE``/``UNREAL``/``COMPUTER_CONTROL`` são gerenciáveis —
+  ``TERMINAL`` continua exigindo habilitação própria (nada de concessão
   silenciosa de níveis futuros) e ``DELETE`` não é um nível: é o opt-in
   por workspace (``writable`` + ``allow_delete``) da 0.5;
 - execução: ``run_plan`` constrói a cadeia real
@@ -80,7 +80,6 @@ from app.unreal.integration import UnrealIntegration
 from app.unreal.tool import UnrealSnapshotTool, UnrealPlanTool
 from app.unreal.agent import UnrealAgent
 from app.unreal.models import UnrealPlan, UnrealProject
-from app.unreal.integration import UnrealIntegration
 
 logger = logging.getLogger("lumen.tools.control")
 
