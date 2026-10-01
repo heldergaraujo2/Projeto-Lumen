@@ -381,6 +381,8 @@ class ToolsController:
         self._computer_control_service = computer_control_service
         self._cc_sessions = CCSessionManager()
         self._unreal_scope_id: str | None = None
+        self._autonomous_mode = False
+        self._autonomous_previous_grants: frozenset[PermissionLevel] | None = None
         self._pending_unreal_plan: UnrealPlan | None = None
         self._store = WorkspaceStore(workspaces_file)
         self._audit_file = Path(audit_file)
@@ -963,6 +965,33 @@ class ToolsController:
         self._unreal_scope_id = None
         return True
 
+    # ---------------------------------------------------------- modo autônomo
+    @property
+    def autonomous_mode(self) -> bool:
+        return self._autonomous_mode
+
+    def enable_autonomous_mode(self) -> None:
+        if self._autonomous_mode:
+            return
+        self._autonomous_previous_grants = self._permissions.granted_levels()
+        for level in PermissionLevel:
+            self._permissions.grant(level)
+        self._autonomous_mode = True
+        self._audit_admin("autonomous_enable", permissions=[level.name for level in PermissionLevel])
+
+    def disable_autonomous_mode(self) -> None:
+        if not self._autonomous_mode:
+            return
+        previous = self._autonomous_previous_grants or frozenset()
+        for level in PermissionLevel:
+            if level in previous:
+                self._permissions.grant(level)
+            else:
+                self._permissions.revoke(level)
+        self._autonomous_previous_grants = None
+        self._autonomous_mode = False
+        self._audit_admin("autonomous_disable")
+
     # -------------------------------------------------------------- permissões
     def permission_status(self) -> list[dict]:
         """Visão das permissões para a UI (CHAT/READ/WRITE + DELETE)."""
@@ -1301,6 +1330,8 @@ class ToolsController:
                 listener=self._audit_cycle,
             )
             self._engine = engine
+            if self._autonomous_mode:
+                return self._drive_autonomous_engine()
             return self._final(engine.run().execution)
         handler = ToolTaskHandler(
             registry, audit=self._audit, plan_id=plan.id,
@@ -1313,7 +1344,31 @@ class ToolsController:
             plan, handler, checkpoints=_CombinedCheckpoints(policies),
             verifier=self._verifier,  # 11E: None (default) ou opt-in
         )
+        if self._autonomous_mode:
+            return self._drive_autonomous()
         return self._final(self._drive())
+
+    def _drive_autonomous(self) -> ExecutionReport:
+        assert self._executor is not None
+        while True:
+            while self._executor.step() is not None:
+                pass
+            report = self._executor.report()
+            if not self._executor.paused:
+                return self._final(report)
+            self._executor.approve_checkpoint("autonomous-mode")
+
+    def _drive_autonomous_engine(self) -> ExecutionReport:
+        assert self._engine is not None
+        while True:
+            report = self._engine.run().execution
+            if self._engine.correction_pending is not None:
+                self._engine.approve_correction("autonomous-mode")
+                continue
+            if self._engine.executor.paused:
+                self._engine.executor.approve_checkpoint("autonomous-mode")
+                continue
+            return self._final(report)
 
     def _drive(self) -> ExecutionReport:
         assert self._executor is not None
