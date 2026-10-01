@@ -5,8 +5,9 @@ escrever arquivos, executar comandos, controlar mouse/teclado/aplicações)
 sem que a permissão correspondente tenha sido concedida explicitamente
 pelo usuário.
 
-Fase 0: apenas :attr:`PermissionLevel.CHAT` é concedida por padrão.
-Nada além disso.
+Por padrão, a Lumen pode conversar e pesquisar na Web. Acesso a arquivos,
+terminal, controle do computador e Unreal continua dependendo de concessões
+explícitas e dos respectivos gates.
 """
 from __future__ import annotations
 
@@ -69,8 +70,12 @@ class PermissionDeniedError(PermissionError):
 class PermissionManager:
     """Guarda as permissões concedidas (grants explícitos, thread-safe)."""
 
-    #: Concessões iniciais na fase 0: apenas conversa.
-    DEFAULT_GRANTS: tuple[PermissionLevel, ...] = (PermissionLevel.CHAT,)
+    #: A conversa e a pesquisa Web são capacidades gerais da Lumen.
+    #: Capacidades locais/operacionais continuam opt-in e protegidas.
+    DEFAULT_GRANTS: tuple[PermissionLevel, ...] = (
+        PermissionLevel.CHAT,
+        PermissionLevel.WEB_ACCESS,
+    )
 
     def __init__(self, granted: Iterable["PermissionLevel | str"] | None = None) -> None:
         initial = self.DEFAULT_GRANTS if granted is None else granted
