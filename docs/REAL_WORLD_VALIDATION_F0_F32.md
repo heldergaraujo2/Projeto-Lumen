@@ -1,6 +1,6 @@
 # LUMEN — PLANO OFICIAL DE TESTES REAIS F0–F32
 
-**Atualização:** 2026-09-29  
+**Atualização:** 2026-09-30  
 **Base:** `master` após F32 e consolidação de `LUMEN_STATE.md`.  
 **Finalidade:** checklist operacional para o novo chat que executará exclusivamente validações em ambiente real.
 
@@ -29,9 +29,9 @@ A auditoria cruzou `LUMEN_STATE.md`, `docs/LUMEN_MASTER_ROADMAP.md`, documentaç
 | F27 Windows | ✅ | ✅ PASS real |
 | F28 Vision/Grounding | ✅ | ✅ PASS real |
 | F29 Autonomous Agent | ✅ | ✅ PASS real |
-| F30 Unreal | ✅ | ⚠️ Parcial — integração Slate pendente |
-| F31 Experience | ✅ | ⏭️ Sem gate físico próprio |
-| F32 Closed Loop | ✅ | ⏭️ Sem gate físico próprio |
+| F30 Unreal | ✅ | ✅ PASS real — integração Slate/MCP, grounding, clique controlado e verificação aprovados |
+| F31 Experience | ✅ | ✅ PASS — E2E local concluído |
+| F32 Closed Loop | ✅ | ✅ PASS — E2E local concluído |
 | F33 | ⏭️ Não definida | ⏭️ |
 
 Scripts reais existentes:
@@ -40,7 +40,7 @@ Scripts reais existentes:
 - `scripts/f29_autonomous_computer_smoke.py`
 - `.github/workflows/windows-validation.yml`
 
-**Atualização de evidência real:** F27, F28 e F29 já possuem validação física documentada. F30 continua em validação real; seu próximo passo deve comprovar a chamada externa ao SlateInspectorToolset antes de declarar o gate verde.
+**Atualização de evidência real:** F27, F28 e F29 possuem validação física documentada. F30 foi encerrada com MCP/Slate, grounding, coordenadas virtuais, checkpoint, clique físico controlado e verificação pós-ação. F31 E2E, F32 E2E e o E2E integrado final também passaram localmente.
 
 ---
 
@@ -722,9 +722,9 @@ Não pular F27/F28 para testar autonomia. F29 depende das fundações reais de C
 - [ ] ❌ F28 PASS real.
 - [ ] ❌ F29 PASS real.
 - [x] ✅ F30 PASS real.
-- [ ] ❌ F31 E2E recomendado concluído ou justificativa documentada.
-- [ ] ❌ F32 E2E recomendado concluído ou justificativa documentada.
-- [ ] ❌ Teste integrado final PASS.
+- [x] ✅ F31 E2E recomendado concluído — 1 passed.
+- [x] ✅ F32 E2E recomendado concluído — 1 passed.
+- [x] ✅ Teste integrado final PASS — 1 passed.
 - [ ] ❌ Evidências preservadas.
 - [ ] ❌ Nenhum bypass.
 - [ ] ❌ Documentação canônica atualizada.
@@ -743,9 +743,9 @@ Estado atual:
 - F28 real: **✅ PASS REAL**
 - F29 real: **✅ PASS REAL**
 - F30 real: **✅ PASS REAL — APROVADA**
-- F31 E2E: **❌ PENDENTE**
-- F32 E2E: **❌ PENDENTE**
-- Final integrado: **❌ PENDENTE**
+- F31 E2E: **✅ PASS — 1 passed**
+- F32 E2E: **✅ PASS — 1 passed**
+- Final integrado: **✅ PASS — 1 passed**
 
 ## Evidências reais consolidadas
 
@@ -807,7 +807,11 @@ Estado atual:
 
 F30 está encerrada e não deve ser repetida. A ponte real MCP/Slate, o grounding, a conversão de coordenadas, o checkpoint, o clique físico controlado e a verificação pós-ação já foram comprovados.
 
-Próximo: executar o E2E recomendado de F31; depois o E2E recomendado de F32; por fim, o teste integrado final.
+F31 E2E: **PASS — 1 passed**.
+F32 E2E: **PASS — 1 passed**.
+Teste integrado final F30 → F31 → F32: **PASS — 1 passed**.
+
+Próximo: auditoria final e consolidação documental.
 
 **Não criar novo gate físico artificial para F31/F32.**
 **Não criar outra Lumen, outro projeto Unreal ou bypassar Permission/Policy/Scope/Checkpoint/Audit/Sandbox.**
