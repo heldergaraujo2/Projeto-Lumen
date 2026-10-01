@@ -24,7 +24,7 @@
 | F29 | Real Autonomous Computer Agent | 🟩 VALIDADA EM MÁQUINA REAL |
 | F30 | Unreal Real Integration | 🟩 VALIDADA EM AMBIENTE REAL — clique físico controlado + verificação MCP/Slate |
 | F31 | Experience & Workflow Intelligence | 🟩 IMPLEMENTAÇÃO + E2E CONCLUÍDOS |
-| F32 | Closed-Loop Lumen Evolution | 🟩 IMPLEMENTAÇÃO/CI CONCLUÍDAS — E2E recomendado pendente |
+| F32 | Closed-Loop Lumen Evolution | 🟩 IMPLEMENTAÇÃO + E2E CONCLUÍDOS |
 
 ## F32 — CLOSED-LOOP LUMEN EVOLUTION
 
@@ -275,8 +275,8 @@ Evidência real:
 - fluxo comprovado: Goal → Plan → Observe → Target → Checkpoint → Action → Verify → Success.\n\n## PRÓXIMA CONTINUIDADE — APÓS F30
 
 F30 está encerrada. A próxima sequência de validação é:
-1. F31 E2E recomendado: workflow real → registro → persistência → reinício → recall → reuse/adaptação controlada;
-2. F32 E2E recomendado: evidência real → trigger → plan → gates → approval → promotion/monitoring, sem execução direta;
+1. F31 E2E: workflow → registro → persistência → reinício → recall → reuse/adaptação controlada — PASS (1 passed).
+2. F32 E2E: evidência → trigger → plan → gates → aprovação → monitoring, sem execução direta — PASS (1 passed).
 3. teste integrado final;
 4. auditoria final e fechamento documental.
 
