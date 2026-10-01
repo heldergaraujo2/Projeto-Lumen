@@ -3,6 +3,9 @@ import pytest
 from app.computer.models import ExecutionMechanism
 from app.computer_control.api import CCTarget
 from app.computer_control.verification import VerificationStatus
+from app.security.permissions import PermissionLevel, PermissionDeniedError, PermissionManager
+from app.tools.base import ToolRegistry
+from app.unreal.tool import UnrealPlanTool
 from app.unreal.agent import UnrealAgent
 from app.unreal.models import UnrealOperation, UnrealPlan, UnrealProject
 from app.unreal.shortcuts import OPEN_ASSET, OPEN_LEVEL, PLAY_IN_EDITOR, SAVE, SAVE_ALL
@@ -138,3 +141,46 @@ def test_goal_plan_starts_with_explicit_editor_focus():
         UnrealOperation.FOCUS_EDITOR,
         UnrealOperation.SAVE,
     ]
+
+
+def test_unreal_plan_tool_is_non_executing_and_structured():
+    result = UnrealPlanTool().run(
+        goal="abrir asset /Game/BP_Player",
+        project_name="AgeOfAether",
+        project_root="C:/Games/AgeOfAether",
+        engine_version="5.8",
+    )
+    assert result.ok
+    assert result.data["executed"] is False
+    assert [item["operation"] for item in result.data["actions"]] == [
+        "focus_editor",
+        "open_asset",
+    ]
+
+
+def test_unreal_plan_tool_requires_explicit_unreal_permission():
+    permissions = PermissionManager()
+    registry = ToolRegistry(permissions)
+    registry.register(UnrealPlanTool())
+    with pytest.raises(PermissionDeniedError) as exc:
+        registry.execute(
+            "unreal_plan",
+            goal="salvar projeto",
+            project_name="AgeOfAether",
+            project_root="C:/Games/AgeOfAether",
+        )
+    assert exc.value.level is PermissionLevel.UNREAL
+
+
+def test_unreal_plan_tool_runs_after_explicit_unreal_grant():
+    permissions = PermissionManager()
+    permissions.grant(PermissionLevel.UNREAL)
+    registry = ToolRegistry(permissions)
+    registry.register(UnrealPlanTool())
+    result = registry.execute(
+        "unreal_plan",
+        goal="salvar projeto",
+        project_name="AgeOfAether",
+        project_root="C:/Games/AgeOfAether",
+    )
+    assert '"executed": false' in result.lower()
