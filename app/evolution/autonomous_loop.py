@@ -45,22 +45,41 @@ class GitGuard:
         r=self.run("status","--porcelain")
         if r.returncode: raise EvolutionLoopError(r.stderr.strip())
         return [x for x in r.stdout.splitlines() if x]
+
+    @staticmethod
+    def is_runtime_state(path: str) -> bool:
+        normalized = path.replace("\\", "/").lstrip("./")
+        return (
+            normalized == "data/evolution"
+            or normalized.startswith("data/evolution/")
+            or normalized == "data/learning"
+            or normalized.startswith("data/learning/")
+        )
+
     def tracked_dirty(self):
-        return any(not x.startswith("?? ") for x in self.status())
+        # Mission/learning/evolution state is intentionally mutable while the
+        # autonomous loop is running. It must not prevent source evolution.
+        return any(
+            not x.startswith("?? ") and not self.is_runtime_state(x[3:])
+            for x in self.status()
+        )
+
     def changed_since(self,sha):
         r=self.run("diff","--name-only",sha,"--")
         if r.returncode: raise EvolutionLoopError(r.stderr.strip())
-        return [x for x in r.stdout.splitlines() if x]
+        return [x for x in r.stdout.splitlines() if not self.is_runtime_state(x)]
     def commit(self,paths,message):
-        if not paths: raise EvolutionLoopError("no changes")
-        r=self.run("add","--",*paths)
+        safe_paths = [path for path in paths if not self.is_runtime_state(path)]
+        if not safe_paths: raise EvolutionLoopError("no source changes")
+        r=self.run("add","--",*safe_paths)
         if r.returncode: raise EvolutionLoopError(r.stderr.strip())
         r=self.run("commit","-m",message[:120])
         if r.returncode: raise EvolutionLoopError(r.stderr.strip())
         return self.head()
     def rollback(self,sha,paths):
-        if paths:
-            r=self.run("restore","--source",sha,"--",*paths)
+        safe_paths = [path for path in paths if not self.is_runtime_state(path)]
+        if safe_paths:
+            r=self.run("restore","--source",sha,"--",*safe_paths)
             if r.returncode: raise EvolutionLoopError(r.stderr.strip())
 
 class LocalOllama:
