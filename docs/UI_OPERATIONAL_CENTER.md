@@ -46,3 +46,21 @@ O painel não inicia automaticamente Ollama, MCP ou outros processos externos.
 A aba **Ferramentas / Aprovações** possui o botão **CONCEDER TUDO — Modo Autônomo**. Ele concede todas as `PermissionLevel` somente para a sessão atual e faz o executor aprovar automaticamente checkpoints já validados pelo pipeline. Ao desativar, as permissões anteriores são restauradas.
 
 O Modo Autônomo não remove sandbox, Policy, allowlists, escopos, verificação ou auditoria; ele elimina a intervenção manual nos checkpoints. Terminal continua dependendo da ferramenta/allowlist configurada e Unreal continua respeitando seus escopos de Computer Control.
+
+
+## Autonomia ao Vivo
+
+A janela principal possui o botão **◉ Autonomia ao vivo**. Ele abre um monitor
+read-only que acompanha, em tempo real (polling de 300 ms), os arquivos
+persistentes da missão:
+
+- `data/evolution/mission.json`: status, fase, ação atual, ciclo, último resultado e último erro;
+- `data/evolution/evolution_log.jsonl`: eventos do supervisor, decisões e ações concluídas.
+
+O monitor não controla a missão e não concede permissões. Ele existe para
+permitir que o operador veja o que a Lúmen está fazendo, inclusive quando uma
+ação demora, quando o Unreal ainda não está disponível ou quando ocorre um
+erro/bloqueio.
+
+A janela pode permanecer aberta durante toda a execução autônoma e continua
+sendo atualizada sem bloquear o supervisor.
