@@ -187,6 +187,7 @@ def main() -> int:
             config_service=config_service,
             tools_controller=tools_controller,
             plugin_reports=plugin_reports,
+            data_dir=settings.data_dir,
         )
         window.run()
     finally:
