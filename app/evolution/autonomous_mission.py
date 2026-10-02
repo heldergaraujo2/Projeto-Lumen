@@ -308,20 +308,72 @@ actually verified."""
         model_name = getattr(getattr(self, "ollama", None), "model", "unknown")
         self.store.event("decision_started", self.record, model=model_name)
 
-        if self.decision_provider is not None:
-            decision = self.decision_provider(self.record.goal, context)
-        else:
-            response = self.ollama.chat(self.SYSTEM, context, think=False, json_format=True)
-            try:
-                decision = json.loads(response)
-            except json.JSONDecodeError as exc:
-                raise RuntimeError("Ollama returned invalid autonomous mission JSON") from exc
+        allowed = {"research", "list_toolsets", "describe_toolset", "evolve_code", "observe_unreal", "unreal_call", "done"}
+        planner_error = ""
 
-        if not isinstance(decision, dict):
-            raise RuntimeError("autonomous mission decision must be an object")
+        try:
+            if self.decision_provider is not None:
+                decision = self.decision_provider(self.record.goal, context)
+            else:
+                response = self.ollama.chat(self.SYSTEM, context, think=False, json_format=True)
+                try:
+                    decision = json.loads(response)
+                except json.JSONDecodeError as exc:
+                    raise RuntimeError("Ollama returned invalid autonomous mission JSON") from exc
+            if not isinstance(decision, dict):
+                raise RuntimeError("autonomous mission decision must be an object")
+        except Exception as exc:
+            planner_error = f"{type(exc).__name__}: {exc}"
+            self.record.last_error = planner_error
+            self.record.updated_at = time.time()
+            self.store.save(self.record)
+            self.store.event(
+                "decision_failed",
+                self.record,
+                error=planner_error,
+                fallback="progress_guard",
+            )
+            try:
+                progress = self.progress.recommend(
+                    tuple(allowed),
+                    context=self._progress_context(),
+                )
+            except Exception as fallback_exc:
+                fallback_error = f"{type(fallback_exc).__name__}: {fallback_exc}"
+                self.record.status = "BLOCKED"
+                self.record.phase = "PLANNING"
+                self.record.last_error = f"{planner_error}; fallback failed: {fallback_error}"
+                self.record.updated_at = time.time()
+                self.store.save(self.record)
+                self.store.event(
+                    "decision_failed",
+                    self.record,
+                    error=self.record.last_error,
+                    fallback="progress_guard_exhausted",
+                )
+                raise RuntimeError(self.record.last_error) from fallback_exc
+
+            decision = {
+                "action": progress.action,
+                "reason": (
+                    "Local planner failed; deterministic progress guard selected "
+                    f"{progress.action}: {progress.reason}. Planner error: {planner_error}"
+                ),
+                "query": "",
+                "toolset_name": "",
+                "tool_name": "",
+                "arguments": {},
+            }
+            self.store.event(
+                "decision_guarded",
+                self.record,
+                proposed_action="",
+                selected_action=progress.action,
+                reason=decision["reason"],
+                planner_error=planner_error,
+            )
 
         action = decision.get("action")
-        allowed = {"research", "list_toolsets", "describe_toolset", "evolve_code", "observe_unreal", "unreal_call", "done"}
 
         # Planner output is untrusted model data. If Ollama returns a missing
         # or unsupported action, let the deterministic progress controller
