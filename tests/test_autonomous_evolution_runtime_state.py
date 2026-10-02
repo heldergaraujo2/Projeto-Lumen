@@ -28,9 +28,9 @@ def test_changed_since_excludes_runtime_state():
     class Result:
         returncode = 0
         stdout = (
-            "data/learning/knowledge.json\\n"
-            "data/evolution/mission.json\\n"
-            "app/evolution/autonomous_loop.py\\n"
+            "data/learning/knowledge.json\n"
+            "data/evolution/mission.json\n"
+            "app/evolution/autonomous_loop.py\n"
         )
         stderr = ""
 
