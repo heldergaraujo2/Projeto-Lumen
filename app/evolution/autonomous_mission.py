@@ -238,9 +238,17 @@ actually verified."""
                 # Unreal MCP commonly wraps tool results in content/text
                 # envelopes where the actual JSON is serialized as a string.
                 # Decode that envelope before falling back to direct names.
-                if text.startswith(("{", "[")):
+                if text.startswith(("{" , "[", "```")):
+                    cleaned = text
+                    if cleaned.startswith("```"):
+                        lines = cleaned.splitlines()
+                        if lines and lines[0].strip().startswith("```"):
+                            lines = lines[1:]
+                        if lines and lines[-1].strip() == "```":
+                            lines = lines[:-1]
+                        cleaned = "\n".join(lines).strip()
                     try:
-                        decoded = json.loads(text)
+                        decoded = json.loads(cleaned)
                     except json.JSONDecodeError:
                         decoded = None
                     if decoded is not None:
@@ -251,7 +259,7 @@ actually verified."""
                         names.append(text)
                 return
             if isinstance(value, dict):
-                for key in ("name", "toolset_name", "toolset", "id"):
+                for key in ("name", "toolset_name", "toolsetName", "toolset", "id"):
                     item = value.get(key)
                     if isinstance(item, str) and item.strip():
                         name = item.strip()
@@ -403,7 +411,8 @@ actually verified."""
                 self.record,
                 action="list_toolsets",
                 result="ok",
-                toolset_count=len(result) if isinstance(result, list) else None,
+                toolset_count=len(names),
+                toolsets=names,
             )
             return "list_toolsets"
 
