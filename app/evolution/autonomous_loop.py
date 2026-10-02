@@ -66,8 +66,10 @@ class LocalOllama:
         try:
             with urlopen(Request(self.url+"/api/tags"),timeout=10) as r: return 200 <= r.status < 300
         except OSError: return False
-    def chat(self,system,prompt):
-        body=json.dumps({"model":self.model,"stream":False,"messages":[{"role":"system","content":system},{"role":"user","content":prompt}]}).encode()
+    def chat(self,system,prompt,*,think=False,json_format=False):
+        payload={"model":self.model,"stream":False,"messages":[{"role":"system","content":system},{"role":"user","content":prompt}],"think":think}
+        if json_format: payload["format"]="json"
+        body=json.dumps(payload).encode()
         req=Request(self.url+"/api/chat",data=body,headers={"Content-Type":"application/json"},method="POST")
         with urlopen(req,timeout=300) as r: data=json.loads(r.read().decode())
         text=(data.get("message") or {}).get("content","")
