@@ -19,7 +19,7 @@ from app import __version__
 from app.ai.provider import create_provider
 from app.config.config_service import ConfigService
 from app.config.secrets import create_secret_store
-from app.config.settings import Settings, setup_logging
+from app.config.settings import PROJECT_ROOT, Settings, setup_logging
 from app.config.user_config import UserConfigError, UserConfigStore, apply_user_overrides
 from app.core.agent import Agent
 from app.memory.store import MemoryStore
@@ -176,7 +176,7 @@ def main() -> int:
         # keep watching the real Unreal MCP endpoint. The mission is resumed
         # automatically when the editor/server becomes available again.
         supervisor = AutonomousMissionSupervisor(
-            repo=__import__("app.config.settings", fromlist=["PROJECT_ROOT"]).PROJECT_ROOT,
+            repo=PROJECT_ROOT,
             data_dir=settings.data_dir,
             model=agent.provider.model_name or settings.model or "qwen2.5-coder:7b-instruct-q8_0",
             ollama_url=settings.ollama_base_url,
