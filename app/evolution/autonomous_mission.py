@@ -788,7 +788,11 @@ class AutonomousMissionSupervisor:
     def _run(self) -> None:
         while not self._stop.is_set():
             record = self.store.load()
-            if record is None or record.status == "COMPLETED":
+            if record is None or record.status in {"COMPLETED", "BLOCKED"}:
+                # BLOCKED is a durable terminal state for the current mission.
+                # Do not immediately re-enter planning after a guard/evolution
+                # failure; a new mission or explicit recovery must provide new
+                # evidence before autonomous execution resumes.
                 return
             ready, details = self.probe.probe()
             if not ready:
