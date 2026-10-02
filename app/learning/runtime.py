@@ -45,6 +45,10 @@ class LearningStore:
             for k in self.data:
                 if not isinstance(raw.get(k,{}),dict): raise ValueError(f"invalid learning section: {k}")
                 self.data[k]=raw.get(k,{})
+            for key, value in self.data["knowledge"].items():
+                if isinstance(value, dict):
+                    value["source"] = LearningSource(value.get("source", LearningSource.RESEARCH.value))
+                    value["status"] = KnowledgeStatus(value.get("status", KnowledgeStatus.CANDIDATE.value))
     def _safe(self,v):
         x,_=redact_secrets(str(v))
         if len(x)>self.max_text: raise ValueError("learning text exceeds configured limit")
