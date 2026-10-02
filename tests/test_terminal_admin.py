@@ -80,15 +80,11 @@ def test_computer_control_uses_generic_manageable_path(tmp_path):
     controller = make_controller(tmp_path)
     assert not hasattr(controller, "grant_computer_control")
     controller.grant_permission("COMPUTER_CONTROL")
-    assert controller.permission_status()[
-        next(i for i, row in enumerate(controller.permission_status())
-             if row["level"] == "COMPUTER_CONTROL")
-    ]["granted"] is True
+    rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["COMPUTER_CONTROL"]["granted"] is True
     controller.revoke_permission("COMPUTER_CONTROL")
-    assert not any(
-        row["level"] == "COMPUTER_CONTROL" and row["granted"]
-        for row in controller.permission_status()
-    )
+    rows = {row["level"]: row for row in controller.permission_status()}
+    assert rows["COMPUTER_CONTROL"]["granted"] is False
 
 
 def test_terminal_grant_and_revoke_are_audited(tmp_path):
