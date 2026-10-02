@@ -116,6 +116,60 @@ class LearningRuntime:
         g=LearningGoal(goal.goal_id,goal.objective,goal.topics,"completed",tuple(ids))
         self.store.data["goals"][g.goal_id]=asdict(g); self.store._save()
         return LearningSession(g,len(ids),practiced,verified,verified)
+    def ingest_research(self, objective, findings, *, max_items=20):
+        """Persist bounded Web research as reusable candidate knowledge.
+
+        Research is evidence, not automatic truth: imported findings remain
+        CANDIDATE until a governed verification step promotes them to VERIFIED.
+        """
+        if max_items < 1:
+            raise ValueError("max_items must be positive")
+        objective, _ = redact_secrets(str(objective))
+        if not objective.strip():
+            raise ValueError("learning objective is required")
+        goal = self.start_goal(objective)
+        saved = []
+        for finding in tuple(findings)[:max_items]:
+            if not isinstance(finding, dict):
+                continue
+            query = str(finding.get("query") or objective).strip()
+            claim = str(finding.get("claim") or finding.get("text") or finding.get("snippet") or "").strip()
+            if not claim:
+                continue
+            sources = finding.get("evidence") or finding.get("sources") or ()
+            if isinstance(sources, str):
+                sources = (sources,)
+            evidence = tuple(str(x) for x in sources if str(x).strip())
+            item = KnowledgeItem(
+                self._id("KNOW"),
+                query or objective,
+                claim,
+                LearningSource.RESEARCH,
+                float(finding.get("confidence", 0.25)),
+                KnowledgeStatus.CANDIDATE,
+                evidence,
+            )
+            saved.append(self.store.add_knowledge(item))
+        completed = LearningGoal(
+            goal.goal_id,
+            goal.objective,
+            goal.topics,
+            "researched",
+            tuple(x.knowledge_id for x in saved),
+        )
+        self.store.data["goals"][completed.goal_id] = asdict(completed)
+        self.store._save()
+        return completed, tuple(saved)
+
+    def recent_knowledge(self, limit=10, *, verified_only=False):
+        if limit < 1:
+            return ()
+        items = [KnowledgeItem(**raw) for raw in self.store.data["knowledge"].values()]
+        if verified_only:
+            items = [x for x in items if x.status == KnowledgeStatus.VERIFIED]
+        items.sort(key=lambda x: x.knowledge_id, reverse=True)
+        return tuple(items[:limit])
+
     def learn_from_use(self,topic,situation,outcome,success,lesson="",strategy=None,evidence=()):
         e=tuple(evidence); x=self.store.add_experience(Experience(self._id("EXP"),topic,situation,outcome,success,lesson,e))
         if strategy:
