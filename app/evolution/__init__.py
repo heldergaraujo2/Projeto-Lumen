@@ -64,3 +64,10 @@ from .orchestrator import EvolutionRuntimeOrchestrator, OrchestrationContext
 from .closed_loop import ClosedLoopEvolution, ClosedLoopPlan, ClosedLoopRecord, ClosedLoopState, PersistentClosedLoopEvolution
 
 from .autonomous_progress import ActionEvidence, AutonomousProgressController, EvolutionProgressState, ProgressDecision
+
+from .cognitive_fusion import (
+    CapabilityGap, CognitiveFusion, Experience, EvolutionGovernor,
+    EvolutionHypothesis, QuantumInspiredOptimizer, ResearchFinding,
+    TemporalEventLearner, ToolCandidate, WorldFact,
+)
+from .operational_brain import ActionOutcome, BrainDecision, BrainState, OperationalBrain
