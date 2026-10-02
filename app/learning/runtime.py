@@ -146,6 +146,11 @@ class LearningRuntime:
             claim = str(finding.get("claim") or finding.get("text") or finding.get("snippet") or "").strip()
             if not claim:
                 continue
+            # Web fetches can contain an entire page. Knowledge entries must stay
+            # within the store safety bound; preserve a deterministic prefix rather
+            # than failing the whole research cycle on an oversized finding.
+            if len(claim) > self.store.max_text:
+                claim = claim[: self.store.max_text]
             sources = finding.get("evidence") or finding.get("sources") or ()
             if isinstance(sources, str):
                 sources = (sources,)
