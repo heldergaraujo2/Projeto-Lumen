@@ -253,3 +253,59 @@ def test_mission_store_retries_transient_windows_permission_error(tmp_path: Path
 
     assert calls["count"] == 3
     assert store.load() == record
+
+def test_generic_admission_counts_detailed_action_fingerprints(tmp_path: Path):
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    controller = AutonomousProgressController(
+        tmp_path / "progress.json",
+        "mission",
+        repeat_limit=2,
+    )
+    controller.record(
+        action="list_toolsets",
+        result="toolsets_listed",
+        success=True,
+        new_information=False,
+        details={"toolsets": ["A"]},
+    )
+    controller.record(
+        action="list_toolsets",
+        result="toolsets_listed",
+        success=True,
+        new_information=False,
+        details={"toolsets": ["B"]},
+    )
+
+    assert controller.admit("list_toolsets") is False
+
+
+def test_failed_unreal_call_persists_capability_gap(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_progress import AutonomousProgressController
+    from app.learning.runtime import LearningRuntime, LearningStore
+
+    class Broker:
+        def call(self, toolset_name, tool_name, arguments):
+            raise TimeoutError("Unreal MCP call timed out")
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="operate Unreal", project_root=tmp_path)
+    store = MissionStore(path)
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.broker = Broker()
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.learning = LearningRuntime(LearningStore(tmp_path / "knowledge.json"))
+
+    engine.decide = lambda _context: {
+        "action": "unreal_call",
+        "reason": "exercise capability",
+        "toolset_name": "SlateInspectorToolset.SlateInspectorToolset",
+        "tool_name": "Snapshot",
+        "arguments": {},
+    }
+
+    assert engine.step({}) == "unreal_call_failed"
+    assert "Unreal capability failed:" in engine.progress.state.current_gap
