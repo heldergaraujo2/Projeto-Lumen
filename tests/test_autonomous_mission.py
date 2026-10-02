@@ -154,6 +154,70 @@ def test_autonomous_progress_guard_closes_discovery_research_loop(tmp_path: Path
     assert fourth["action"] == "evolve_code"
 
 
+def test_planner_failure_falls_back_to_progress_guard(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="operate Unreal", project_root=tmp_path)
+    store = MissionStore(path)
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.ollama = type("Ollama", (), {"model": "qwen3:8b"})()
+    engine.decision_provider = lambda _goal, _context: (_ for _ in ()).throw(
+        TimeoutError("planner timed out")
+    )
+
+    decision = engine.decide("{}")
+
+    assert decision["action"] == "list_toolsets"
+    assert "planner timed out" in decision["reason"]
+    events = [
+        json.loads(line)
+        for line in store.event_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert any(event["event"] == "decision_failed" for event in events)
+    assert any(
+        event["event"] == "decision_guarded"
+        and event.get("selected_action") == "list_toolsets"
+        for event in events
+    )
+
+
+def test_invalid_planner_json_falls_back_to_progress_guard(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    class Ollama:
+        model = "qwen3:8b"
+
+        def chat(self, *_args, **_kwargs):
+            return "{invalid json"
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="operate Unreal", project_root=tmp_path)
+    store = MissionStore(path)
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.ollama = Ollama()
+    engine.decision_provider = None
+
+    decision = engine.decide("{}")
+
+    assert decision["action"] == "list_toolsets"
+    assert "invalid autonomous mission JSON" in decision["reason"]
+    events = [
+        json.loads(line)
+        for line in store.event_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert any(event["event"] == "decision_failed" for event in events)
+
+
+
 def test_unreal_call_failure_is_persisted_and_does_not_block_the_mission(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionEngine
     from app.evolution.autonomous_progress import AutonomousProgressController
