@@ -61,6 +61,7 @@ class MissionStore:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.event_path = self.path.with_name("evolution_log.jsonl")
+        self._save_lock = threading.RLock()
 
     def event(self, event: str, record: MissionRecord, **details: Any) -> None:
         payload = {
@@ -88,13 +89,20 @@ class MissionStore:
 
     def save(self, record: MissionRecord) -> None:
         record.validate()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        tmp.write_text(
-            json.dumps(asdict(record), ensure_ascii=False, sort_keys=True, indent=2),
-            encoding="utf-8",
-        )
-        tmp.replace(self.path)
+        with self._save_lock:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            payload = json.dumps(asdict(record), ensure_ascii=False, sort_keys=True, indent=2)
+            tmp = self.path.with_name(f"{self.path.name}.{threading.get_ident()}.tmp")
+            for attempt in range(6):
+                try:
+                    tmp.write_text(payload, encoding="utf-8")
+                    tmp.replace(self.path)
+                    return
+                except PermissionError:
+                    if attempt == 5:
+                        raise
+                    time.sleep(0.05 * (attempt + 1))
+            raise RuntimeError("mission store save failed unexpectedly")
 
 
 class UnrealReadiness:
@@ -353,8 +361,12 @@ actually verified."""
             ]
             if candidates:
                 guarded["toolset_name"] = candidates[0]
+            elif self.progress.state.known_toolsets:
+                guarded["action"] = "observe_unreal"
+                guarded["reason"] = "Progress guard rejected describe_toolset because every known toolset is already described."
             else:
-                raise RuntimeError("describe_toolset selected without an available toolset")
+                guarded["action"] = "list_toolsets"
+                guarded["reason"] = "Progress guard rejected describe_toolset because no toolset inventory is available."
         return guarded
 
     def context(self, readiness: dict[str, Any]) -> str:
