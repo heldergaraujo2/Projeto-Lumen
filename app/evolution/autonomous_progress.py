@@ -152,6 +152,8 @@ class AutonomousProgressController:
                 recovery_attempt=int(x.get("recovery_attempt", 0)),
             ) for x in raw.get("evidence", [])],
         )
+        if state.mission_id != mission_id:
+            raise ValueError("progress state belongs to another mission")
         state.validate()
         return state
 
@@ -268,6 +270,7 @@ class AutonomousProgressController:
             self._append_unique(self.state.known_toolsets, item)
         for item in described:
             self._append_unique(self.state.described_toolsets, item)
+        self.save()
 
         if self.state.stagnation_steps >= self.stagnation_limit:
             for candidate in ("describe_toolset", "observe_unreal", "unreal_call", "research", "evolve_code"):
@@ -313,13 +316,13 @@ class AutonomousProgressController:
             return ProgressDecision("list_toolsets", "no toolset inventory exists yet", True)
 
         for candidate in DEFAULT_ACTION_ORDER:
+            if candidate == "done":
+                continue
             if candidate in available and self.admit(candidate):
-                if candidate == "done" and self.state.stagnation_steps < self.stagnation_limit:
-                    continue
-                return ProgressDecision(candidate, "next admissible action in bounded fallback order", candidate != "done")
+                return ProgressDecision(candidate, "next admissible action in bounded fallback order", True)
 
         return ProgressDecision(
-            "research" if "research" in available else (available[0] if available else "done"),
+            "research" if "research" in available else (available[0] if available else "research"),
             "no preferred action remained; planner must provide new evidence", True,
         )
 
