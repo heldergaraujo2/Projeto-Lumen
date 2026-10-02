@@ -44,6 +44,8 @@ editor é reiniciado.
 O planejador local pode escolher:
 
 - `research`: pesquisa conhecimento público pela camada Web;
+- `list_toolsets`: descobre os toolsets atualmente anunciados pelo Unreal MCP;
+- `describe_toolset`: inspeciona as ferramentas e capacidades de um toolset específico antes de utilizá-lo;
 - `evolve_code`: usa o Autonomous Evolution Loop existente, com testes,
   rollback e commit;
 - `observe_unreal`: lê o Slate/Unreal MCP sem input físico;

@@ -165,7 +165,7 @@ class AutonomousMissionEngine:
 
     SYSTEM = """You are the Lumen autonomous mission planner.
 Return ONLY JSON:
-{"action":"research|evolve_code|observe_unreal|unreal_call|done",
+{"action":"research|list_toolsets|describe_toolset|evolve_code|observe_unreal|unreal_call|done",
  "reason":"...",
  "query":"...",
  "toolset_name":"...",
@@ -236,7 +236,7 @@ actually verified."""
         if not isinstance(decision, dict):
             raise RuntimeError("autonomous mission decision must be an object")
         action = decision.get("action")
-        if action not in {"research", "evolve_code", "observe_unreal", "unreal_call", "done"}:
+        if action not in {"research", "list_toolsets", "describe_toolset", "evolve_code", "observe_unreal", "unreal_call", "done"}:
             raise RuntimeError(f"unsupported autonomous action: {action!r}")
         return decision
 
@@ -273,6 +273,44 @@ actually verified."""
             self.store.save(self.record)
             self.store.event("mission_completed", self.record)
             return "done"
+
+        if action == "list_toolsets":
+            result = self.broker.list_toolsets()
+            self.record.status = "EVOLVING"
+            self.record.phase = "LIST_TOOLSETS"
+            self.record.last_result = "toolsets_listed"
+            self.store.save(self.record)
+            self.store.event(
+                "action_completed",
+                self.record,
+                action="list_toolsets",
+                result="ok",
+                toolset_count=len(result) if isinstance(result, list) else None,
+            )
+            return "list_toolsets"
+
+        if action == "describe_toolset":
+            toolset_name = str(decision.get("toolset_name") or "").strip()
+
+            if not toolset_name:
+                raise ValueError(
+                    "describe_toolset requires toolset_name"
+                )
+
+            result = self.broker.describe_toolset(toolset_name)
+
+            self.record.status = "EVOLVING"
+            self.record.phase = "DESCRIBE_TOOLSET"
+            self.record.last_result = "toolset_described"
+            self.store.save(self.record)
+            self.store.event(
+                "action_completed",
+                self.record,
+                action="describe_toolset",
+                result="ok",
+                toolset=toolset_name,
+            )
+            return "describe_toolset"
 
         if action == "research":
             from app.web.tools import WebResearchTool
