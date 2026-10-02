@@ -116,14 +116,47 @@ class AutonomousProgressController:
         )
         return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
+    def _archive_stale_state(self, stored_mission_id: str) -> Path:
+        """Preserve progress from an older mission before starting a new one."""
+        safe_id = "".join(
+            char if char.isalnum() or char in "-_" else "_"
+            for char in stored_mission_id
+        ).strip("_") or "unknown"
+
+        archive = self.path.with_name(
+            f"{self.path.stem}.archive-{safe_id}{self.path.suffix}"
+        )
+        index = 1
+        while archive.exists():
+            archive = self.path.with_name(
+                f"{self.path.stem}.archive-{safe_id}-{index}{self.path.suffix}"
+            )
+            index += 1
+
+        self.path.replace(archive)
+        return archive
+
     def _load(self, mission_id: str) -> EvolutionProgressState:
         if not self.path.exists():
             state = EvolutionProgressState(mission_id=mission_id)
             state.validate()
             return state
+
         raw = json.loads(self.path.read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
             raise ValueError("progress state must be an object")
+
+        stored_mission_id = str(raw.get("mission_id") or "").strip()
+
+        # A progress file is shared by the active mission. If a new mission
+        # replaces the previous one, never mix their state. Preserve the old
+        # state as an archive and start a fresh state for the requested mission.
+        if stored_mission_id and stored_mission_id != mission_id:
+            self._archive_stale_state(stored_mission_id)
+            state = EvolutionProgressState(mission_id=mission_id)
+            state.validate()
+            return state
+
         state = EvolutionProgressState(
             mission_id=str(raw.get("mission_id") or mission_id),
             cycle=int(raw.get("cycle", 0)),
@@ -152,8 +185,6 @@ class AutonomousProgressController:
                 recovery_attempt=int(x.get("recovery_attempt", 0)),
             ) for x in raw.get("evidence", [])],
         )
-        if state.mission_id != mission_id:
-            raise ValueError("progress state belongs to another mission")
         state.validate()
         return state
 

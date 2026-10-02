@@ -131,6 +131,77 @@ def test_digest_changes_after_progress(tmp_path):
     c.record(action="list_toolsets", new_information=True)
     assert c.digest() != before
 
+
+def test_new_mission_archives_previous_progress_state(tmp_path):
+    p = tmp_path / "autonomous_progress.json"
+
+    old = {
+        "mission_id": "OLD-MISSION",
+        "cycle": 7,
+        "progress_epoch": 12,
+        "stagnation_steps": 4,
+        "last_action": "research",
+    }
+    p.write_text(json.dumps(old), encoding="utf-8")
+
+    controller = AutonomousProgressController(p, "NEW-MISSION")
+
+    assert controller.state.mission_id == "NEW-MISSION"
+    assert controller.state.cycle == 0
+    assert controller.state.progress_epoch == 0
+    assert controller.state.stagnation_steps == 0
+    assert controller.state.last_action == ""
+
+    archive = tmp_path / "autonomous_progress.archive-OLD-MISSION.json"
+    assert archive.exists()
+
+    archived = json.loads(archive.read_text(encoding="utf-8"))
+    assert archived["mission_id"] == "OLD-MISSION"
+    assert archived["cycle"] == 7
+
+
+def test_same_mission_resumes_existing_progress(tmp_path):
+    p = tmp_path / "autonomous_progress.json"
+
+    controller = AutonomousProgressController(p, "MISSION")
+    controller.record(
+        action="research",
+        result="knowledge=3",
+        new_information=True,
+    )
+
+    resumed = AutonomousProgressController(p, "MISSION")
+
+    assert resumed.state.mission_id == "MISSION"
+    assert resumed.state.last_action == "research"
+    assert resumed.state.last_result == "knowledge=3"
+    assert resumed.state.progress_epoch == 1
+
+
+def test_multiple_old_mission_archives_never_overwrite(tmp_path):
+    p = tmp_path / "autonomous_progress.json"
+
+    p.write_text(
+        json.dumps({"mission_id": "OLD-MISSION", "cycle": 1}),
+        encoding="utf-8",
+    )
+    AutonomousProgressController(p, "NEW-MISSION")
+
+    p.write_text(
+        json.dumps({"mission_id": "OLD-MISSION", "cycle": 2}),
+        encoding="utf-8",
+    )
+    AutonomousProgressController(p, "ANOTHER-MISSION")
+
+    first = tmp_path / "autonomous_progress.archive-OLD-MISSION.json"
+    second = tmp_path / "autonomous_progress.archive-OLD-MISSION-1.json"
+
+    assert first.exists()
+    assert second.exists()
+
+    assert json.loads(first.read_text(encoding="utf-8"))["cycle"] == 1
+    assert json.loads(second.read_text(encoding="utf-8"))["cycle"] == 2
+
 def test_invalid_file_rejected(tmp_path):
     p = tmp_path / "p.json"
     p.write_text("[]", encoding="utf-8")
