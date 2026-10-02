@@ -37,6 +37,8 @@ def test_mission_event_log_and_status(tmp_path: Path):
 def test_describe_toolset_injects_progress_selected_toolset_when_planner_omits_name(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionEngine
     from app.evolution.autonomous_progress import AutonomousProgressController
+    from app.learning.runtime import LearningRuntime
+    from app.learning.store import LearningStore
 
     class Broker:
         def list_toolsets(self):
@@ -169,6 +171,7 @@ def test_unreal_call_failure_is_persisted_and_does_not_block_the_mission(tmp_pat
     engine.store = store
     engine.broker = Broker()
     engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.learning = LearningRuntime(LearningStore(tmp_path / "knowledge.json"))
     engine.decide = lambda _context: {
         "action": "unreal_call",
         "reason": "exercise capability",
