@@ -62,3 +62,5 @@ from .continuous_intelligence import (
 from .orchestrator import EvolutionRuntimeOrchestrator, OrchestrationContext
 
 from .closed_loop import ClosedLoopEvolution, ClosedLoopPlan, ClosedLoopRecord, ClosedLoopState, PersistentClosedLoopEvolution
+
+from .autonomous_progress import ActionEvidence, AutonomousProgressController, EvolutionProgressState, ProgressDecision
