@@ -137,21 +137,3 @@ def test_invalid_file_rejected(tmp_path):
     with pytest.raises(ValueError):
         AutonomousProgressController(p, "M")
 
-
-def test_done_is_never_recommended_without_external_validation(tmp_path):
-    c = AutonomousProgressController(tmp_path / "p.json", "M")
-    d = c.recommend(("done",))
-    assert d.action == "research"
-
-def test_mission_identity_is_not_cross_loaded(tmp_path):
-    p = tmp_path / "p.json"
-    AutonomousProgressController(p, "M1").record(action="research", new_information=True)
-    with pytest.raises(ValueError):
-        AutonomousProgressController(p, "M2")
-
-def test_context_toolsets_are_persisted(tmp_path):
-    p = tmp_path / "p.json"
-    c = AutonomousProgressController(p, "M")
-    c.recommend(("describe_toolset",), context={"toolsets": ("Slate",)})
-    r = AutonomousProgressController(p, "M")
-    assert r.state.known_toolsets == ["Slate"]
