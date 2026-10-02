@@ -13,6 +13,7 @@ physical mouse/keyboard actions.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import threading
@@ -26,6 +27,8 @@ from app.evolution.autonomous_loop import AutonomousEvolutionLoop, EvolutionConf
 from app.unreal.mcp import UnrealMCPClient, UnrealMCPError
 from app.learning.runtime import LearningRuntime, LearningStore
 from app.evolution.autonomous_progress import AutonomousProgressController
+from app.evolution.operational_brain import OperationalBrain
+from app.evolution.cognitive_fusion import CapabilityGap, EvolutionHypothesis, ResearchFinding, ToolCandidate, WorldFact
 
 LOGGER = logging.getLogger("lumen.autonomous_mission")
 
@@ -207,13 +210,15 @@ actually verified."""
         self.decision_provider = decision_provider
         learning_path = Path(learning_store_path) if learning_store_path else repo / "data" / "learning" / "knowledge.json"
         self.learning = LearningRuntime(LearningStore(learning_path))
-        self.progress = AutonomousProgressController(
-            self.store.path.parent / "autonomous_progress.json",
+        self.brain = OperationalBrain(
+            self.store.path.parent,
             record.mission_id,
-            repeat_limit=2,
+            record.goal,
             max_recovery_attempts=3,
-            stagnation_limit=3,
         )
+        # One durable progress authority: the OperationalBrain/CognitiveFusion
+        # stack owns the same progress controller used by this mission.
+        self.progress = self.brain.fusion.progress
         self._evolution = AutonomousEvolutionLoop(
             EvolutionConfig(
                 repo=repo,
@@ -334,9 +339,11 @@ actually verified."""
                 fallback="progress_guard",
             )
             try:
-                progress = self.progress.recommend(
-                    tuple(allowed),
-                    context=self._progress_context(),
+                brain = getattr(self, "brain", None)
+                progress = (
+                    brain.decide(tuple(allowed), context=self._progress_context())
+                    if brain is not None
+                    else self.progress.recommend(tuple(allowed), context=self._progress_context())
                 )
             except Exception as fallback_exc:
                 fallback_error = f"{type(fallback_exc).__name__}: {fallback_exc}"
@@ -380,7 +387,12 @@ actually verified."""
         # recover instead of crashing the autonomous loop.
         proposed = action if isinstance(action, str) and action in allowed else ""
         try:
-            progress = self.progress.recommend(tuple(allowed), context=self._progress_context())
+            brain = getattr(self, "brain", None)
+            progress = (
+                brain.decide(tuple(allowed), context=self._progress_context())
+                if brain is not None
+                else self.progress.recommend(tuple(allowed), context=self._progress_context())
+            )
         except Exception as exc:
             progress_error = f"{type(exc).__name__}: {exc}"
             self.record.status = "BLOCKED"
@@ -417,6 +429,21 @@ actually verified."""
                 selected_action=progress.action,
                 reason=progress.reason,
             )
+
+        if guarded.get("action") == "unreal_call":
+            if not str(guarded.get("toolset_name") or "").strip() or not str(guarded.get("tool_name") or "").strip():
+                guarded["action"] = "research"
+                guarded["reason"] = "Progress guard rejected an Unreal call without a concrete advertised tool; research/description evidence is required first."
+                self.store.event(
+                    "decision_guarded",
+                    self.record,
+                    proposed_action=proposed,
+                    selected_action="research",
+                    reason=guarded["reason"],
+                )
+        if guarded.get("action") == "done" and not self.progress.state.verification_passed:
+            guarded["action"] = "observe_unreal" if self.progress.state.pending_capability else "research"
+            guarded["reason"] = "Mission completion requires post-action observation evidence before done is admissible."
 
         # A describe step is only executable when it carries the concrete
         # toolset selected by the progress controller. This must also be
@@ -517,6 +544,17 @@ actually verified."""
                 )
 
             result = self.broker.describe_toolset(toolset_name)
+            self.progress.state.toolset_descriptions[toolset_name] = result
+            self.progress.save()
+            brain = getattr(self, "brain", None)
+            if brain is not None:
+                brain.ingest_world((
+                    WorldFact(
+                        key=f"unreal.toolset.{toolset_name}",
+                        value=result,
+                        source="unreal_mcp.describe_toolset",
+                    ),
+                ))
 
             if toolset_name not in self.progress.state.described_toolsets:
                 self.progress.state.described_toolsets.append(toolset_name)
@@ -525,7 +563,7 @@ actually verified."""
                 result="toolset_described",
                 success=True,
                 new_information=True,
-                details={"toolset": toolset_name},
+                details={"toolset": toolset_name, "description": result},
             )
             self.record.status = "EVOLVING"
             self.record.phase = "DESCRIBE_TOOLSET"
@@ -575,10 +613,31 @@ actually verified."""
                 findings,
                 max_items=5,
             )
+            brain = getattr(self, "brain", None)
+            for index, finding in enumerate(findings[:5]):
+                if brain is None:
+                    break
+                brain.absorb_research(
+                    ResearchFinding(
+                        finding_id=f"{self.record.mission_id}:research:{index}:{hashlib.sha256(query.encode('utf-8')).hexdigest()[:16]}",
+                        query=query,
+                        summary=str(finding["claim"]),
+                        sources=tuple(finding["evidence"]),
+                        confidence=float(finding.get("confidence", 0.25)),
+                    )
+                )
             research_text = f"{query} {decision.get('reason') or ''}".lower()
             gap = ""
             if learned and any(token in research_text for token in ("missing", "capability", "tool", "cannot", "need", "required")):
                 gap = "Required Unreal/Lumen capability identified by research: " + query
+                capability_id = f"mission:{self.record.mission_id}:research:{hashlib.sha256(query.encode('utf-8')).hexdigest()[:16]}"
+                if brain is not None:
+                    brain.register_gap(CapabilityGap(
+                        capability_id=capability_id,
+                        description=gap,
+                        severity=0.7,
+                        evidence=tuple(str(x.get("url") or "") for x in findings[:5]),
+                    ))
             self.progress.record(
                 action="research",
                 result=f"knowledge={len(learned)}",
@@ -596,6 +655,40 @@ actually verified."""
             return "research"
 
         if action == "evolve_code":
+            gap_text = self.progress.state.current_gap or "Create the smallest reusable capability required by the mission."
+            gap_id = f"mission:{self.record.mission_id}:gap"
+            brain = getattr(self, "brain", None)
+            if brain is not None:
+                brain.register_gap(CapabilityGap(
+                    capability_id=gap_id,
+                    description=gap_text,
+                    severity=0.7,
+                    evidence=tuple(self.progress.state.research_findings[-5:]),
+                ))
+                brain.propose(EvolutionHypothesis(
+                    hypothesis_id=f"{gap_id}:hypothesis:{self.record.cycle + 1}",
+                    gap_id=gap_id,
+                    statement=f"Resolve the mission capability gap: {gap_text}",
+                    expected_gain=0.7,
+                    experiment="Implement a reusable capability, add regression tests, run bounded tests, then retry the mission.",
+                ))
+                brain.create_tool_candidate(ToolCandidate(
+                    tool_id=f"{gap_id}:tool:{self.record.cycle + 1}",
+                    purpose=gap_text,
+                    inputs=("mission_goal", "research_evidence", "unreal_state"),
+                    outputs=("capability", "test_evidence"),
+                    tests=("targeted_regression", "full_pytest"),
+                    risk="low",
+                ))
+            self._evolution.config.goal = (
+                f"{self.record.goal}\n\nCAPABILITY GAP:\n{gap_text}"
+                f"\n\nCOGNITIVE CONTEXT:\n"
+                + json.dumps(
+                    self.brain.reasoning_context() if getattr(self, "brain", None) is not None else self.progress.planner_context(),
+                    ensure_ascii=False,
+                    default=str,
+                )[:30000]
+            )
             try:
                 result = self._evolution.cycle(self.record.cycle + 1)
                 if result in {"blocked", "rolled_back"}:
@@ -656,13 +749,35 @@ actually verified."""
             )
             if response.is_error:
                 raise UnrealMCPError(str(response.error))
+            observation_payload = response.result
+            observation_digest = hashlib.sha256(
+                json.dumps(observation_payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+            ).hexdigest()
+            verification = bool(
+                self.progress.state.pending_capability
+                and self.progress.state.last_observation_digest
+                and observation_digest != self.progress.state.last_observation_digest
+            )
             self.progress.record(
                 action="observe_unreal",
-                result="snapshot_ok",
+                result="verification_ok" if verification else "snapshot_ok",
                 success=True,
                 new_information=True,
                 observation="Unreal Slate snapshot acquired",
+                details={
+                    "observation_digest": observation_digest,
+                    "verification": verification,
+                },
             )
+            if verification:
+                brain = getattr(self, "brain", None)
+                if brain is not None:
+                    brain.validate_capability(
+                        self.progress.state.pending_capability,
+                        f"Post-action Unreal observation changed after {self.progress.state.pending_capability}: {observation_digest}",
+                    )
+                self.progress.state.verification_passed = True
+                self.progress.save()
             self.record.status = "EVOLVING"
             self.record.phase = "OBSERVE_UNREAL"
             self.record.last_result = "snapshot_ok"
@@ -716,11 +831,13 @@ actually verified."""
             )
             return "unreal_call_failed"
 
+        capability_id = f"unreal:{toolset_name}.{tool_name}"
         self.progress.record(
             action="unreal_call",
             result="unreal_call_ok",
             success=True,
             new_information=True,
+            capability=capability_id,
             details={"toolset": toolset_name, "tool": tool_name},
         )
         self.record.status = "EVOLVING"

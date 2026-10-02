@@ -51,7 +51,11 @@ class EvolutionProgressState:
     validated_capabilities: list[str] = field(default_factory=list)
     known_toolsets: list[str] = field(default_factory=list)
     described_toolsets: list[str] = field(default_factory=list)
+    toolset_descriptions: dict[str, Any] = field(default_factory=dict)
     observations: list[str] = field(default_factory=list)
+    last_observation_digest: str = ""
+    pending_capability: str = ""
+    verification_passed: bool = False
     research_findings: list[str] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
     repeat_counts: dict[str, int] = field(default_factory=dict)
@@ -172,7 +176,11 @@ class AutonomousProgressController:
             validated_capabilities=list(raw.get("validated_capabilities", [])),
             known_toolsets=list(raw.get("known_toolsets", [])),
             described_toolsets=list(raw.get("described_toolsets", [])),
+            toolset_descriptions=dict(raw.get("toolset_descriptions", {})),
             observations=list(raw.get("observations", [])),
+            last_observation_digest=str(raw.get("last_observation_digest", "")),
+            pending_capability=str(raw.get("pending_capability", "")),
+            verification_passed=bool(raw.get("verification_passed", False)),
             research_findings=list(raw.get("research_findings", [])),
             gaps=list(raw.get("gaps", [])),
             repeat_counts={str(k): int(v) for k, v in dict(raw.get("repeat_counts", {})).items()},
@@ -266,10 +274,22 @@ class AutonomousProgressController:
                 toolset = details.get("toolset") if details else None
                 if toolset:
                     self._append_unique(self.state.described_toolsets, str(toolset))
+                if toolset and details and "description" in details:
+                    self.state.toolset_descriptions[str(toolset)] = details["description"]
             if capability:
                 self._append_unique(self.state.discovered_capabilities, capability)
             if observation:
                 self._append_unique(self.state.observations, observation)
+            if action == "unreal_call" and success:
+                self.state.pending_capability = str(capability or "")
+                self.state.verification_passed = False
+            if action == "observe_unreal" and success:
+                digest = str((details or {}).get("observation_digest") or "")
+                if digest:
+                    previous = self.state.last_observation_digest
+                    if self.state.pending_capability and previous and digest != previous:
+                        self.state.verification_passed = True
+                    self.state.last_observation_digest = digest
             if research_finding:
                 self._append_unique(self.state.research_findings, research_finding)
             if gap:
@@ -421,7 +441,11 @@ class AutonomousProgressController:
                 "validated_capabilities": tuple(self.state.validated_capabilities),
                 "known_toolsets": tuple(self.state.known_toolsets),
                 "described_toolsets": tuple(self.state.described_toolsets),
+                "toolset_descriptions": dict(self.state.toolset_descriptions),
                 "observations": tuple(self.state.observations[-max_evidence:]),
+                "last_observation_digest": self.state.last_observation_digest,
+                "pending_capability": self.state.pending_capability,
+                "verification_passed": self.state.verification_passed,
                 "research_findings": tuple(self.state.research_findings[-max_evidence:]),
                 "recent_evidence": tuple(asdict(x) for x in self.state.evidence[-max_evidence:]),
                 "failure_counts": dict(self.state.failure_counts),
