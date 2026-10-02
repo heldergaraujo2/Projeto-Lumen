@@ -39,7 +39,11 @@ def test_autonomous_progress_guard_closes_discovery_research_loop(tmp_path: Path
 
     class Broker:
         def list_toolsets(self):
-            return ["SlateInspectorToolset.SlateInspectorToolset"]
+            return {
+                "toolsets": [
+                    {"name": "SlateInspectorToolset.SlateInspectorToolset"},
+                ]
+            }
 
     path = tmp_path / "mission.json"
     record = create_mission(path, goal="autonomously operate Unreal", project_root=tmp_path)
@@ -76,6 +80,7 @@ def test_autonomous_progress_guard_closes_discovery_research_loop(tmp_path: Path
     )
     second = engine.decide("{}")
     assert second["action"] == "describe_toolset"
+    assert second["toolset_name"] == "SlateInspectorToolset.SlateInspectorToolset"
 
     engine.progress.record(
         action="describe_toolset",
