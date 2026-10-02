@@ -19,10 +19,12 @@ from .autonomous_progress import ActionEvidence, AutonomousProgressController, E
 from .cognitive_fusion import CapabilityGap, CognitiveFusion, Experience, EvolutionGovernor, EvolutionHypothesis, QuantumInspiredOptimizer, ResearchFinding, TemporalEventLearner, ToolCandidate, WorldFact
 from .operational_brain import ActionOutcome, BrainDecision, BrainState, OperationalBrain
 from .cognitive_runtime import CognitiveRuntime, CognitiveProvider, CognitiveToolExecutor, RuntimeCycle
+from .autonomous_runtime import AutonomousMissionRuntime, MissionEnvironment
 
 __all__ = [
     "OperationalBrain", "BrainState", "BrainDecision", "ActionOutcome",
     "CognitiveRuntime", "CognitiveProvider", "CognitiveToolExecutor", "RuntimeCycle",
+    "AutonomousMissionRuntime", "MissionEnvironment",
     "CognitiveFusion", "CapabilityGap", "Experience", "EvolutionGovernor",
     "EvolutionHypothesis", "QuantumInspiredOptimizer", "ResearchFinding",
     "TemporalEventLearner", "ToolCandidate", "WorldFact",
