@@ -47,3 +47,29 @@ broker remains responsible for actual MCP/tool execution.
 
 Once connected, the local provider becomes the reasoning substrate inside the
 persistent cognitive loop rather than a separate chatbot.
+
+
+## Deployment boundary
+
+The repository now provides a generic `AutonomousMissionRuntime` and
+`MissionEnvironment` contract. This is the integration point for a real
+deployment.
+
+Repository-side responsibilities:
+- persistent brain and cognitive state;
+- planning and anti-stagnation;
+- memory, world model, capability gaps and research retention;
+- bounded recovery;
+- governed promotion contracts;
+- generic mission orchestration and tests.
+
+Deployment/PC-only responsibilities:
+- the concrete Ollama/local-model adapter;
+- the concrete MCP transport and Unreal broker/session;
+- Windows desktop/computer-control drivers;
+- physical screen capture/vision integration;
+- local process lifecycle, ports, paths and credentials;
+- real Unreal project state and hardware-specific validation.
+
+The PC should implement these adapters against `MissionEnvironment` rather
+than duplicating the cognitive architecture.
