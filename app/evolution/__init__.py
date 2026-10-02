@@ -62,3 +62,5 @@ from .continuous_intelligence import (
 from .orchestrator import EvolutionRuntimeOrchestrator, OrchestrationContext
 
 from .closed_loop import ClosedLoopEvolution, ClosedLoopPlan, ClosedLoopRecord, ClosedLoopState, PersistentClosedLoopEvolution
+
+from .autonomous_mission import AutonomousMissionEngine, AutonomousMissionSupervisor, AutonomousUnrealBroker, MissionRecord, MissionStore, create_mission
