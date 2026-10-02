@@ -90,6 +90,11 @@ class UnrealMCPClient:
     def notify_initialized(self) -> int:
         return self._notification("notifications/initialized")
 
+    def reset_session(self) -> None:
+        """Forget the current MCP session so a restarted Unreal Editor can be re-handshaken."""
+        self.session_id = None
+        self._session_initialized = False
+
     def list_tools(self) -> MCPResponse:
         self._ensure_session()
         return self._request("tools/list", {})
