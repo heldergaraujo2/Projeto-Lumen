@@ -33,6 +33,24 @@ def test_mission_event_log_and_status(tmp_path: Path):
     assert "decision" in output
 
 
+
+def test_toolset_names_parses_real_unreal_mcp_text_envelope():
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+
+    payload = {
+        "content": [
+            {
+                "type": "text",
+                "text": "- ToolsetRegistry.AgentSkillToolset: Fornece ferramentas para anunciar, ler e criar/atualizar habilidades.\n- SlateInspectorToolset.SlateInspectorToolset: Conjunto de ferramentas de automação de UI do Slate estilo Playwright.\n\nExpõe ferramentas de instantâneo."
+            }
+        ]
+    }
+
+    assert AutonomousMissionEngine._toolset_names(payload) == (
+        "ToolsetRegistry.AgentSkillToolset",
+        "SlateInspectorToolset.SlateInspectorToolset",
+    )
+
 def test_autonomous_progress_guard_closes_discovery_research_loop(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionEngine
     from app.evolution.autonomous_progress import AutonomousProgressController
