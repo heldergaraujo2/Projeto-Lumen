@@ -134,6 +134,11 @@ class LearningRuntime:
             raise ValueError("learning objective is required")
         goal = self.start_goal(objective)
         saved = []
+        existing = {
+            (str(raw.get("topic") or ""), str(raw.get("claim") or ""), tuple(raw.get("evidence") or ()))
+            for raw in self.store.data["knowledge"].values()
+            if isinstance(raw, dict)
+        }
         for finding in tuple(findings)[:max_items]:
             if not isinstance(finding, dict):
                 continue
@@ -145,6 +150,9 @@ class LearningRuntime:
             if isinstance(sources, str):
                 sources = (sources,)
             evidence = tuple(str(x) for x in sources if str(x).strip())
+            identity = (query or objective, claim, evidence)
+            if identity in existing:
+                continue
             item = KnowledgeItem(
                 self._id("KNOW"),
                 query or objective,
@@ -155,6 +163,7 @@ class LearningRuntime:
                 evidence,
             )
             saved.append(self.store.add_knowledge(item))
+            existing.add(identity)
         completed = LearningGoal(
             goal.goal_id,
             goal.objective,
