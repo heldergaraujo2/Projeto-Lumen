@@ -426,3 +426,37 @@ def test_failed_evolve_code_recommends_research(tmp_path: Path):
         },
     )
     assert decision.action == "research"
+
+
+def test_progress_guard_exhaustion_blocks_instead_of_restarting_planning(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="operate Unreal", project_root=tmp_path)
+    store = MissionStore(path)
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.decision_provider = lambda _goal, _context: {
+        "action": "research", "reason": "planner has no new action", "query": "",
+        "toolset_name": "", "tool_name": "", "arguments": {},
+    }
+
+    def exhausted(*_args, **_kwargs):
+        raise RuntimeError("autonomous progress exhausted: planner must provide new evidence")
+
+    engine.progress.recommend = exhausted
+
+    try:
+        engine.decide("{}")
+    except RuntimeError as exc:
+        assert "progress exhausted" in str(exc)
+    else:
+        raise AssertionError("expected progress exhaustion to block the mission")
+
+    assert record.status == "BLOCKED"
+    assert record.phase == "PLANNING"
+    events = [json.loads(line) for line in store.event_path.read_text(encoding="utf-8").splitlines()]
+    assert any(event["event"] == "decision_failed" and event.get("fallback") == "progress_guard_exhausted" for event in events)
