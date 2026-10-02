@@ -528,9 +528,41 @@ actually verified."""
             return "research"
 
         if action == "evolve_code":
-            result = self._evolution.cycle(self.record.cycle + 1)
-            if result in {"blocked", "rolled_back"}:
-                raise RuntimeError(f"code evolution did not produce a verified change: {result}")
+            try:
+                result = self._evolution.cycle(self.record.cycle + 1)
+                if result in {"blocked", "rolled_back"}:
+                    raise RuntimeError(f"code evolution did not produce a verified change: {result}")
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {exc}"
+                self.progress.record(
+                    action="evolve_code",
+                    result="evolve_code_failed",
+                    success=False,
+                    new_information=False,
+                    error=error,
+                    gap=(
+                        "Autonomous code evolution failed. Research the failure, "
+                        "identify the missing prerequisite or capability, and retry only after a new evidence-backed change."
+                    ),
+                    details={"evolution_cycle": self.record.cycle + 1},
+                )
+                self.record.status = "EVOLVING"
+                self.record.phase = "EVOLVE_CODE"
+                self.record.last_result = "evolve_code_failed"
+                self.record.last_error = error
+                self.record.updated_at = time.time()
+                self.record.last_duration_seconds = max(
+                    0.0, self.record.updated_at - self.record.last_started_at
+                )
+                self.store.save(self.record)
+                self.store.event(
+                    "action_failed",
+                    self.record,
+                    action="evolve_code",
+                    error=error,
+                )
+                return "evolve_code_failed"
+
             self.record.cycle += 1
             self.progress.record(
                 action="evolve_code",
@@ -543,6 +575,7 @@ actually verified."""
             self.record.status = "EVOLVING"
             self.record.phase = "EVOLVE_CODE"
             self.record.last_result = str(result)
+            self.record.last_error = ""
             self.store.save(self.record)
             self.store.event("action_completed", self.record, action="evolve_code", result=str(result))
             return "evolve_code"
