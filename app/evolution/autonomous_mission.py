@@ -13,6 +13,7 @@ physical mouse/keyboard actions.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import threading
@@ -25,9 +26,9 @@ from typing import Any, Callable
 from app.evolution.autonomous_loop import AutonomousEvolutionLoop, EvolutionConfig, LocalOllama
 from app.unreal.mcp import UnrealMCPClient, UnrealMCPError
 from app.learning.runtime import LearningRuntime, LearningStore
-from app.evolution.autonomous_progress import AutonomousProgressController, ProgressDecision
+from app.evolution.autonomous_progress import AutonomousProgressController
 from app.evolution.operational_brain import OperationalBrain
-from app.evolution.cognitive_fusion import CapabilityGap, EvolutionHypothesis, ResearchFinding, ToolCandidate
+from app.evolution.cognitive_fusion import CapabilityGap, EvolutionHypothesis, ResearchFinding, ToolCandidate, WorldFact
 
 LOGGER = logging.getLogger("lumen.autonomous_mission")
 
@@ -422,6 +423,21 @@ actually verified."""
                 reason=progress.reason,
             )
 
+        if guarded.get("action") == "unreal_call":
+            if not str(guarded.get("toolset_name") or "").strip() or not str(guarded.get("tool_name") or "").strip():
+                guarded["action"] = "research"
+                guarded["reason"] = "Progress guard rejected an Unreal call without a concrete advertised tool; research/description evidence is required first."
+                self.store.event(
+                    "decision_guarded",
+                    self.record,
+                    proposed_action=proposed,
+                    selected_action="research",
+                    reason=guarded["reason"],
+                )
+        if guarded.get("action") == "done" and not self.progress.state.verification_passed:
+            guarded["action"] = "observe_unreal" if self.progress.state.pending_capability else "research"
+            guarded["reason"] = "Mission completion requires post-action observation evidence before done is admissible."
+
         # A describe step is only executable when it carries the concrete
         # toolset selected by the progress controller. This must also be
         # repaired when the planner independently proposed describe_toolset
@@ -524,7 +540,7 @@ actually verified."""
             self.progress.state.toolset_descriptions[toolset_name] = result
             self.progress.save()
             self.brain.ingest_world((
-                __import__("app.evolution.cognitive_fusion", fromlist=["WorldFact"]).WorldFact(
+                WorldFact(
                     key=f"unreal.toolset.{toolset_name}",
                     value=result,
                     source="unreal_mcp.describe_toolset",
@@ -591,7 +607,7 @@ actually verified."""
             for index, finding in enumerate(findings[:5]):
                 self.brain.absorb_research(
                     ResearchFinding(
-                        finding_id=f"{self.record.mission_id}:research:{index}:{abs(hash(query))}",
+                        finding_id=f"{self.record.mission_id}:research:{index}:{hashlib.sha256(query.encode('utf-8')).hexdigest()[:16]}",
                         query=query,
                         summary=str(finding["claim"]),
                         sources=tuple(finding["evidence"]),
@@ -714,13 +730,33 @@ actually verified."""
             )
             if response.is_error:
                 raise UnrealMCPError(str(response.error))
+            observation_payload = response.result
+            observation_digest = hashlib.sha256(
+                json.dumps(observation_payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+            ).hexdigest()
+            verification = bool(
+                self.progress.state.pending_capability
+                and self.progress.state.last_observation_digest
+                and observation_digest != self.progress.state.last_observation_digest
+            )
             self.progress.record(
                 action="observe_unreal",
-                result="snapshot_ok",
+                result="verification_ok" if verification else "snapshot_ok",
                 success=True,
                 new_information=True,
                 observation="Unreal Slate snapshot acquired",
+                details={
+                    "observation_digest": observation_digest,
+                    "verification": verification,
+                },
             )
+            if verification:
+                self.brain.validate_capability(
+                    self.progress.state.pending_capability,
+                    f"Post-action Unreal observation changed after {self.progress.state.pending_capability}: {observation_digest}",
+                )
+                self.progress.state.verification_passed = True
+                self.progress.save()
             self.record.status = "EVOLVING"
             self.record.phase = "OBSERVE_UNREAL"
             self.record.last_result = "snapshot_ok"
@@ -774,11 +810,13 @@ actually verified."""
             )
             return "unreal_call_failed"
 
+        capability_id = f"unreal:{toolset_name}.{tool_name}"
         self.progress.record(
             action="unreal_call",
             result="unreal_call_ok",
             success=True,
             new_information=True,
+            capability=capability_id,
             details={"toolset": toolset_name, "tool": tool_name},
         )
         self.record.status = "EVOLVING"
