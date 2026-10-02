@@ -138,6 +138,22 @@ class LumenWindow:
         )
         self.status_label.pack(side=tk.RIGHT, anchor=tk.N)
 
+        self.tools_button = tk.Button(
+            header,
+            text="🛡 Ferramentas",
+            command=self._open_tools,
+            state=tk.NORMAL if self._tools_controller is not None else tk.DISABLED,
+            bg=_Palette.BG,
+            fg=_Palette.MUTED,
+            activebackground=_Palette.BG,
+            activeforeground=_Palette.TEXT,
+            relief=tk.FLAT,
+            font=("Segoe UI", 9),
+            padx=6,
+            cursor="hand2",
+        )
+        self.tools_button.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 8))
+
         self.operations_button = tk.Button(
             header,
             text="☷ Painel operacional",
