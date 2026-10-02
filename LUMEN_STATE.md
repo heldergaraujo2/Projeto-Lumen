@@ -2843,3 +2843,17 @@ F20 validação final: **1292 passed / 1 skipped / 0 failed**; compile SUCCESS; 
 
 
 **Próxima fase oficial: F21 — Provider Independence.**
+
+## F34 — Autonomous Mission Supervisor (2026-10-01)
+
+- 🟩 Missão única persistente criada como contrato de runtime.
+- 🟩 Supervisor iniciado automaticamente pelo `main.py` quando existe uma missão.
+- 🟩 Supervisor aguarda o Unreal MCP real e retoma quando o endpoint loopback volta.
+- 🟩 Broker Unreal limitado a toolsets anunciados pelo servidor e com orçamento de chamadas.
+- 🟩 Autonomous Evolution Loop existente foi conectado como ação de evolução do código.
+- 🟩 Pesquisa Web e observação Unreal foram conectadas ao ciclo de missão.
+- 🟩 Estado persistente em `data/evolution/mission.json`.
+- 🟩 Documentação canônica criada em `docs/AUTONOMOUS_MISSION.md`.
+- 🟨 Ainda requer validação física no ambiente do operador: reiniciar Unreal, detectar MCP, executar uma ação Unreal real e demonstrar um ciclo completo de evolução.
+
+**Próximo gate real:** iniciar o Unreal Editor com o MCP ativo e validar que a missão persistente sai de `WAITING_UNREAL` para `EVOLVING` sem intervenção manual.
