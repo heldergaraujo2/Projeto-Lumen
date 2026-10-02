@@ -1067,10 +1067,10 @@ class ToolsController:
             raise ToolsControlError(
                 f"Permissão desconhecida: {level!r}."
             ) from exc
-        if resolved not in MANAGEABLE_LEVELS:
+        if resolved is PermissionLevel.COMPUTER_CONTROL or resolved not in MANAGEABLE_LEVELS:
             raise ToolsControlError(
                 f"A permissão {resolved.name} não pode ser concedida por esta "
-                "interface (não faz parte desta versão)."
+                "interface (não existe caminho genérico para esta permissão)."
             )
         return resolved
 
