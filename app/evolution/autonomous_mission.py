@@ -232,10 +232,23 @@ actually verified."""
 
         def visit(value: Any) -> None:
             if isinstance(value, str):
-                name = value.strip()
-                if name and ("toolset" in name.lower() or "." in name):
-                    if name not in names:
-                        names.append(name)
+                text = value.strip()
+                if not text:
+                    return
+                # Unreal MCP commonly wraps tool results in content/text
+                # envelopes where the actual JSON is serialized as a string.
+                # Decode that envelope before falling back to direct names.
+                if text.startswith(("{", "[")):
+                    try:
+                        decoded = json.loads(text)
+                    except json.JSONDecodeError:
+                        decoded = None
+                    if decoded is not None:
+                        visit(decoded)
+                        return
+                if "toolset" in text.lower() or "." in text:
+                    if text not in names:
+                        names.append(text)
                 return
             if isinstance(value, dict):
                 for key in ("name", "toolset_name", "toolset", "id"):
