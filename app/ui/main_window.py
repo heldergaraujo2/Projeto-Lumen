@@ -63,6 +63,7 @@ class LumenWindow:
         config_service=None,
         tools_controller=None,
         plugin_reports=(),
+        data_dir=None,
     ) -> None:
         self._root = root
         self._agent = agent
