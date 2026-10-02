@@ -25,7 +25,9 @@ from typing import Any, Callable
 from app.evolution.autonomous_loop import AutonomousEvolutionLoop, EvolutionConfig, LocalOllama
 from app.unreal.mcp import UnrealMCPClient, UnrealMCPError
 from app.learning.runtime import LearningRuntime, LearningStore
-from app.evolution.autonomous_progress import AutonomousProgressController
+from app.evolution.autonomous_progress import AutonomousProgressController, ProgressDecision
+from app.evolution.operational_brain import OperationalBrain
+from app.evolution.cognitive_fusion import CapabilityGap, EvolutionHypothesis, ResearchFinding, ToolCandidate
 
 LOGGER = logging.getLogger("lumen.autonomous_mission")
 
@@ -207,13 +209,15 @@ actually verified."""
         self.decision_provider = decision_provider
         learning_path = Path(learning_store_path) if learning_store_path else repo / "data" / "learning" / "knowledge.json"
         self.learning = LearningRuntime(LearningStore(learning_path))
-        self.progress = AutonomousProgressController(
-            self.store.path.parent / "autonomous_progress.json",
+        self.brain = OperationalBrain(
+            self.store.path.parent,
             record.mission_id,
-            repeat_limit=2,
+            record.goal,
             max_recovery_attempts=3,
-            stagnation_limit=3,
         )
+        # One durable progress authority: the OperationalBrain/CognitiveFusion
+        # stack owns the same progress controller used by this mission.
+        self.progress = self.brain.fusion.progress
         self._evolution = AutonomousEvolutionLoop(
             EvolutionConfig(
                 repo=repo,
@@ -334,7 +338,7 @@ actually verified."""
                 fallback="progress_guard",
             )
             try:
-                progress = self.progress.recommend(
+                progress = self.brain.decide(
                     tuple(allowed),
                     context=self._progress_context(),
                 )
@@ -380,7 +384,7 @@ actually verified."""
         # recover instead of crashing the autonomous loop.
         proposed = action if isinstance(action, str) and action in allowed else ""
         try:
-            progress = self.progress.recommend(tuple(allowed), context=self._progress_context())
+            progress = self.brain.decide(tuple(allowed), context=self._progress_context())
         except Exception as exc:
             progress_error = f"{type(exc).__name__}: {exc}"
             self.record.status = "BLOCKED"
@@ -517,6 +521,15 @@ actually verified."""
                 )
 
             result = self.broker.describe_toolset(toolset_name)
+            self.progress.state.toolset_descriptions[toolset_name] = result
+            self.progress.save()
+            self.brain.ingest_world((
+                __import__("app.evolution.cognitive_fusion", fromlist=["WorldFact"]).WorldFact(
+                    key=f"unreal.toolset.{toolset_name}",
+                    value=result,
+                    source="unreal_mcp.describe_toolset",
+                ),
+            ))
 
             if toolset_name not in self.progress.state.described_toolsets:
                 self.progress.state.described_toolsets.append(toolset_name)
@@ -525,7 +538,7 @@ actually verified."""
                 result="toolset_described",
                 success=True,
                 new_information=True,
-                details={"toolset": toolset_name},
+                details={"toolset": toolset_name, "description": result},
             )
             self.record.status = "EVOLVING"
             self.record.phase = "DESCRIBE_TOOLSET"
@@ -575,10 +588,27 @@ actually verified."""
                 findings,
                 max_items=5,
             )
+            for index, finding in enumerate(findings[:5]):
+                self.brain.absorb_research(
+                    ResearchFinding(
+                        finding_id=f"{self.record.mission_id}:research:{index}:{abs(hash(query))}",
+                        query=query,
+                        summary=str(finding["claim"]),
+                        sources=tuple(finding["evidence"]),
+                        confidence=float(finding.get("confidence", 0.25)),
+                    )
+                )
             research_text = f"{query} {decision.get('reason') or ''}".lower()
             gap = ""
             if learned and any(token in research_text for token in ("missing", "capability", "tool", "cannot", "need", "required")):
                 gap = "Required Unreal/Lumen capability identified by research: " + query
+                capability_id = f"mission:{self.record.mission_id}:research:{abs(hash(query))}"
+                self.brain.register_gap(CapabilityGap(
+                    capability_id=capability_id,
+                    description=gap,
+                    severity=0.7,
+                    evidence=tuple(str(x.get("url") or "") for x in findings[:5]),
+                ))
             self.progress.record(
                 action="research",
                 result=f"knowledge={len(learned)}",
@@ -596,6 +626,34 @@ actually verified."""
             return "research"
 
         if action == "evolve_code":
+            gap_text = self.progress.state.current_gap or "Create the smallest reusable capability required by the mission."
+            gap_id = f"mission:{self.record.mission_id}:gap"
+            self.brain.register_gap(CapabilityGap(
+                capability_id=gap_id,
+                description=gap_text,
+                severity=0.7,
+                evidence=tuple(self.progress.state.research_findings[-5:]),
+            ))
+            self.brain.propose(EvolutionHypothesis(
+                hypothesis_id=f"{gap_id}:hypothesis:{self.record.cycle + 1}",
+                gap_id=gap_id,
+                statement=f"Resolve the mission capability gap: {gap_text}",
+                expected_gain=0.7,
+                experiment="Implement a reusable capability, add regression tests, run bounded tests, then retry the mission.",
+            ))
+            self.brain.create_tool_candidate(ToolCandidate(
+                tool_id=f"{gap_id}:tool:{self.record.cycle + 1}",
+                purpose=gap_text,
+                inputs=("mission_goal", "research_evidence", "unreal_state"),
+                outputs=("capability", "test_evidence"),
+                tests=("targeted_regression", "full_pytest"),
+                risk="low",
+            ))
+            self._evolution.config.goal = (
+                f"{self.record.goal}\n\nCAPABILITY GAP:\n{gap_text}"
+                f"\n\nCOGNITIVE CONTEXT:\n"
+                + json.dumps(self.brain.reasoning_context(), ensure_ascii=False, default=str)[:30000]
+            )
             try:
                 result = self._evolution.cycle(self.record.cycle + 1)
                 if result in {"blocked", "rolled_back"}:
