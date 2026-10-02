@@ -33,6 +33,7 @@ from app.computer_control.windows_driver import WindowsComputerControlDriver
 from app.unreal.integration import UnrealIntegration
 from app.unreal.mcp import UnrealMCPClient
 from app.runtime.plugins import PluginManager
+from app.evolution.autonomous_mission import AutonomousMissionSupervisor
 
 LOGGER = logging.getLogger("lumen")
 
@@ -132,6 +133,7 @@ def main() -> int:
         LOGGER.exception("Não foi possível abrir a janela Tk (display disponível?).")
         return 1
 
+    supervisor = None
     try:
         from app.ui.main_window import LumenWindow
 
@@ -169,6 +171,17 @@ def main() -> int:
         # Planner com allowlist). Sem concessões: a autoridade segue no
         # controller (permissões/workspaces/checkpoints/auditoria).
         agent.set_tools_controller(tools_controller)
+
+        # F34: if the user has created the single durable autonomous mission,
+        # keep watching the real Unreal MCP endpoint. The mission is resumed
+        # automatically when the editor/server becomes available again.
+        supervisor = AutonomousMissionSupervisor(
+            repo=__import__("app.config.settings", fromlist=["PROJECT_ROOT"]).PROJECT_ROOT,
+            data_dir=settings.data_dir,
+            model=agent.provider.model_name or settings.model or "qwen2.5-coder:7b-instruct-q8_0",
+            ollama_url=settings.ollama_base_url,
+        )
+        supervisor.start()
         window = LumenWindow(
             root, agent,
             config_service=config_service,
@@ -177,6 +190,8 @@ def main() -> int:
         )
         window.run()
     finally:
+        if supervisor is not None:
+            supervisor.stop()
         LOGGER.info("Lumen encerrada.")
     return 0
 
