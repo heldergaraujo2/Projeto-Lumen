@@ -249,7 +249,18 @@ actually verified."""
                 "mission": asdict(self.record),
                 "unreal_readiness": readiness,
                 "unreal_toolsets": toolsets,
-                "instruction": "Continue the mission; do not stop merely because a capability is missing. Build the missing capability in Lumen, then retry.",
+                "learned_knowledge": [
+                    {
+                        "knowledge_id": item.knowledge_id,
+                        "topic": item.topic,
+                        "claim": item.claim,
+                        "status": item.status.value,
+                        "evidence": item.evidence,
+                    }
+                    for item in self.learning.recent_knowledge(limit=12)
+                ],
+                "learning_counts": self.learning.store.counts(),
+                "instruction": "Continue the mission; reuse persisted research knowledge when relevant. Do not treat candidate knowledge as verified truth. Do not stop merely because a capability is missing: research it, persist the evidence, then build the missing capability in Lumen and retry.",
             },
             ensure_ascii=False,
             sort_keys=True,
