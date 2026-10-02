@@ -367,9 +367,8 @@ class AutonomousProgressController:
             if candidate in available and self.admit(candidate):
                 return ProgressDecision(candidate, "next admissible action in bounded fallback order", True)
 
-        return ProgressDecision(
-            "research" if "research" in available else (available[0] if available else "research"),
-            "no preferred action remained; planner must provide new evidence", True,
+        raise RuntimeError(
+            "autonomous progress exhausted: planner must provide new evidence before another action can be admitted"
         )
 
     def snapshot(self) -> dict[str, Any]:
