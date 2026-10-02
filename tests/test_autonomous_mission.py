@@ -151,3 +151,64 @@ def test_autonomous_progress_guard_closes_discovery_research_loop(tmp_path: Path
     )
     fourth = engine.decide("{}")
     assert fourth["action"] == "evolve_code"
+
+
+def test_unreal_call_failure_is_persisted_and_does_not_block_the_mission(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    class Broker:
+        def call(self, toolset_name, tool_name, arguments):
+            raise TimeoutError("Unreal MCP call timed out")
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="operate Unreal", project_root=tmp_path)
+    store = MissionStore(path)
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.broker = Broker()
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.decide = lambda _context: {
+        "action": "unreal_call",
+        "reason": "exercise capability",
+        "toolset_name": "SlateInspectorToolset.SlateInspectorToolset",
+        "tool_name": "Snapshot",
+        "arguments": {},
+    }
+
+    result = engine.step({})
+    assert result == "unreal_call_failed"
+    assert record.status == "EVOLVING"
+    assert record.last_result == "unreal_call_failed"
+    assert "TimeoutError" in record.last_error
+    assert engine.progress.state.last_action == "unreal_call"
+    assert engine.progress.state.failure_counts["unreal_call"] == 1
+    assert engine.progress.state.last_error == record.last_error
+
+
+def test_failed_unreal_call_recommends_research_before_retry(tmp_path: Path):
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    controller = AutonomousProgressController(tmp_path / "progress.json", "mission")
+    controller.record(
+        action="unreal_call",
+        result="unreal_call_failed",
+        success=False,
+        error="TimeoutError: Unreal MCP call timed out",
+        details={
+            "toolset": "SlateInspectorToolset.SlateInspectorToolset",
+            "tool": "Snapshot",
+        },
+    )
+
+    decision = controller.recommend(
+        ("research", "unreal_call", "evolve_code", "observe_unreal"),
+        context={
+            "can_research": True,
+            "can_unreal_call": True,
+            "can_evolve_code": True,
+        },
+    )
+    assert decision.action == "research"
+    assert decision.recovery is True
