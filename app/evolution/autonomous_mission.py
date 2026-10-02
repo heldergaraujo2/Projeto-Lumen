@@ -255,7 +255,8 @@ actually verified."""
         self.record.last_started_at = time.time()
         self.record.updated_at = self.record.last_started_at
         self.store.save(self.record)
-        self.store.event("decision_started", self.record, model=self.ollama.model)
+        model_name = getattr(getattr(self, "ollama", None), "model", "unknown")
+        self.store.event("decision_started", self.record, model=model_name)
 
         if self.decision_provider is not None:
             decision = self.decision_provider(self.record.goal, context)
@@ -271,25 +272,26 @@ actually verified."""
 
         action = decision.get("action")
         allowed = {"research", "list_toolsets", "describe_toolset", "evolve_code", "observe_unreal", "unreal_call", "done"}
-        if action not in allowed:
-            raise RuntimeError(f"unsupported autonomous action: {action!r}")
 
+        # Planner output is untrusted model data. If Ollama returns a missing
+        # or unsupported action, let the deterministic progress controller
+        # recover instead of crashing the autonomous loop.
+        proposed = action if isinstance(action, str) and action in allowed else ""
         progress = self.progress.recommend(tuple(allowed), context=self._progress_context())
-        proposed = str(action)
         proposed_payload = {
             "toolset_name": decision.get("toolset_name"),
             "tool_name": decision.get("tool_name"),
             "query": decision.get("query"),
             "arguments": decision.get("arguments"),
         }
-        proposed_allowed = self.progress.admit(
+        proposed_allowed = bool(proposed) and self.progress.admit(
             proposed,
             self.progress.fingerprint(proposed, proposed_payload),
         )
         if progress.action != proposed or not proposed_allowed:
             guarded = dict(decision)
             guarded["action"] = progress.action
-            guarded["reason"] = f"Progress guard: {progress.reason}; planner proposed {proposed!r}."
+            guarded["reason"] = f"Progress guard: {progress.reason}; planner proposed {action!r}."
             self.store.event(
                 "decision_guarded",
                 self.record,
