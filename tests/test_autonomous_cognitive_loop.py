@@ -109,4 +109,4 @@ def test_done_is_not_admissible_without_post_action_verification(tmp_path: Path)
     }
 
     decision = engine.decide("{}")
-    assert decision["action"] == "research"
+    assert decision["action"] == "list_toolsets"

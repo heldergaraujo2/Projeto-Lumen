@@ -680,15 +680,17 @@ actually verified."""
                     tests=("targeted_regression", "full_pytest"),
                     risk="low",
                 ))
-            self._evolution.config.goal = (
-                f"{self.record.goal}\n\nCAPABILITY GAP:\n{gap_text}"
-                f"\n\nCOGNITIVE CONTEXT:\n"
-                + json.dumps(
-                    self.brain.reasoning_context() if getattr(self, "brain", None) is not None else self.progress.planner_context(),
-                    ensure_ascii=False,
-                    default=str,
-                )[:30000]
-            )
+            evolution_config = getattr(self._evolution, "config", None)
+            if evolution_config is not None:
+                evolution_config.goal = (
+                    f"{self.record.goal}\n\nCAPABILITY GAP:\n{gap_text}"
+                    f"\n\nCOGNITIVE CONTEXT:\n"
+                    + json.dumps(
+                        self.brain.reasoning_context() if getattr(self, "brain", None) is not None else self.progress.planner_context(),
+                        ensure_ascii=False,
+                        default=str,
+                    )[:30000]
+                )
             try:
                 result = self._evolution.cycle(self.record.cycle + 1)
                 if result in {"blocked", "rolled_back"}:
