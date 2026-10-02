@@ -227,17 +227,32 @@ actually verified."""
 
     @staticmethod
     def _toolset_names(toolsets: Any) -> tuple[str, ...]:
+        """Extract advertised toolset names from common MCP response envelopes."""
         names: list[str] = []
-        if isinstance(toolsets, (list, tuple)):
-            for item in toolsets:
-                if isinstance(item, str):
-                    name = item.strip()
-                elif isinstance(item, dict):
-                    name = str(item.get("name") or item.get("toolset_name") or item.get("id") or "").strip()
-                else:
-                    name = ""
-                if name and name not in names:
-                    names.append(name)
+
+        def visit(value: Any) -> None:
+            if isinstance(value, str):
+                name = value.strip()
+                if name and ("toolset" in name.lower() or "." in name):
+                    if name not in names:
+                        names.append(name)
+                return
+            if isinstance(value, dict):
+                for key in ("name", "toolset_name", "toolset", "id"):
+                    item = value.get(key)
+                    if isinstance(item, str) and item.strip():
+                        name = item.strip()
+                        if name not in names:
+                            names.append(name)
+                for key in ("toolsets", "data", "result", "items", "content"):
+                    if key in value:
+                        visit(value[key])
+                return
+            if isinstance(value, (list, tuple)):
+                for item in value:
+                    visit(item)
+
+        visit(toolsets)
         return tuple(names)
 
     def _progress_context(self) -> dict[str, Any]:
@@ -291,6 +306,13 @@ actually verified."""
         if progress.action != proposed or not proposed_allowed:
             guarded = dict(decision)
             guarded["action"] = progress.action
+            if progress.action == "describe_toolset" and not str(guarded.get("toolset_name") or "").strip():
+                candidates = [
+                    name for name in self.progress.state.known_toolsets
+                    if name not in self.progress.state.described_toolsets
+                ]
+                if candidates:
+                    guarded["toolset_name"] = candidates[0]
             guarded["reason"] = f"Progress guard: {progress.reason}; planner proposed {action!r}."
             self.store.event(
                 "decision_guarded",
@@ -351,14 +373,12 @@ actually verified."""
         if action == "list_toolsets":
             result = self.broker.list_toolsets()
             names = self._toolset_names(result)
-            for name in names:
-                if name not in self.progress.state.known_toolsets:
-                    self.progress.state.known_toolsets.append(name)
+            previous = set(self.progress.state.known_toolsets)
             self.progress.record(
                 action="list_toolsets",
                 result="toolsets_listed",
                 success=True,
-                new_information=bool(set(names) - set(self.progress.state.known_toolsets)),
+                new_information=bool(set(names) - previous),
                 details={"toolsets": names},
             )
             self.record.status = "EVOLVING"
