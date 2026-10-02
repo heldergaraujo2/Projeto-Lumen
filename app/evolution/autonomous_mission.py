@@ -24,6 +24,7 @@ from typing import Any, Callable
 
 from app.evolution.autonomous_loop import AutonomousEvolutionLoop, EvolutionConfig, LocalOllama
 from app.unreal.mcp import UnrealMCPClient, UnrealMCPError
+from app.learning.runtime import LearningRuntime, LearningStore
 
 LOGGER = logging.getLogger("lumen.autonomous_mission")
 
