@@ -227,18 +227,19 @@ actually verified."""
 
     @staticmethod
     def _toolset_names(toolsets: Any) -> tuple[str, ...]:
-        """Extract advertised toolset names from common MCP response envelopes."""
+        """Extract advertised toolset names from Unreal MCP text/envelopes."""
         names: list[str] = []
+
+        def add(value: Any) -> None:
+            if isinstance(value, str) and value.strip() and value.strip() not in names:
+                names.append(value.strip())
 
         def visit(value: Any) -> None:
             if isinstance(value, str):
                 text = value.strip()
                 if not text:
                     return
-                # Unreal MCP commonly wraps tool results in content/text
-                # envelopes where the actual JSON is serialized as a string.
-                # Decode that envelope before falling back to direct names.
-                if text.startswith(("{" , "[", "```")):
+                if text.startswith(("{", "[", "```")):
                     cleaned = text
                     if cleaned.startswith("```"):
                         lines = cleaned.splitlines()
@@ -254,18 +255,23 @@ actually verified."""
                     if decoded is not None:
                         visit(decoded)
                         return
-                if "toolset" in text.lower() or "." in text:
-                    if text not in names:
-                        names.append(text)
+                for line in text.splitlines():
+                    line = line.strip()
+                    if line.startswith("- ") and ":" in line:
+                        candidate = line[2:].split(":", 1)[0].strip()
+                        if "." in candidate:
+                            add(candidate)
                 return
             if isinstance(value, dict):
-                for key in ("name", "toolset_name", "toolsetName", "toolset", "id"):
-                    item = value.get(key)
-                    if isinstance(item, str) and item.strip():
-                        name = item.strip()
-                        if name not in names:
-                            names.append(name)
-                for key in ("toolsets", "data", "result", "items", "content"):
+                for key in ("toolset_name", "toolsetName", "toolset", "toolset_id"):
+                    add(value.get(key))
+                for key in ("toolsets", "toolset_list", "toolsetList"):
+                    if key in value:
+                        visit(value[key])
+                if isinstance(value.get("name"), str):
+                    add(value["name"])
+                for key in ("content", "text", "data", "result", "structuredContent",
+                            "structured_content", "output", "payload", "response", "items", "value"):
                     if key in value:
                         visit(value[key])
                 return
