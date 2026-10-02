@@ -460,3 +460,32 @@ def test_progress_guard_exhaustion_blocks_instead_of_restarting_planning(tmp_pat
     assert record.phase == "PLANNING"
     events = [json.loads(line) for line in store.event_path.read_text(encoding="utf-8").splitlines()]
     assert any(event["event"] == "decision_failed" and event.get("fallback") == "progress_guard_exhausted" for event in events)
+
+
+def test_supervisor_stops_when_mission_is_blocked(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionSupervisor
+
+    path = tmp_path / "data" / "evolution" / "mission.json"
+    record = create_mission(path, goal="operate Unreal", project_root=tmp_path)
+    record.status = "BLOCKED"
+    record.phase = "PLANNING"
+    record.last_error = "autonomous progress exhausted"
+    MissionStore(path).save(record)
+
+    class Probe:
+        def __init__(self):
+            self.calls = 0
+
+        def probe(self):
+            self.calls += 1
+            raise AssertionError("blocked missions must not probe Unreal or restart planning")
+
+    supervisor = object.__new__(AutonomousMissionSupervisor)
+    supervisor.store = MissionStore(path)
+    supervisor.probe = Probe()
+    supervisor._stop = __import__("threading").Event()
+    supervisor.poll_seconds = 0.01
+
+    supervisor._run()
+
+    assert supervisor.probe.calls == 0
