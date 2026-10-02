@@ -1,4 +1,4 @@
-﻿from .diagnostics import ImprovementOpportunity, ImprovementPlanner, ResearchEngine, ResearchEvidence, ResearchKind, ResearchQuery, ResearchReport, SelfDiagnostics
+from .diagnostics import ImprovementOpportunity, ImprovementPlanner, ResearchEngine, ResearchEvidence, ResearchKind, ResearchQuery, ResearchReport, SelfDiagnostics
 """Lumen Evolution System — F12 foundation."""
 
 from .lab import EvolutionLab, LabChange, LabWorkspace
