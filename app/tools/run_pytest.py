@@ -56,6 +56,28 @@ from app.tools.terminal import build_safe_environment
 
 logger = logging.getLogger(__name__)
 
+class PytestCommandTimeout(TimeoutError):
+    """Timeout controlado da execução interna do pytest."""
+
+
+def run_pytest_command(repo: Path, command: tuple[str, ...], *, timeout: int = 900):
+    """Executa somente uma invocação pytest estruturada do Evolution System."""
+    argv = [str(arg) for arg in command]
+    if len(argv) < 3 or argv[1:3] != ["-m", "pytest"]:
+        raise ValueError("o boundary de testes aceita somente 'python -m pytest'")
+    if any(any(token in arg for token in ("&&", "||", "|", ";", "&", ">", "<", "$(")) for arg in argv):
+        raise ValueError("comando pytest contém operador de shell proibido")
+    if timeout <= 0:
+        raise ValueError("timeout de pytest deve ser positivo")
+    try:
+        return subprocess.run(
+            argv, cwd=repo, text=True, capture_output=True,
+            timeout=timeout, check=False, encoding="utf-8", errors="replace",
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise PytestCommandTimeout(str(exc)) from exc
+
+
 #: Nome canônico (padrão ``TERMINAL_TOOL_NAME`` do terminal).
 RUN_PYTEST_TOOL_NAME = "run_pytest"
 #: Operação de auditoria — mesmo formato de terminal (``run_command``).
