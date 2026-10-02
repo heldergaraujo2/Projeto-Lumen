@@ -206,14 +206,8 @@ actually verified."""
         )
 
     def _current_branch(self) -> str:
-        import subprocess
-        result = subprocess.run(
-            ["git", "branch", "--show-current"],
-            cwd=self.repo,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        from app.tools.terminal import run_git_command
+        result = run_git_command(self.repo, ("branch", "--show-current"))
         branch = result.stdout.strip()
         if not branch:
             raise RuntimeError("cannot determine current git branch")
