@@ -110,7 +110,23 @@ class OperationalBrain:
             return state
         raw = json.loads(self.state_path.read_text(encoding="utf-8"))
         if str(raw.get("mission_id")) != mission_id:
-            raise ValueError("operational brain belongs to another mission")
+            safe_id = "".join(
+                char if char.isalnum() or char in "-_" else "_"
+                for char in str(raw.get("mission_id") or "unknown")
+            ).strip("_") or "unknown"
+            archive = self.state_path.with_name(
+                f"operational_brain.archive-{safe_id}{self.state_path.suffix}"
+            )
+            index = 1
+            while archive.exists():
+                archive = self.state_path.with_name(
+                    f"operational_brain.archive-{safe_id}-{index}{self.state_path.suffix}"
+                )
+                index += 1
+            self.state_path.replace(archive)
+            state = BrainState(mission_id=mission_id, objective=objective)
+            state.validate()
+            return state
         state = BrainState(
             mission_id=mission_id,
             objective=str(raw.get("objective") or objective),
