@@ -34,6 +34,37 @@ def test_mission_event_log_and_status(tmp_path: Path):
 
 
 
+def test_describe_toolset_injects_progress_selected_toolset_when_planner_omits_name(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    class Broker:
+        def list_toolsets(self):
+            return {"toolsets": [{"name": "SlateInspectorToolset.SlateInspectorToolset"}]}
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="operate Unreal", project_root=tmp_path)
+    store = MissionStore(path)
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.broker = Broker()
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.progress.record(
+        action="list_toolsets", result="toolsets_listed", success=True,
+        new_information=True,
+        details={"toolsets": ["SlateInspectorToolset.SlateInspectorToolset"]},
+    )
+    engine.decision_provider = lambda _goal, _context: {
+        "action": "describe_toolset", "reason": "inspect", "toolset_name": "",
+        "tool_name": "", "query": "", "arguments": {},
+    }
+
+    decision = engine.decide("{}")
+    assert decision["action"] == "describe_toolset"
+    assert decision["toolset_name"] == "SlateInspectorToolset.SlateInspectorToolset"
+
+
 def test_toolset_names_parses_real_unreal_mcp_text_envelope():
     from app.evolution.autonomous_mission import AutonomousMissionEngine
 
