@@ -557,23 +557,70 @@ actually verified."""
             self.store.event("action_completed", self.record, action="observe_unreal", result="ok")
             return "observe_unreal"
 
-        self.broker.call(
-            str(decision.get("toolset_name") or ""),
-            str(decision.get("tool_name") or ""),
-            decision.get("arguments") if isinstance(decision.get("arguments"), dict) else {},
+        toolset_name = str(decision.get("toolset_name") or "").strip()
+        tool_name = str(decision.get("tool_name") or "").strip()
+        arguments = decision.get("arguments") if isinstance(decision.get("arguments"), dict) else {}
+
+        self.store.event(
+            "action_started",
+            self.record,
+            action="unreal_call",
+            toolset=toolset_name,
+            tool=tool_name,
+            argument_keys=sorted(str(key) for key in arguments),
         )
+
+        try:
+            self.broker.call(toolset_name, tool_name, arguments)
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            self.progress.record(
+                action="unreal_call",
+                result="unreal_call_failed",
+                success=False,
+                new_information=False,
+                error=error,
+                details={"toolset": toolset_name, "tool": tool_name},
+            )
+            self.record.status = "EVOLVING"
+            self.record.phase = "UNREAL_CALL"
+            self.record.last_result = "unreal_call_failed"
+            self.record.last_error = error
+            self.record.updated_at = time.time()
+            self.record.last_duration_seconds = max(0.0, self.record.updated_at - self.record.last_started_at)
+            self.store.save(self.record)
+            self.store.event(
+                "action_failed",
+                self.record,
+                action="unreal_call",
+                error=error,
+                toolset=toolset_name,
+                tool=tool_name,
+            )
+            return "unreal_call_failed"
+
         self.progress.record(
             action="unreal_call",
             result="unreal_call_ok",
             success=True,
             new_information=True,
-            details={"toolset": str(decision.get("toolset_name") or ""), "tool": str(decision.get("tool_name") or "")},
+            details={"toolset": toolset_name, "tool": tool_name},
         )
         self.record.status = "EVOLVING"
         self.record.phase = "UNREAL_CALL"
         self.record.last_result = "unreal_call_ok"
+        self.record.last_error = ""
+        self.record.updated_at = time.time()
+        self.record.last_duration_seconds = max(0.0, self.record.updated_at - self.record.last_started_at)
         self.store.save(self.record)
-        self.store.event("action_completed", self.record, action="unreal_call", result="ok", toolset=str(decision.get("toolset_name") or ""), tool=str(decision.get("tool_name") or ""))
+        self.store.event(
+            "action_completed",
+            self.record,
+            action="unreal_call",
+            result="ok",
+            toolset=toolset_name,
+            tool=tool_name,
+        )
         return "unreal_call"
 
 
