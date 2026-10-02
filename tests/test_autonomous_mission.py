@@ -159,8 +159,7 @@ def test_autonomous_progress_guard_closes_discovery_research_loop(tmp_path: Path
 def test_unreal_call_failure_is_persisted_and_does_not_block_the_mission(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionEngine
     from app.evolution.autonomous_progress import AutonomousProgressController
-    from app.learning.runtime import LearningRuntime
-    from app.learning.store import LearningStore
+    from app.learning.runtime import LearningRuntime, LearningStore
 
     class Broker:
         def call(self, toolset_name, tool_name, arguments):
