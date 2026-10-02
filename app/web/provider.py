@@ -108,7 +108,7 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
         except (WebSecurityError, WebProviderError) as exc: raise
         except Exception as exc: raise WebProviderError(f"Falha na busca Web: {exc}") from exc
         sources=[]
-        for title,href in parser.items:
+        for title, href, snippet in parser.items:
             normalized_href = _normalize_search_url(href)
             absolute=urljoin(endpoint, normalized_href)
             absolute = _normalize_search_url(absolute)
@@ -121,12 +121,6 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                 safe=self.policy.validate_url(absolute)
             except WebSecurityError:
                 continue
-            snippet = ""
-            if len(parser.items):
-                for item in parser.items:
-                    if item[1] == href:
-                        snippet = item[2]
-                        break
             sources.append(WebSource(title=title,url=safe,snippet=snippet))
         return WebSearchResponse(query=q,sources=tuple(sources))
 
