@@ -309,3 +309,55 @@ def test_failed_unreal_call_persists_capability_gap(tmp_path: Path):
 
     assert engine.step({}) == "unreal_call_failed"
     assert "Unreal capability failed:" in engine.progress.state.current_gap
+
+
+def test_evolve_code_failure_is_persisted_and_researchable(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_progress import AutonomousProgressController
+    from app.learning.runtime import LearningRuntime, LearningStore
+
+    class Evolution:
+        def cycle(self, _cycle):
+            raise RuntimeError("candidate change failed validation")
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="evolve Unreal capability", project_root=tmp_path)
+    store = MissionStore(path)
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.learning = LearningRuntime(LearningStore(tmp_path / "knowledge.json"))
+    engine._evolution = Evolution()
+    engine.decide = lambda _context: {"action": "evolve_code", "reason": "implement missing capability"}
+
+    assert engine.step({}) == "evolve_code_failed"
+    assert record.status == "EVOLVING"
+    assert record.last_result == "evolve_code_failed"
+    assert "candidate change failed validation" in record.last_error
+    assert engine.progress.state.failure_counts["evolve_code"] == 1
+    assert "Autonomous code evolution failed." in engine.progress.state.current_gap
+
+
+def test_failed_evolve_code_recommends_research(tmp_path: Path):
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    controller = AutonomousProgressController(tmp_path / "progress.json", "mission")
+    controller.record(
+        action="evolve_code",
+        result="evolve_code_failed",
+        success=False,
+        error="RuntimeError: candidate change failed validation",
+        gap="Autonomous code evolution failed.",
+        details={"evolution_cycle": 1},
+    )
+
+    decision = controller.recommend(
+        ("research", "evolve_code", "observe_unreal"),
+        context={
+            "can_research": True,
+            "can_evolve_code": True,
+            "capability_gap": controller.state.current_gap,
+        },
+    )
+    assert decision.action == "research"
