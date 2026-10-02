@@ -39,3 +39,17 @@ def test_research_knowledge_can_be_reused_without_marking_it_verified(tmp_path: 
 
     assert [x.knowledge_id for x in recalled] == [items[0].knowledge_id]
     assert verified == ()
+
+
+def test_research_truncates_oversized_web_finding_to_store_limit(tmp_path: Path):
+    store = LearningStore(tmp_path / "knowledge.json", max_text=256)
+    runtime = LearningRuntime(store)
+
+    _, items = runtime.ingest_research(
+        "Unreal MCP",
+        [{"query": "Unreal MCP", "claim": "x" * 2000, "evidence": ("source",)}],
+    )
+
+    assert len(items) == 1
+    assert len(items[0].claim) == 256
+    assert items[0].claim == "x" * 256
