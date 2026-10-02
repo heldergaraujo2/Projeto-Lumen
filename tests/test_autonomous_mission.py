@@ -37,8 +37,7 @@ def test_mission_event_log_and_status(tmp_path: Path):
 def test_describe_toolset_injects_progress_selected_toolset_when_planner_omits_name(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionEngine
     from app.evolution.autonomous_progress import AutonomousProgressController
-    from app.learning.runtime import LearningRuntime
-    from app.learning.store import LearningStore
+    from app.learning.runtime import LearningRuntime, LearningStore
     from app.learning.runtime import LearningRuntime
     from app.learning.store import LearningStore
 
