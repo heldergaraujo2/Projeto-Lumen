@@ -25,6 +25,7 @@ from typing import Any, Callable
 from app.evolution.autonomous_loop import AutonomousEvolutionLoop, EvolutionConfig, LocalOllama
 from app.unreal.mcp import UnrealMCPClient, UnrealMCPError
 from app.learning.runtime import LearningRuntime, LearningStore
+from app.evolution.autonomous_progress import AutonomousProgressController
 
 LOGGER = logging.getLogger("lumen.autonomous_mission")
 
@@ -198,6 +199,13 @@ actually verified."""
         self.decision_provider = decision_provider
         learning_path = Path(learning_store_path) if learning_store_path else repo / "data" / "learning" / "knowledge.json"
         self.learning = LearningRuntime(LearningStore(learning_path))
+        self.progress = AutonomousProgressController(
+            self.store.path.parent / "autonomous_progress.json",
+            record.mission_id,
+            repeat_limit=2,
+            max_recovery_attempts=3,
+            stagnation_limit=3,
+        )
         self._evolution = AutonomousEvolutionLoop(
             EvolutionConfig(
                 repo=repo,
@@ -217,12 +225,43 @@ actually verified."""
             raise RuntimeError("cannot determine current git branch")
         return branch
 
+    @staticmethod
+    def _toolset_names(toolsets: Any) -> tuple[str, ...]:
+        names: list[str] = []
+        if isinstance(toolsets, (list, tuple)):
+            for item in toolsets:
+                if isinstance(item, str):
+                    name = item.strip()
+                elif isinstance(item, dict):
+                    name = str(item.get("name") or item.get("toolset_name") or item.get("id") or "").strip()
+                else:
+                    name = ""
+                if name and name not in names:
+                    names.append(name)
+        return tuple(names)
+
+    def _progress_context(self) -> dict[str, Any]:
+        try:
+            toolsets = self.broker.list_toolsets()
+        except Exception:
+            toolsets = []
+        return {
+            **self.progress.planner_context(),
+            "toolsets": self._toolset_names(toolsets),
+            "can_observe": True,
+            "can_research": True,
+            "can_evolve_code": True,
+            "can_unreal_call": True,
+            "capability_gap": bool(self.progress.state.current_gap),
+        }
+
     def decide(self, context: str) -> dict[str, Any]:
         self.record.phase = "PLANNING"
         self.record.last_started_at = time.time()
         self.record.updated_at = self.record.last_started_at
         self.store.save(self.record)
         self.store.event("decision_started", self.record, model=self.ollama.model)
+
         if self.decision_provider is not None:
             decision = self.decision_provider(self.record.goal, context)
         else:
@@ -231,11 +270,39 @@ actually verified."""
                 decision = json.loads(response)
             except json.JSONDecodeError as exc:
                 raise RuntimeError("Ollama returned invalid autonomous mission JSON") from exc
+
         if not isinstance(decision, dict):
             raise RuntimeError("autonomous mission decision must be an object")
+
         action = decision.get("action")
-        if action not in {"research", "list_toolsets", "describe_toolset", "evolve_code", "observe_unreal", "unreal_call", "done"}:
+        allowed = {"research", "list_toolsets", "describe_toolset", "evolve_code", "observe_unreal", "unreal_call", "done"}
+        if action not in allowed:
             raise RuntimeError(f"unsupported autonomous action: {action!r}")
+
+        progress = self.progress.recommend(tuple(allowed), context=self._progress_context())
+        proposed = str(action)
+        proposed_payload = {
+            "toolset_name": decision.get("toolset_name"),
+            "tool_name": decision.get("tool_name"),
+            "query": decision.get("query"),
+            "arguments": decision.get("arguments"),
+        }
+        proposed_allowed = self.progress.admit(
+            proposed,
+            self.progress.fingerprint(proposed, proposed_payload),
+        )
+        if progress.action != proposed or not proposed_allowed:
+            guarded = dict(decision)
+            guarded["action"] = progress.action
+            guarded["reason"] = f"Progress guard: {progress.reason}; planner proposed {proposed!r}."
+            self.store.event(
+                "decision_guarded",
+                self.record,
+                proposed_action=proposed,
+                selected_action=progress.action,
+                reason=progress.reason,
+            )
+            decision = guarded
         return decision
 
     def context(self, readiness: dict[str, Any]) -> str:
@@ -260,6 +327,7 @@ actually verified."""
                     for item in self.learning.recent_knowledge(limit=12)
                 ],
                 "learning_counts": self.learning.store.counts(),
+                "autonomous_progress": self.progress.planner_context(),
                 "instruction": "Continue the mission; reuse persisted research knowledge when relevant. Do not treat candidate knowledge as verified truth. Do not stop merely because a capability is missing: research it, persist the evidence, then build the missing capability in Lumen and retry.",
             },
             ensure_ascii=False,
@@ -285,6 +353,14 @@ actually verified."""
 
         if action == "list_toolsets":
             result = self.broker.list_toolsets()
+            names = self._toolset_names(result)
+            self.progress.record(
+                action="list_toolsets",
+                result="toolsets_listed",
+                success=True,
+                new_information=bool(set(names) - set(self.progress.state.known_toolsets)),
+                details={"toolsets": names},
+            )
             self.record.status = "EVOLVING"
             self.record.phase = "LIST_TOOLSETS"
             self.record.last_result = "toolsets_listed"
@@ -308,6 +384,13 @@ actually verified."""
 
             result = self.broker.describe_toolset(toolset_name)
 
+            self.progress.record(
+                action="describe_toolset",
+                result="toolset_described",
+                success=True,
+                new_information=True,
+                details={"toolset": toolset_name},
+            )
             self.record.status = "EVOLVING"
             self.record.phase = "DESCRIBE_TOOLSET"
             self.record.last_result = "toolset_described"
@@ -356,6 +439,19 @@ actually verified."""
                 findings,
                 max_items=5,
             )
+            research_text = f"{query} {decision.get('reason') or ''}".lower()
+            gap = ""
+            if learned and any(token in research_text for token in ("missing", "capability", "tool", "cannot", "need", "required")):
+                gap = "Required Unreal/Lumen capability identified by research: " + query
+            self.progress.record(
+                action="research",
+                result=f"knowledge={len(learned)}",
+                success=True,
+                new_information=bool(learned),
+                research_finding=query,
+                gap=gap or None,
+                details={"knowledge_items": len(learned)},
+            )
             self.record.status = "EVOLVING"
             self.record.phase = "RESEARCH"
             self.record.last_result = f"research_ok:knowledge={len(learned)}"
@@ -368,6 +464,14 @@ actually verified."""
             if result in {"blocked", "rolled_back"}:
                 raise RuntimeError(f"code evolution did not produce a verified change: {result}")
             self.record.cycle += 1
+            self.progress.record(
+                action="evolve_code",
+                result=str(result),
+                success=True,
+                new_information=True,
+                capability=self.progress.state.current_gap or "lumen_autonomous_evolution",
+                details={"evolution_result": str(result)},
+            )
             self.record.status = "EVOLVING"
             self.record.phase = "EVOLVE_CODE"
             self.record.last_result = str(result)
@@ -383,6 +487,13 @@ actually verified."""
             )
             if response.is_error:
                 raise UnrealMCPError(str(response.error))
+            self.progress.record(
+                action="observe_unreal",
+                result="snapshot_ok",
+                success=True,
+                new_information=True,
+                observation="Unreal Slate snapshot acquired",
+            )
             self.record.status = "EVOLVING"
             self.record.phase = "OBSERVE_UNREAL"
             self.record.last_result = "snapshot_ok"
@@ -394,6 +505,13 @@ actually verified."""
             str(decision.get("toolset_name") or ""),
             str(decision.get("tool_name") or ""),
             decision.get("arguments") if isinstance(decision.get("arguments"), dict) else {},
+        )
+        self.progress.record(
+            action="unreal_call",
+            result="unreal_call_ok",
+            success=True,
+            new_information=True,
+            details={"toolset": str(decision.get("toolset_name") or ""), "tool": str(decision.get("tool_name") or "")},
         )
         self.record.status = "EVOLVING"
         self.record.phase = "UNREAL_CALL"
