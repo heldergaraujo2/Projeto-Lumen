@@ -58,20 +58,29 @@ class _SearchParser(HTMLParser):
     def __init__(self, limit: int) -> None:
         super().__init__(convert_charrefs=True)
         self.limit=limit; self.items=[]; self._link=None; self._text=[]
+        self._snippet=None; self._snippet_text=[]
     def handle_starttag(self, tag, attrs):
         attrs=dict(attrs)
         classes = attrs.get("class", "").split()
         if tag == "a" and "result-link" in classes:
             self._link=attrs.get("href"); self._text=[]
+        if "result-snippet" in classes:
+            self._snippet=True; self._snippet_text=[]
     def handle_data(self,data):
         if self._link is not None: self._text.append(data)
+        if self._snippet: self._snippet_text.append(data)
     def handle_endtag(self,tag):
         if tag=="a" and self._link is not None:
             title=" ".join("".join(self._text).split())
             href=self._link
             if title and href and len(self.items)<self.limit:
-                self.items.append((title,href))
+                self.items.append([title,href,""])
             self._link=None; self._text=[]
+        if self._snippet and tag in {"div", "td", "span"}:
+            snippet=" ".join("".join(self._snippet_text).split())
+            if snippet and self.items:
+                self.items[-1][2]=snippet
+            self._snippet=False; self._snippet_text=[]
 
 class _TextParser(HTMLParser):
     SKIP={"script","style","noscript","svg"}
@@ -112,7 +121,13 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                 safe=self.policy.validate_url(absolute)
             except WebSecurityError:
                 continue
-            sources.append(WebSource(title=title,url=safe))
+            snippet = ""
+            if len(parser.items):
+                for item in parser.items:
+                    if item[1] == href:
+                        snippet = item[2]
+                        break
+            sources.append(WebSource(title=title,url=safe,snippet=snippet))
         return WebSearchResponse(query=q,sources=tuple(sources))
 
 class StandardWebFetchProvider(WebFetchProvider):
