@@ -330,16 +330,9 @@ actually verified."""
             proposed,
             self.progress.fingerprint(proposed, proposed_payload),
         )
+        guarded = dict(decision)
         if progress.action != proposed or not proposed_allowed:
-            guarded = dict(decision)
             guarded["action"] = progress.action
-            if progress.action == "describe_toolset" and not str(guarded.get("toolset_name") or "").strip():
-                candidates = [
-                    name for name in self.progress.state.known_toolsets
-                    if name not in self.progress.state.described_toolsets
-                ]
-                if candidates:
-                    guarded["toolset_name"] = candidates[0]
             guarded["reason"] = f"Progress guard: {progress.reason}; planner proposed {action!r}."
             self.store.event(
                 "decision_guarded",
@@ -348,8 +341,21 @@ actually verified."""
                 selected_action=progress.action,
                 reason=progress.reason,
             )
-            decision = guarded
-        return decision
+
+        # A describe step is only executable when it carries the concrete
+        # toolset selected by the progress controller. This must also be
+        # repaired when the planner independently proposed describe_toolset
+        # and the guard therefore did not override the action.
+        if guarded.get("action") == "describe_toolset" and not str(guarded.get("toolset_name") or "").strip():
+            candidates = [
+                name for name in self.progress.state.known_toolsets
+                if name not in self.progress.state.described_toolsets
+            ]
+            if candidates:
+                guarded["toolset_name"] = candidates[0]
+            else:
+                raise RuntimeError("describe_toolset selected without an available toolset")
+        return guarded
 
     def context(self, readiness: dict[str, Any]) -> str:
         toolsets = ""
