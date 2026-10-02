@@ -592,6 +592,10 @@ actually verified."""
                 success=False,
                 new_information=False,
                 error=error,
+                gap=(
+                    f"Unreal capability failed: {toolset_name}.{tool_name}. "
+                    "Research the failure and evolve or replace the capability before retrying."
+                ),
                 details={"toolset": toolset_name, "tool": tool_name},
             )
             self.record.status = "EVOLVING"
