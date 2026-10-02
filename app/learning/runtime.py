@@ -49,6 +49,7 @@ class LearningStore:
                 if isinstance(value, dict):
                     value["source"] = LearningSource(value.get("source", LearningSource.RESEARCH.value))
                     value["status"] = KnowledgeStatus(value.get("status", KnowledgeStatus.CANDIDATE.value))
+                    value["evidence"] = tuple(value.get("evidence") or ())
     def _safe(self,v):
         x,_=redact_secrets(str(v))
         if len(x)>self.max_text: raise ValueError("learning text exceeds configured limit")
