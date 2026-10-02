@@ -215,3 +215,41 @@ def test_failed_unreal_call_recommends_research_before_retry(tmp_path: Path):
     )
     assert decision.action == "research"
     assert decision.recovery is True
+
+
+def test_stagnation_guard_never_selects_describe_without_toolset_inventory(tmp_path: Path):
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    controller = AutonomousProgressController(
+        tmp_path / "progress.json",
+        "mission",
+        stagnation_limit=1,
+    )
+    controller.state.stagnation_steps = 1
+    decision = controller.recommend(
+        ("describe_toolset", "list_toolsets", "research"),
+        context={"can_research": True},
+    )
+    assert decision.action == "list_toolsets"
+
+
+def test_mission_store_retries_transient_windows_permission_error(tmp_path: Path):
+    from unittest.mock import patch
+
+    path = tmp_path / "mission.json"
+    store = MissionStore(path)
+    record = create_mission(path, goal="goal", project_root=tmp_path)
+    original_replace = Path.replace
+    calls = {"count": 0}
+
+    def flaky_replace(self: Path, target: Path):
+        calls["count"] += 1
+        if calls["count"] < 3:
+            raise PermissionError("simulated Windows file lock")
+        return original_replace(self, target)
+
+    with patch.object(Path, "replace", new=flaky_replace):
+        store.save(record)
+
+    assert calls["count"] == 3
+    assert store.load() == record
