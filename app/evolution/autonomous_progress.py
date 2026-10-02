@@ -51,6 +51,7 @@ class EvolutionProgressState:
     validated_capabilities: list[str] = field(default_factory=list)
     known_toolsets: list[str] = field(default_factory=list)
     described_toolsets: list[str] = field(default_factory=list)
+    toolset_descriptions: dict[str, Any] = field(default_factory=dict)
     observations: list[str] = field(default_factory=list)
     research_findings: list[str] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
@@ -139,6 +140,7 @@ class AutonomousProgressController:
             validated_capabilities=list(raw.get("validated_capabilities", [])),
             known_toolsets=list(raw.get("known_toolsets", [])),
             described_toolsets=list(raw.get("described_toolsets", [])),
+            toolset_descriptions=dict(raw.get("toolset_descriptions", {})),
             observations=list(raw.get("observations", [])),
             research_findings=list(raw.get("research_findings", [])),
             gaps=list(raw.get("gaps", [])),
@@ -235,6 +237,8 @@ class AutonomousProgressController:
                 toolset = details.get("toolset") if details else None
                 if toolset:
                     self._append_unique(self.state.described_toolsets, str(toolset))
+                if toolset and details and "description" in details:
+                    self.state.toolset_descriptions[str(toolset)] = details["description"]
             if capability:
                 self._append_unique(self.state.discovered_capabilities, capability)
             if observation:
@@ -390,6 +394,7 @@ class AutonomousProgressController:
                 "validated_capabilities": tuple(self.state.validated_capabilities),
                 "known_toolsets": tuple(self.state.known_toolsets),
                 "described_toolsets": tuple(self.state.described_toolsets),
+                "toolset_descriptions": dict(self.state.toolset_descriptions),
                 "observations": tuple(self.state.observations[-max_evidence:]),
                 "research_findings": tuple(self.state.research_findings[-max_evidence:]),
                 "recent_evidence": tuple(asdict(x) for x in self.state.evidence[-max_evidence:]),
