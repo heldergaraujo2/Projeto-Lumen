@@ -339,9 +339,11 @@ actually verified."""
                 fallback="progress_guard",
             )
             try:
-                progress = self.brain.decide(
-                    tuple(allowed),
-                    context=self._progress_context(),
+                brain = getattr(self, "brain", None)
+                progress = (
+                    brain.decide(tuple(allowed), context=self._progress_context())
+                    if brain is not None
+                    else self.progress.recommend(tuple(allowed), context=self._progress_context())
                 )
             except Exception as fallback_exc:
                 fallback_error = f"{type(fallback_exc).__name__}: {fallback_exc}"
@@ -385,7 +387,12 @@ actually verified."""
         # recover instead of crashing the autonomous loop.
         proposed = action if isinstance(action, str) and action in allowed else ""
         try:
-            progress = self.brain.decide(tuple(allowed), context=self._progress_context())
+            brain = getattr(self, "brain", None)
+            progress = (
+                brain.decide(tuple(allowed), context=self._progress_context())
+                if brain is not None
+                else self.progress.recommend(tuple(allowed), context=self._progress_context())
+            )
         except Exception as exc:
             progress_error = f"{type(exc).__name__}: {exc}"
             self.record.status = "BLOCKED"
@@ -539,13 +546,15 @@ actually verified."""
             result = self.broker.describe_toolset(toolset_name)
             self.progress.state.toolset_descriptions[toolset_name] = result
             self.progress.save()
-            self.brain.ingest_world((
-                WorldFact(
-                    key=f"unreal.toolset.{toolset_name}",
-                    value=result,
-                    source="unreal_mcp.describe_toolset",
-                ),
-            ))
+            brain = getattr(self, "brain", None)
+            if brain is not None:
+                brain.ingest_world((
+                    WorldFact(
+                        key=f"unreal.toolset.{toolset_name}",
+                        value=result,
+                        source="unreal_mcp.describe_toolset",
+                    ),
+                ))
 
             if toolset_name not in self.progress.state.described_toolsets:
                 self.progress.state.described_toolsets.append(toolset_name)
@@ -604,8 +613,11 @@ actually verified."""
                 findings,
                 max_items=5,
             )
+            brain = getattr(self, "brain", None)
             for index, finding in enumerate(findings[:5]):
-                self.brain.absorb_research(
+                if brain is None:
+                    break
+                brain.absorb_research(
                     ResearchFinding(
                         finding_id=f"{self.record.mission_id}:research:{index}:{hashlib.sha256(query.encode('utf-8')).hexdigest()[:16]}",
                         query=query,
@@ -619,12 +631,13 @@ actually verified."""
             if learned and any(token in research_text for token in ("missing", "capability", "tool", "cannot", "need", "required")):
                 gap = "Required Unreal/Lumen capability identified by research: " + query
                 capability_id = f"mission:{self.record.mission_id}:research:{abs(hash(query))}"
-                self.brain.register_gap(CapabilityGap(
-                    capability_id=capability_id,
-                    description=gap,
-                    severity=0.7,
-                    evidence=tuple(str(x.get("url") or "") for x in findings[:5]),
-                ))
+                if brain is not None:
+                    brain.register_gap(CapabilityGap(
+                        capability_id=capability_id,
+                        description=gap,
+                        severity=0.7,
+                        evidence=tuple(str(x.get("url") or "") for x in findings[:5]),
+                    ))
             self.progress.record(
                 action="research",
                 result=f"knowledge={len(learned)}",
@@ -644,31 +657,37 @@ actually verified."""
         if action == "evolve_code":
             gap_text = self.progress.state.current_gap or "Create the smallest reusable capability required by the mission."
             gap_id = f"mission:{self.record.mission_id}:gap"
-            self.brain.register_gap(CapabilityGap(
-                capability_id=gap_id,
-                description=gap_text,
-                severity=0.7,
-                evidence=tuple(self.progress.state.research_findings[-5:]),
-            ))
-            self.brain.propose(EvolutionHypothesis(
+            brain = getattr(self, "brain", None)
+            if brain is not None:
+                brain.register_gap(CapabilityGap(
+                    capability_id=gap_id,
+                    description=gap_text,
+                    severity=0.7,
+                    evidence=tuple(self.progress.state.research_findings[-5:]),
+                ))
+                brain.propose(EvolutionHypothesis(
                 hypothesis_id=f"{gap_id}:hypothesis:{self.record.cycle + 1}",
                 gap_id=gap_id,
                 statement=f"Resolve the mission capability gap: {gap_text}",
                 expected_gain=0.7,
-                experiment="Implement a reusable capability, add regression tests, run bounded tests, then retry the mission.",
-            ))
-            self.brain.create_tool_candidate(ToolCandidate(
+                    experiment="Implement a reusable capability, add regression tests, run bounded tests, then retry the mission.",
+                ))
+                brain.create_tool_candidate(ToolCandidate(
                 tool_id=f"{gap_id}:tool:{self.record.cycle + 1}",
                 purpose=gap_text,
                 inputs=("mission_goal", "research_evidence", "unreal_state"),
                 outputs=("capability", "test_evidence"),
                 tests=("targeted_regression", "full_pytest"),
-                risk="low",
-            ))
+                    risk="low",
+                ))
             self._evolution.config.goal = (
                 f"{self.record.goal}\n\nCAPABILITY GAP:\n{gap_text}"
                 f"\n\nCOGNITIVE CONTEXT:\n"
-                + json.dumps(self.brain.reasoning_context(), ensure_ascii=False, default=str)[:30000]
+                + json.dumps(
+                    self.brain.reasoning_context() if getattr(self, "brain", None) is not None else self.progress.planner_context(),
+                    ensure_ascii=False,
+                    default=str,
+                )[:30000]
             )
             try:
                 result = self._evolution.cycle(self.record.cycle + 1)
@@ -751,10 +770,12 @@ actually verified."""
                 },
             )
             if verification:
-                self.brain.validate_capability(
-                    self.progress.state.pending_capability,
-                    f"Post-action Unreal observation changed after {self.progress.state.pending_capability}: {observation_digest}",
-                )
+                brain = getattr(self, "brain", None)
+                if brain is not None:
+                    brain.validate_capability(
+                        self.progress.state.pending_capability,
+                        f"Post-action Unreal observation changed after {self.progress.state.pending_capability}: {observation_digest}",
+                    )
                 self.progress.state.verification_passed = True
                 self.progress.save()
             self.record.status = "EVOLVING"
