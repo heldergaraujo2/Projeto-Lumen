@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from app.evolution.cognitive_fusion import CapabilityGap, Experience, ResearchFinding
 from app.evolution.operational_brain import ActionOutcome, OperationalBrain
 
@@ -76,10 +74,15 @@ def test_operational_brain_survives_restart(tmp_path):
     assert (tmp_path / "cognitive_fusion_snapshot.json").exists()
 
 
-def test_operational_brain_rejects_cross_mission_state(tmp_path):
+def test_operational_brain_archives_cross_mission_state(tmp_path):
     OperationalBrain(tmp_path, "m5", "first")
-    with pytest.raises(ValueError):
-        OperationalBrain(tmp_path, "other", "second")
+
+    second = OperationalBrain(tmp_path, "other", "second")
+
+    assert second.state.mission_id == "other"
+    assert second.state.objective == "second"
+    assert not second.state.completed
+    assert (tmp_path / "operational_brain.archive-m5.json").exists()
 
 
 def test_operational_brain_snapshot_is_json(tmp_path):
