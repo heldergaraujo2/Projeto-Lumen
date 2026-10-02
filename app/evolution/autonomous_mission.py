@@ -89,6 +89,11 @@ class UnrealReadiness:
                 return False, {"error": tools.error}
             return True, {"mcp": "ready", "tools": tools.result}
         except Exception as exc:
+            # Unreal Editor restarts invalidate the old MCP session. Forget it
+            # so the next poll performs a fresh initialize/handshake.
+            reset = getattr(self.client, "reset_session", None)
+            if callable(reset):
+                reset()
             return False, {"error": str(exc)}
 
 
