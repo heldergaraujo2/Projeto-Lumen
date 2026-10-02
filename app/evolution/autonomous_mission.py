@@ -323,16 +323,42 @@ actually verified."""
 
         if action == "research":
             from app.web.tools import WebResearchTool
+            query = str(decision.get("query") or self.record.goal)
             result = WebResearchTool().run(
-                query=str(decision.get("query") or self.record.goal),
+                query=query,
                 max_results=5,
                 max_sources=3,
             )
             if not result.ok:
                 raise RuntimeError(result.error or "web research failed")
+            payload = result.data if isinstance(result.data, dict) else {}
+            findings = []
+            for source in payload.get("sources", []):
+                if not isinstance(source, dict):
+                    continue
+                claim = source.get("text") or source.get("snippet") or ""
+                if not str(claim).strip():
+                    continue
+                findings.append(
+                    {
+                        "query": query,
+                        "claim": str(claim),
+                        "evidence": tuple(
+                            x
+                            for x in (source.get("url"), source.get("final_url"))
+                            if isinstance(x, str) and x.strip()
+                        ),
+                        "confidence": 0.25,
+                    }
+                )
+            _, learned = self.learning.ingest_research(
+                query,
+                findings,
+                max_items=5,
+            )
             self.record.status = "EVOLVING"
             self.record.phase = "RESEARCH"
-            self.record.last_result = "research_ok"
+            self.record.last_result = f"research_ok:knowledge={len(learned)}"
             self.store.save(self.record)
             self.store.event("action_completed", self.record, action="research", result="ok")
             return "research"
