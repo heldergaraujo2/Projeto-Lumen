@@ -20,7 +20,27 @@ from .cognitive_fusion import CapabilityGap, CognitiveFusion, Experience, Evolut
 from .operational_brain import ActionOutcome, BrainDecision, BrainState, OperationalBrain
 from .cognitive_runtime import CognitiveRuntime, CognitiveProvider, CognitiveToolExecutor, RuntimeCycle
 from .autonomous_runtime import AutonomousMissionRuntime, MissionEnvironment
-from .autonomous_mission import AutonomousMissionEngine, AutonomousMissionSupervisor, AutonomousUnrealBroker, MissionRecord, MissionStore, create_mission
+
+# Autonomous mission imports the tool/runtime stack, which in turn may import
+# the evolution package. Keep this boundary lazy so importing an unrelated
+# evolution primitive (for example StackLayer) cannot create a package-level
+# circular import.
+_AUTONOMOUS_MISSION_EXPORTS = {
+    "AutonomousMissionEngine",
+    "AutonomousMissionSupervisor",
+    "AutonomousUnrealBroker",
+    "MissionRecord",
+    "MissionStore",
+    "create_mission",
+}
+
+def __getattr__(name):
+    if name in _AUTONOMOUS_MISSION_EXPORTS:
+        from . import autonomous_mission
+        value = getattr(autonomous_mission, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     "EvolutionLab", "LabChange", "LabWorkspace",
