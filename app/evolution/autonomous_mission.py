@@ -188,6 +188,7 @@ actually verified."""
         ollama_url: str,
         broker: AutonomousUnrealBroker,
         decision_provider: Callable[[str, str], dict[str, Any]] | None = None,
+        learning_store_path: str | Path | None = None,
     ) -> None:
         self.record = record
         self.store = store
@@ -195,6 +196,8 @@ actually verified."""
         self.ollama = LocalOllama(ollama_url, model)
         self.broker = broker
         self.decision_provider = decision_provider
+        learning_path = Path(learning_store_path) if learning_store_path else repo / "data" / "learning" / "knowledge.json"
+        self.learning = LearningRuntime(LearningStore(learning_path))
         self._evolution = AutonomousEvolutionLoop(
             EvolutionConfig(
                 repo=repo,
