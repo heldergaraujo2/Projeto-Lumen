@@ -630,7 +630,7 @@ actually verified."""
             gap = ""
             if learned and any(token in research_text for token in ("missing", "capability", "tool", "cannot", "need", "required")):
                 gap = "Required Unreal/Lumen capability identified by research: " + query
-                capability_id = f"mission:{self.record.mission_id}:research:{abs(hash(query))}"
+                capability_id = f"mission:{self.record.mission_id}:research:{hashlib.sha256(query.encode('utf-8')).hexdigest()[:16]}"
                 if brain is not None:
                     brain.register_gap(CapabilityGap(
                         capability_id=capability_id,
@@ -666,18 +666,18 @@ actually verified."""
                     evidence=tuple(self.progress.state.research_findings[-5:]),
                 ))
                 brain.propose(EvolutionHypothesis(
-                hypothesis_id=f"{gap_id}:hypothesis:{self.record.cycle + 1}",
-                gap_id=gap_id,
-                statement=f"Resolve the mission capability gap: {gap_text}",
-                expected_gain=0.7,
+                    hypothesis_id=f"{gap_id}:hypothesis:{self.record.cycle + 1}",
+                    gap_id=gap_id,
+                    statement=f"Resolve the mission capability gap: {gap_text}",
+                    expected_gain=0.7,
                     experiment="Implement a reusable capability, add regression tests, run bounded tests, then retry the mission.",
                 ))
                 brain.create_tool_candidate(ToolCandidate(
-                tool_id=f"{gap_id}:tool:{self.record.cycle + 1}",
-                purpose=gap_text,
-                inputs=("mission_goal", "research_evidence", "unreal_state"),
-                outputs=("capability", "test_evidence"),
-                tests=("targeted_regression", "full_pytest"),
+                    tool_id=f"{gap_id}:tool:{self.record.cycle + 1}",
+                    purpose=gap_text,
+                    inputs=("mission_goal", "research_evidence", "unreal_state"),
+                    outputs=("capability", "test_evidence"),
+                    tests=("targeted_regression", "full_pytest"),
                     risk="low",
                 ))
             self._evolution.config.goal = (
