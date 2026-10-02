@@ -379,7 +379,23 @@ actually verified."""
         # or unsupported action, let the deterministic progress controller
         # recover instead of crashing the autonomous loop.
         proposed = action if isinstance(action, str) and action in allowed else ""
-        progress = self.progress.recommend(tuple(allowed), context=self._progress_context())
+        try:
+            progress = self.progress.recommend(tuple(allowed), context=self._progress_context())
+        except Exception as exc:
+            progress_error = f"{type(exc).__name__}: {exc}"
+            self.record.status = "BLOCKED"
+            self.record.phase = "PLANNING"
+            self.record.last_error = progress_error
+            self.record.updated_at = time.time()
+            self.store.save(self.record)
+            self.store.event(
+                "decision_failed",
+                self.record,
+                error=progress_error,
+                fallback="progress_guard_exhausted",
+                proposed_action=proposed,
+            )
+            raise RuntimeError(progress_error) from exc
         proposed_payload = {
             "toolset_name": decision.get("toolset_name"),
             "tool_name": decision.get("tool_name"),
