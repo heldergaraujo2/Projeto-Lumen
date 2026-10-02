@@ -70,6 +70,8 @@ class LumenWindow:
         self._config_service = config_service
         self._tools_controller = tools_controller
         self._plugin_reports = tuple(plugin_reports)
+        self._data_dir = data_dir
+        self._mission_monitor = None
         self._busy = False
         self._status = "ready"
         self._streaming = False
@@ -109,6 +111,23 @@ class LumenWindow:
     def _refresh_provider_label(self) -> None:
         """Atualiza o cabeçalho após troca de provedor (tela de configurações)."""
         self.subtitle_label.configure(text=self._provider_subtitle())
+
+    def _open_autonomous_monitor(self) -> None:
+        """Abre o monitor em tempo real da missão autônoma persistente."""
+        from app.ui.autonomous_mission_monitor import AutonomousMissionMonitor
+        data_dir = self._data_dir
+        if data_dir is None:
+            from app.config.settings import PROJECT_ROOT
+            data_dir = PROJECT_ROOT / "data"
+        if self._mission_monitor is not None:
+            try:
+                if self._mission_monitor.top.winfo_exists():
+                    self._mission_monitor.top.lift()
+                    self._mission_monitor.top.focus_force()
+                    return
+            except tk.TclError:
+                pass
+        self._mission_monitor = AutonomousMissionMonitor(self._root, data_dir=data_dir)
 
     def _open_operations(self) -> None:
         """Abre o centro operacional com abas de runtime e capacidades."""
@@ -153,6 +172,21 @@ class LumenWindow:
             cursor="hand2",
         )
         self.tools_button.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 8))
+
+        self.monitor_button = tk.Button(
+            header,
+            text="◉ Autonomia ao vivo",
+            command=self._open_autonomous_monitor,
+            bg=_Palette.BG,
+            fg=_Palette.MUTED,
+            activebackground=_Palette.BG,
+            activeforeground=_Palette.TEXT,
+            relief=tk.FLAT,
+            font=("Segoe UI", 9),
+            padx=6,
+            cursor="hand2",
+        )
+        self.monitor_button.pack(side=tk.RIGHT, anchor=tk.N, padx=(0, 8))
 
         self.operations_button = tk.Button(
             header,
