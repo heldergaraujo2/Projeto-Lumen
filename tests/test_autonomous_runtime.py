@@ -52,4 +52,4 @@ def test_environment_is_the_only_execution_boundary(tmp_path: Path):
     cycle = runtime.step()
 
     assert cycle.decision.action == env.calls[0][0]
-    assert all("provider_hints" not in call[1] for call in env.calls) or True
+    assert all("provider_hints" not in call[1] for call in env.calls)
