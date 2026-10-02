@@ -39,6 +39,8 @@ def test_describe_toolset_injects_progress_selected_toolset_when_planner_omits_n
     from app.evolution.autonomous_progress import AutonomousProgressController
     from app.learning.runtime import LearningRuntime
     from app.learning.store import LearningStore
+    from app.learning.runtime import LearningRuntime
+    from app.learning.store import LearningStore
 
     class Broker:
         def list_toolsets(self):
