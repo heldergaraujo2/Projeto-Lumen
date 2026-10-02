@@ -285,10 +285,10 @@ class AutonomousProgressController:
                     return ProgressDecision("describe_toolset", f"toolsets already discovered; inspect {item} instead of repeating discovery", True)
 
         if self.state.last_action == "research":
-            if ctx.get("can_observe") and "observe_unreal" in available and self.admit("observe_unreal"):
-                return ProgressDecision("observe_unreal", "research completed; validate the finding against the live Unreal state", True)
             if ctx.get("capability_gap") and ctx.get("can_evolve_code") and "evolve_code" in available and self.admit("evolve_code"):
                 return ProgressDecision("evolve_code", "research identified a capability gap; implement a bounded candidate", True)
+            if ctx.get("can_observe") and "observe_unreal" in available and self.admit("observe_unreal"):
+                return ProgressDecision("observe_unreal", "research completed; validate the finding against the live Unreal state", True)
 
         if self.state.last_action == "describe_toolset":
             if ctx.get("can_observe") and "observe_unreal" in available and self.admit("observe_unreal"):
