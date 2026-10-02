@@ -216,6 +216,15 @@ class AutonomousProgressController:
                 self.state.failure_counts[action] = self.state.failure_counts.get(action, 0) + 1
             else:
                 self.state.failure_counts.pop(action, None)
+            if action == "list_toolsets":
+                toolsets = details.get("toolsets") if details else None
+                if isinstance(toolsets, (list, tuple)):
+                    for item in toolsets:
+                        self._append_unique(self.state.known_toolsets, str(item))
+            elif action == "describe_toolset":
+                toolset = details.get("toolset") if details else None
+                if toolset:
+                    self._append_unique(self.state.described_toolsets, str(toolset))
             if capability:
                 self._append_unique(self.state.discovered_capabilities, capability)
             if observation:
