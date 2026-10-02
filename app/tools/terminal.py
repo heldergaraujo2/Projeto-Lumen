@@ -79,6 +79,30 @@ from app.tools.handler import ToolCheckpoints
 
 logger = logging.getLogger("lumen.tools.terminal")
 
+_GIT_ALLOWED_OPERATIONS = frozenset({
+    "branch", "rev-parse", "status", "diff", "add", "commit", "restore",
+})
+
+
+def run_git_command(repo: Path, args: Sequence[str], *, timeout: int = 120):
+    """Executa somente operações Git internas usadas pelo Evolution System."""
+    if not isinstance(repo, Path):
+        repo = Path(repo)
+    argv = [str(arg) for arg in args]
+    if not argv or argv[0] not in _GIT_ALLOWED_OPERATIONS:
+        raise ValueError("operação Git não permitida pelo boundary de evolução")
+    if any(any(token in arg for token in OPERATOR_TOKENS) for arg in argv):
+        raise ValueError("argumento Git contém operador de shell proibido")
+    if any("\x00" in arg for arg in argv):
+        raise ValueError("argumento Git contém NUL")
+    if timeout <= 0:
+        raise ValueError("timeout Git deve ser positivo")
+    return subprocess.run(
+        ["git", *argv], cwd=repo, text=True, capture_output=True,
+        timeout=timeout, check=False, encoding="utf-8", errors="replace",
+    )
+
+
 #: Nome canônico da ferramenta de terminal.
 TERMINAL_TOOL_NAME = "run_command"
 
