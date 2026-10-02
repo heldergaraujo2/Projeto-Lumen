@@ -293,6 +293,14 @@ class AutonomousProgressController:
 
         if self.state.stagnation_steps >= self.stagnation_limit:
             if (
+                "list_toolsets" in available
+                and not self.state.known_toolsets
+                and self.admit("list_toolsets")
+            ):
+                self.state.stagnation_steps = 0
+                self.save()
+                return ProgressDecision("list_toolsets", "stagnation guard requires an initial toolset inventory", True)
+            if (
                 "describe_toolset" in available
                 and any(item not in self.state.described_toolsets for item in self.state.known_toolsets)
                 and self.admit("describe_toolset")
