@@ -554,6 +554,49 @@ class FakeSearchClient:
         return self.body
 
 
+def test_duckduckgo_lite_parser_extracts_search_snippets():
+    from app.web.provider import DuckDuckGoSearchProvider, WebSearchRequest
+
+    html = """
+    <a href="https://example.com/page" class="result-link">Example title</a>
+    <div class="result-snippet">Reusable evidence from the search result.</div>
+    """
+    provider = DuckDuckGoSearchProvider(
+        policy=WebSecurityPolicy(),
+        client=FakeSearchClient(html),
+    )
+
+    result = provider.search(WebSearchRequest("teste", 5))
+
+    assert result.sources[0].snippet == "Reusable evidence from the search result."
+
+
+def test_web_research_keeps_search_snippet_when_source_fetch_fails():
+    class Search:
+        def search(self, request):
+            return WebSearchResponse(
+                request.query,
+                (WebSource(
+                    "Fonte",
+                    "https://example.com/fail",
+                    "Evidence available from the search result.",
+                ),),
+            )
+
+    class Fetch:
+        def fetch(self, url):
+            raise WebProviderError("fonte indisponível")
+
+    tool = WebResearchTool(search_provider=Search(), fetch_provider=Fetch())
+    result = tool.run("teste", max_results=5, max_sources=1)
+
+    assert result.ok is True
+    source = result.data["sources"][0]
+    assert source["snippet"] == "Evidence available from the search result."
+    assert "text" not in source
+    assert source["fetch_error"] == "fonte indisponível"
+
+
 def test_duckduckgo_lite_parser_extracts_real_urls_and_snippets():
     from app.web.provider import DuckDuckGoSearchProvider
 
