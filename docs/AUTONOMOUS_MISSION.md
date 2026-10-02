@@ -21,8 +21,7 @@ Depois de definir o caminho do projeto Unreal:
 python -m app.evolution.autonomous_mission init --goal "Torne a Lúmen capaz de desenvolver um jogo completo do zero ao produto final no Unreal Engine." --project-root "C:\CAMINHO\DO\PROJETO"
 ```
 
-O comando cria apenas `data/evolution/mission.json`. A missão não depende de
-uma nova conversa ou de uma nova lista de fases.
+O comando cria `data/evolution/mission.json`; o conhecimento descoberto durante a missão é persistido separadamente em `data/learning/knowledge.json`. A missão não depende de uma nova conversa ou de uma nova lista de fases.
 
 ## Retomada automática
 
@@ -38,6 +37,23 @@ Ao iniciar `main.py`, o supervisor:
 
 O supervisor não cria outro projeto Unreal e não perde a missão quando o
 editor é reiniciado.
+
+## Aprendizado persistente da pesquisa
+
+A ação `research` agora fecha a primeira metade do ciclo
+**pesquisar → aprender → reutilizar**:
+
+1. a Web Research Tool pesquisa e lê fontes;
+2. os resultados úteis são importados pelo `LearningRuntime` existente;
+3. cada achado é persistido em `data/learning/knowledge.json`;
+4. o conhecimento importado permanece como `CANDIDATE` até existir uma etapa
+   governada de verificação;
+5. os itens recentes são entregues novamente ao contexto do planejador nos
+   ciclos seguintes.
+
+Isso evita um segundo sistema paralelo de memória/aprendizado. Pesquisa não é
+tratada automaticamente como verdade: evidência futura deve promover o item
+para `VERIFIED` por meio do fluxo de verificação existente.
 
 ## Tipos de ciclo
 
