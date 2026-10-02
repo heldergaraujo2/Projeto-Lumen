@@ -241,13 +241,8 @@ actually verified."""
         return tuple(names)
 
     def _progress_context(self) -> dict[str, Any]:
-        try:
-            toolsets = self.broker.list_toolsets()
-        except Exception:
-            toolsets = []
         return {
             **self.progress.planner_context(),
-            "toolsets": self._toolset_names(toolsets),
             "can_observe": True,
             "can_research": True,
             "can_evolve_code": True,
@@ -354,6 +349,9 @@ actually verified."""
         if action == "list_toolsets":
             result = self.broker.list_toolsets()
             names = self._toolset_names(result)
+            for name in names:
+                if name not in self.progress.state.known_toolsets:
+                    self.progress.state.known_toolsets.append(name)
             self.progress.record(
                 action="list_toolsets",
                 result="toolsets_listed",
@@ -384,6 +382,8 @@ actually verified."""
 
             result = self.broker.describe_toolset(toolset_name)
 
+            if toolset_name not in self.progress.state.described_toolsets:
+                self.progress.state.described_toolsets.append(toolset_name)
             self.progress.record(
                 action="describe_toolset",
                 result="toolset_described",
