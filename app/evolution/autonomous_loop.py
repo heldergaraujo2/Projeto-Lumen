@@ -1,9 +1,12 @@
 from __future__ import annotations
-import json, os, re, shutil, subprocess, time
+import json, os, re, shutil, time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
+
+from app.tools.run_pytest import PytestCommandTimeout, run_pytest_command
+from app.tools.terminal import run_git_command
 
 class EvolutionLoopError(RuntimeError):
     pass
@@ -29,7 +32,7 @@ class EvolutionConfig:
 class GitGuard:
     def __init__(self, repo): self.repo=repo
     def run(self,*args,timeout=120):
-        return subprocess.run(["git",*args],cwd=self.repo,text=True,capture_output=True,timeout=timeout,check=False,encoding="utf-8",errors="replace")
+        return run_git_command(self.repo, args, timeout=timeout)
     def branch(self):
         r=self.run("branch","--show-current")
         if r.returncode: raise EvolutionLoopError(r.stderr.strip())
@@ -122,8 +125,9 @@ class AutonomousEvolutionLoop:
         return created
     def run_tests(self,command):
         try:
-            r=subprocess.run(list(command),cwd=self.config.repo,text=True,capture_output=True,timeout=self.config.test_timeout,check=False,encoding="utf-8",errors="replace")
-        except subprocess.TimeoutExpired as exc: return False,str(exc)
+            r=run_pytest_command(self.config.repo, tuple(command), timeout=self.config.test_timeout)
+        except PytestCommandTimeout as exc:
+            return False,str(exc)
         return r.returncode==0,(r.stdout+"\n"+r.stderr)[-16000:]
     def cycle(self,number):
         if self.git.branch()!=self.config.branch: raise EvolutionLoopError("wrong branch")
