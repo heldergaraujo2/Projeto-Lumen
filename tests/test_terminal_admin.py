@@ -76,11 +76,19 @@ def test_grant_and_revoke_terminal_explicit(tmp_path):
     assert not permissions.is_granted("TERMINAL")
 
 
-def test_computer_control_has_no_dedicated_path(tmp_path):
+def test_computer_control_uses_generic_manageable_path(tmp_path):
     controller = make_controller(tmp_path)
     assert not hasattr(controller, "grant_computer_control")
-    with pytest.raises(ToolsControlError):
-        controller.grant_permission("COMPUTER_CONTROL")
+    controller.grant_permission("COMPUTER_CONTROL")
+    assert controller.permission_status()[
+        next(i for i, row in enumerate(controller.permission_status())
+             if row["level"] == "COMPUTER_CONTROL")
+    ]["granted"] is True
+    controller.revoke_permission("COMPUTER_CONTROL")
+    assert not any(
+        row["level"] == "COMPUTER_CONTROL" and row["granted"]
+        for row in controller.permission_status()
+    )
 
 
 def test_terminal_grant_and_revoke_are_audited(tmp_path):
