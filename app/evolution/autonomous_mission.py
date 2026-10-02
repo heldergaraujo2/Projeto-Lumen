@@ -1,0 +1,405 @@
+"""Autonomous mission supervisor for the Lumen Evolution System.
+
+A mission is a durable high-level goal. Once created, Lumen resumes it on
+startup and waits for the real Unreal MCP endpoint to become available. The
+planner may research, evolve the Lumen codebase, run bounded tests, inspect
+Unreal, or invoke an advertised Unreal MCP tool.
+
+The mission layer does not bypass the existing security model: Unreal MCP is
+loopback-only, calls are bounded and audited, and the existing
+ComputerControl/permission/checkpoint stack remains the authority for
+physical mouse/keyboard actions.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import threading
+import time
+import uuid
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Callable
+
+from app.evolution.autonomous_loop import AutonomousEvolutionLoop, EvolutionConfig, LocalOllama
+from app.unreal.mcp import UnrealMCPClient, UnrealMCPError
+
+LOGGER = logging.getLogger("lumen.autonomous_mission")
+
+
+@dataclass
+class MissionRecord:
+    mission_id: str
+    goal: str
+    project_root: str
+    status: str = "WAITING_UNREAL"
+    cycle: int = 0
+    last_action: str = ""
+    last_error: str = ""
+    created_at: float = 0.0
+    updated_at: float = 0.0
+
+    def validate(self) -> None:
+        if not self.mission_id.strip() or not self.goal.strip():
+            raise ValueError("mission_id and goal are required")
+        if not self.project_root.strip():
+            raise ValueError("project_root is required")
+        if self.cycle < 0:
+            raise ValueError("cycle must be >= 0")
+
+
+class MissionStore:
+    """Atomic, single-file persistence for the one active mission."""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+
+    def load(self) -> MissionRecord | None:
+        if not self.path.exists():
+            return None
+        raw = json.loads(self.path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError("mission store must contain an object")
+        record = MissionRecord(**raw)
+        record.validate()
+        return record
+
+    def save(self, record: MissionRecord) -> None:
+        record.validate()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        tmp.write_text(
+            json.dumps(asdict(record), ensure_ascii=False, sort_keys=True, indent=2),
+            encoding="utf-8",
+        )
+        tmp.replace(self.path)
+
+
+class UnrealReadiness:
+    """Read-only readiness probe for the real local Unreal MCP server."""
+
+    def __init__(self, client: UnrealMCPClient | None = None) -> None:
+        self.client = client or UnrealMCPClient(timeout=2.0)
+
+    def probe(self) -> tuple[bool, dict[str, Any]]:
+        try:
+            tools = self.client.list_tools()
+            if tools.is_error:
+                return False, {"error": tools.error}
+            return True, {"mcp": "ready", "tools": tools.result}
+        except Exception as exc:
+            return False, {"error": str(exc)}
+
+
+class AutonomousUnrealBroker:
+    """Bounded broker for advertised Unreal MCP tools.
+
+    The broker deliberately accepts only tools returned by the connected
+    server. It never accepts a raw HTTP URL, shell command, or non-MCP target.
+    """
+
+    def __init__(self, client: UnrealMCPClient | None = None, *, max_calls: int = 20) -> None:
+        if max_calls < 1:
+            raise ValueError("max_calls must be >= 1")
+        self.client = client or UnrealMCPClient(timeout=15.0)
+        self.max_calls = max_calls
+        self.calls = 0
+
+    def list_toolsets(self) -> Any:
+        response = self.client.list_toolsets()
+        if response.is_error:
+            raise UnrealMCPError(str(response.error))
+        return response.result
+
+    def describe_toolset(self, toolset_name: str) -> Any:
+        response = self.client.describe_toolset(toolset_name)
+        if response.is_error:
+            raise UnrealMCPError(str(response.error))
+        return response.result
+
+    def call(self, toolset_name: str, tool_name: str, arguments: dict[str, Any] | None = None) -> Any:
+        if self.calls >= self.max_calls:
+            raise RuntimeError("autonomous Unreal call budget exhausted")
+        if not toolset_name.strip() or not tool_name.strip():
+            raise ValueError("toolset_name and tool_name are required")
+        if arguments is not None and not isinstance(arguments, dict):
+            raise TypeError("arguments must be an object")
+        toolsets = self.list_toolsets()
+        serialized = json.dumps(toolsets, ensure_ascii=False)
+        if toolset_name not in serialized:
+            raise PermissionError("toolset is not advertised by the connected Unreal server")
+        response = self.client.call_toolset_tool(toolset_name, tool_name, arguments or {})
+        self.calls += 1
+        if response.is_error:
+            raise UnrealMCPError(str(response.error))
+        return response.result
+
+
+class AutonomousMissionEngine:
+    """Closed-loop mission executor driven by the local Ollama provider."""
+
+    SYSTEM = """You are the Lumen autonomous mission planner.
+Return ONLY JSON:
+{"action":"research|evolve_code|observe_unreal|unreal_call|done",
+ "reason":"...",
+ "query":"...",
+ "toolset_name":"...",
+ "tool_name":"...",
+ "arguments":{}}
+Choose exactly one next action. Prefer reusable capabilities over one-off hacks.
+Never request shell commands through unreal_call. Use evolve_code for Lumen source
+changes and its bounded test/rollback pipeline. Use observe_unreal before an
+unreal_call when the current UI state is unknown. Mark done only when the goal is
+actually verified."""
+
+    def __init__(
+        self,
+        *,
+        record: MissionRecord,
+        store: MissionStore,
+        repo: Path,
+        model: str,
+        ollama_url: str,
+        broker: AutonomousUnrealBroker,
+        decision_provider: Callable[[str, str], dict[str, Any]] | None = None,
+    ) -> None:
+        self.record = record
+        self.store = store
+        self.repo = repo
+        self.ollama = LocalOllama(ollama_url, model)
+        self.broker = broker
+        self.decision_provider = decision_provider
+        self._evolution = AutonomousEvolutionLoop(
+            EvolutionConfig(
+                repo=repo,
+                goal=record.goal,
+                model=model,
+                ollama_url=ollama_url,
+                branch=self._current_branch(),
+                max_cycles=1,
+            )
+        )
+
+    def _current_branch(self) -> str:
+        import subprocess
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=self.repo,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        branch = result.stdout.strip()
+        if not branch:
+            raise RuntimeError("cannot determine current git branch")
+        return branch
+
+    def decide(self, context: str) -> dict[str, Any]:
+        if self.decision_provider is not None:
+            decision = self.decision_provider(self.record.goal, context)
+        else:
+            response = self.ollama.chat(self.SYSTEM, context)
+            try:
+                decision = json.loads(response)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError("Ollama returned invalid autonomous mission JSON") from exc
+        if not isinstance(decision, dict):
+            raise RuntimeError("autonomous mission decision must be an object")
+        action = decision.get("action")
+        if action not in {"research", "evolve_code", "observe_unreal", "unreal_call", "done"}:
+            raise RuntimeError(f"unsupported autonomous action: {action!r}")
+        return decision
+
+    def context(self, readiness: dict[str, Any]) -> str:
+        toolsets = ""
+        try:
+            toolsets = json.dumps(self.broker.list_toolsets(), ensure_ascii=False)[:24000]
+        except Exception as exc:
+            toolsets = json.dumps({"error": str(exc)})
+        return json.dumps(
+            {
+                "mission": asdict(self.record),
+                "unreal_readiness": readiness,
+                "unreal_toolsets": toolsets,
+                "instruction": "Continue the mission; do not stop merely because a capability is missing. Build the missing capability in Lumen, then retry.",
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+
+    def step(self, readiness: dict[str, Any]) -> str:
+        decision = self.decide(self.context(readiness))
+        action = str(decision["action"])
+        self.record.last_action = action
+        self.record.updated_at = time.time()
+
+        if action == "done":
+            self.record.status = "COMPLETED"
+            self.store.save(self.record)
+            return "done"
+
+        if action == "research":
+            from app.web.tools import WebResearchTool
+            result = WebResearchTool().run(
+                query=str(decision.get("query") or self.record.goal),
+                max_results=5,
+                max_sources=3,
+            )
+            if not result.ok:
+                raise RuntimeError(result.error or "web research failed")
+            self.record.status = "EVOLVING"
+            self.store.save(self.record)
+            return "research"
+
+        if action == "evolve_code":
+            result = self._evolution.cycle(self.record.cycle + 1)
+            if result in {"blocked", "rolled_back"}:
+                raise RuntimeError(f"code evolution did not produce a verified change: {result}")
+            self.record.cycle += 1
+            self.record.status = "EVOLVING"
+            self.store.save(self.record)
+            return "evolve_code"
+
+        if action == "observe_unreal":
+            response = self.broker.client.call_toolset_tool(
+                "SlateInspectorToolset.SlateInspectorToolset",
+                "Snapshot",
+                {"ref": "", "maxDepth": 30, "bIncludeSourceLocations": False},
+            )
+            if response.is_error:
+                raise UnrealMCPError(str(response.error))
+            self.record.status = "EVOLVING"
+            self.store.save(self.record)
+            return "observe_unreal"
+
+        self.broker.call(
+            str(decision.get("toolset_name") or ""),
+            str(decision.get("tool_name") or ""),
+            decision.get("arguments") if isinstance(decision.get("arguments"), dict) else {},
+        )
+        self.record.status = "EVOLVING"
+        self.store.save(self.record)
+        return "unreal_call"
+
+
+class AutonomousMissionSupervisor:
+    """Background watcher: resume the saved mission when Unreal becomes ready."""
+
+    def __init__(
+        self,
+        *,
+        repo: Path,
+        data_dir: Path,
+        model: str,
+        ollama_url: str,
+        poll_seconds: float = 5.0,
+        broker: AutonomousUnrealBroker | None = None,
+    ) -> None:
+        if poll_seconds <= 0:
+            raise ValueError("poll_seconds must be > 0")
+        self.store = MissionStore(data_dir / "evolution" / "mission.json")
+        self.repo = repo
+        self.model = model
+        self.ollama_url = ollama_url
+        self.poll_seconds = poll_seconds
+        self.probe = UnrealReadiness(broker.client if broker else None)
+        self.broker = broker or AutonomousUnrealBroker()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        if self.store.load() is None:
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="lumen-autonomous-mission",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        thread = self._thread
+        if thread and thread.is_alive():
+            thread.join(timeout=min(2.0, self.poll_seconds + 0.5))
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            record = self.store.load()
+            if record is None or record.status == "COMPLETED":
+                return
+            ready, details = self.probe.probe()
+            if not ready:
+                record.status = "WAITING_UNREAL"
+                record.last_error = str(details.get("error") or "")
+                record.updated_at = time.time()
+                self.store.save(record)
+                self._stop.wait(self.poll_seconds)
+                continue
+            try:
+                record.status = "EVOLVING"
+                record.last_error = ""
+                self.store.save(record)
+                engine = AutonomousMissionEngine(
+                    record=record,
+                    store=self.store,
+                    repo=self.repo,
+                    model=self.model,
+                    ollama_url=self.ollama_url,
+                    broker=self.broker,
+                )
+                engine.step(details)
+            except Exception as exc:
+                record.status = "BLOCKED"
+                record.last_error = f"{type(exc).__name__}: {exc}"
+                record.updated_at = time.time()
+                self.store.save(record)
+                LOGGER.exception("Autonomous mission paused: %s", exc)
+                self._stop.wait(self.poll_seconds)
+                continue
+            self._stop.wait(0.25)
+
+    @property
+    def mission_path(self) -> Path:
+        return self.store.path
+
+
+def create_mission(path: str | Path, *, goal: str, project_root: str | Path) -> MissionRecord:
+    now = time.time()
+    record = MissionRecord(
+        mission_id=f"LUMEN-MISSION-{uuid.uuid4().hex[:12]}",
+        goal=goal.strip(),
+        project_root=str(Path(project_root).expanduser().resolve()),
+        created_at=now,
+        updated_at=now,
+    )
+    record.validate()
+    MissionStore(path).save(record)
+    return record
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Create/resume the Lumen autonomous mission.")
+    sub = parser.add_subparsers(dest="command", required=True)
+    init = sub.add_parser("init")
+    init.add_argument("--goal", required=True)
+    init.add_argument("--project-root", required=True)
+    init.add_argument("--data-dir", default="data")
+    args = parser.parse_args()
+    if args.command == "init":
+        record = create_mission(
+            Path(args.data_dir) / "evolution" / "mission.json",
+            goal=args.goal,
+            project_root=args.project_root,
+        )
+        print(json.dumps(asdict(record), ensure_ascii=False, indent=2))
+        return 0
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
