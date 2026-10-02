@@ -37,6 +37,10 @@ class MissionRecord:
     cycle: int = 0
     last_action: str = ""
     last_error: str = ""
+    phase: str = "WAITING_UNREAL"
+    last_result: str = ""
+    last_started_at: float = 0.0
+    last_duration_seconds: float = 0.0
     created_at: float = 0.0
     updated_at: float = 0.0
 
@@ -54,6 +58,21 @@ class MissionStore:
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
+        self.event_path = self.path.with_name("evolution_log.jsonl")
+
+    def event(self, event: str, record: MissionRecord, **details: Any) -> None:
+        payload = {
+            "timestamp": time.time(),
+            "event": event,
+            "mission_id": record.mission_id,
+            "cycle": record.cycle,
+            "status": record.status,
+            "phase": record.phase,
+            **details,
+        }
+        self.event_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.event_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
     def load(self) -> MissionRecord | None:
         if not self.path.exists():
@@ -201,10 +220,15 @@ actually verified."""
         return branch
 
     def decide(self, context: str) -> dict[str, Any]:
+        self.record.phase = "PLANNING"
+        self.record.last_started_at = time.time()
+        self.record.updated_at = self.record.last_started_at
+        self.store.save(self.record)
+        self.store.event("decision_started", self.record, model=self.ollama.model)
         if self.decision_provider is not None:
             decision = self.decision_provider(self.record.goal, context)
         else:
-            response = self.ollama.chat(self.SYSTEM, context)
+            response = self.ollama.chat(self.SYSTEM, context, think=False, json_format=True)
             try:
                 decision = json.loads(response)
             except json.JSONDecodeError as exc:
@@ -237,11 +261,17 @@ actually verified."""
         decision = self.decide(self.context(readiness))
         action = str(decision["action"])
         self.record.last_action = action
+        self.record.phase = action.upper()
         self.record.updated_at = time.time()
+        self.record.last_duration_seconds = max(0.0, self.record.updated_at - self.record.last_started_at)
+        self.store.event("decision", self.record, action=action, reason=str(decision.get("reason") or ""), query=str(decision.get("query") or ""))
 
         if action == "done":
             self.record.status = "COMPLETED"
+            self.record.phase = "COMPLETED"
+            self.record.last_result = "verified_done"
             self.store.save(self.record)
+            self.store.event("mission_completed", self.record)
             return "done"
 
         if action == "research":
@@ -254,7 +284,10 @@ actually verified."""
             if not result.ok:
                 raise RuntimeError(result.error or "web research failed")
             self.record.status = "EVOLVING"
+            self.record.phase = "RESEARCH"
+            self.record.last_result = "research_ok"
             self.store.save(self.record)
+            self.store.event("action_completed", self.record, action="research", result="ok")
             return "research"
 
         if action == "evolve_code":
@@ -263,7 +296,10 @@ actually verified."""
                 raise RuntimeError(f"code evolution did not produce a verified change: {result}")
             self.record.cycle += 1
             self.record.status = "EVOLVING"
+            self.record.phase = "EVOLVE_CODE"
+            self.record.last_result = str(result)
             self.store.save(self.record)
+            self.store.event("action_completed", self.record, action="evolve_code", result=str(result))
             return "evolve_code"
 
         if action == "observe_unreal":
@@ -275,7 +311,10 @@ actually verified."""
             if response.is_error:
                 raise UnrealMCPError(str(response.error))
             self.record.status = "EVOLVING"
+            self.record.phase = "OBSERVE_UNREAL"
+            self.record.last_result = "snapshot_ok"
             self.store.save(self.record)
+            self.store.event("action_completed", self.record, action="observe_unreal", result="ok")
             return "observe_unreal"
 
         self.broker.call(
@@ -284,7 +323,10 @@ actually verified."""
             decision.get("arguments") if isinstance(decision.get("arguments"), dict) else {},
         )
         self.record.status = "EVOLVING"
+        self.record.phase = "UNREAL_CALL"
+        self.record.last_result = "unreal_call_ok"
         self.store.save(self.record)
+        self.store.event("action_completed", self.record, action="unreal_call", result="ok", toolset=str(decision.get("toolset_name") or ""), tool=str(decision.get("tool_name") or ""))
         return "unreal_call"
 
 
