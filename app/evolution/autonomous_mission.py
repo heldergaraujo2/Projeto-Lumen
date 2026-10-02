@@ -471,6 +471,7 @@ class AutonomousMissionSupervisor:
                     model=self.model,
                     ollama_url=self.ollama_url,
                     broker=self.broker,
+                    learning_store_path=self.store.path.parent.parent / "learning" / "knowledge.json",
                 )
                 engine.step(details)
             except Exception as exc:
