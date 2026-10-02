@@ -178,9 +178,19 @@ class AutonomousProgressController:
         action = action.strip()
         if not action:
             raise ValueError("action is required")
-        fp = fingerprint or self.fingerprint(action)
-        key = f"{action}:{fp}"
-        return self.state.repeat_counts.get(key, 0) < self.repeat_limit
+        if fingerprint is not None:
+            key = f"{action}:{fingerprint}"
+            return self.state.repeat_counts.get(key, 0) < self.repeat_limit
+        # A call without a fingerprint is a generic admission check. Count all
+        # recorded executions of that action instead of comparing against the
+        # synthetic default fingerprint; otherwise detailed action fingerprints
+        # make the repeat limit ineffective and allow loops such as
+        # research -> list_toolsets -> the same failed unreal_call forever.
+        total = sum(
+            count for key, count in self.state.repeat_counts.items()
+            if key.startswith(f"{action}:")
+        )
+        return total < self.repeat_limit
 
     def record(
         self, *, action: str, result: str = "", success: bool = True,
