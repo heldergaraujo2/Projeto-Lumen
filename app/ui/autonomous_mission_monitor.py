@@ -166,6 +166,10 @@ class AutonomousMissionMonitor:
         selected = str(event.get("selected_action") or "").strip()
         proposed = str(event.get("proposed_action") or "").strip()
 
+        if kind == "supervisor_started":
+            return "O supervisor autônomo foi iniciado e a missão está sendo acompanhada em tempo real. Vou registrar cada decisão, ação, erro, correção e validação aqui nesta interface."
+        if kind == "supervisor_stopped":
+            return "O supervisor autônomo foi interrompido. A missão e seu histórico permanecem salvos para que a execução possa ser retomada depois."
         if kind == "decision_started":
             return "Estou analisando o objetivo, o que já foi aprendido e quais evidências ainda faltam. Depois dessa análise vou escolher a próxima ação necessária."
         if kind == "decision_failed":
@@ -175,6 +179,9 @@ class AutonomousMissionMonitor:
             if proposed and selected and proposed != selected:
                 return f"Meu planejador sugeriu '{proposed}', mas o controle de progresso não aceitou essa ação neste momento. Vou executar '{selected}' porque preciso de novas evidências antes de avançar. Motivo: {reason or 'a ação anterior ainda não produziu evidência suficiente.'}"
             return f"Ajustei a próxima ação para manter a missão baseada em evidências. {reason or 'Vou buscar informação nova antes de repetir uma ação.'}"
+        if kind == "decision":
+            chosen = selected or action or "a próxima ação"
+            return f"Analisei o estado atual da missão e escolhi {chosen!r} como próximo passo. Estou usando o objetivo e as evidências já disponíveis para evitar repetir ações sem necessidade."
         if kind == "action_started":
             if action == "research":
                 return f"Vou pesquisar agora para reduzir uma lacuna de conhecimento{': ' + query if query else ''}. O objetivo é aprender antes de alterar o projeto."
