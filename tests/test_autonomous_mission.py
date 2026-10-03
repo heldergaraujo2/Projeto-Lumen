@@ -549,8 +549,13 @@ def test_progress_guard_recovery_fallback_marks_research_as_recovery(tmp_path: P
     assert decision.get("recovery") is None
 
     engine.progress.state.current_gap = "planner failure requires diagnosis"
-    engine.progress.recommend = lambda *_args, **_kwargs: (_ for _ in ()).throw(
-        RuntimeError("autonomous progress exhausted")
+    from app.evolution.autonomous_progress import ProgressDecision
+
+    engine.progress.recommend = lambda *_args, **_kwargs: ProgressDecision(
+        "research",
+        "recover by researching the planner failure",
+        True,
+        True,
     )
     decision = engine.decide("{}")
     assert decision["action"] == "research"
