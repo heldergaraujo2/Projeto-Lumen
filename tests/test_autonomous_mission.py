@@ -376,6 +376,38 @@ def test_failed_unreal_call_persists_capability_gap(tmp_path: Path):
     assert "Unreal capability failed:" in engine.progress.state.current_gap
 
 
+def test_evolve_code_replaces_frozen_config_goal(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_loop import EvolutionConfig
+    from app.evolution.autonomous_progress import AutonomousProgressController
+    from app.learning.runtime import LearningRuntime, LearningStore
+
+    class Evolution:
+        def __init__(self):
+            self.config = EvolutionConfig(repo=tmp_path, goal="old goal")
+            self.seen_goal = ""
+
+        def cycle(self, _cycle):
+            self.seen_goal = self.config.goal
+            return "verified-commit"
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="evolve Unreal capability", project_root=tmp_path)
+    store = MissionStore(path)
+    evolution = Evolution()
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.learning = LearningRuntime(LearningStore(tmp_path / "knowledge.json"))
+    engine._evolution = evolution
+    engine.decide = lambda _context: {"action": "evolve_code", "reason": "implement missing capability"}
+
+    assert engine.step({}) == "evolve_code"
+    assert "evolve Unreal capability" in evolution.seen_goal
+    assert "CAPABILITY GAP:" in evolution.seen_goal
+
+
 def test_evolve_code_failure_is_persisted_and_researchable(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionEngine
     from app.evolution.autonomous_progress import AutonomousProgressController
