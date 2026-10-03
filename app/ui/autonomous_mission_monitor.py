@@ -225,7 +225,7 @@ class AutonomousMissionMonitor:
             if action == "research":
                 return f"Concluí a pesquisa e incorporei o conhecimento encontrado{': ' + result if result else ''}. Agora vou usar essa evidência para decidir o próximo avanço."
             if action == "evolve_code":
-                return f"Concluí uma evolução no código e a etapa de validação retornou '{result or 'sucesso'}'. Vou considerar a mudança somente como progresso verificado e continuar procurando o que ainda falta."
+                return f"Concluí uma evolução no código e a etapa de validação retornou '{result or 'sucesso'}'. Vou considerar a mudança somente como progresso verificado por evidência e continuar procurando o que ainda falta."
             if action == "unreal_call":
                 target = f"{toolset}.{tool}" if toolset and tool else "a ferramenta do Unreal MCP"
                 return f"A chamada '{target}' foi executada. Agora preciso observar o estado do Unreal para confirmar o efeito, porque execução aceita não significa que o objetivo já foi alcançado."
