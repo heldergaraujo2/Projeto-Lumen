@@ -928,14 +928,17 @@ class AutonomousMissionSupervisor:
                 # failure; a new mission or explicit recovery must provide new
                 # evidence before autonomous execution resumes.
                 return
-            ready, details = self.probe.probe()
-            if not ready:
-                record.status = "WAITING_UNREAL"
-                record.last_error = str(details.get("error") or "")
-                record.updated_at = time.time()
-                self.store.save(record)
-                self._stop.wait(self.poll_seconds)
-                continue
+            if record.requires_unreal:
+                ready, details = self.probe.probe()
+                if not ready:
+                    record.status = "WAITING_UNREAL"
+                    record.last_error = str(details.get("error") or "")
+                    record.updated_at = time.time()
+                    self.store.save(record)
+                    self._stop.wait(self.poll_seconds)
+                    continue
+            else:
+                ready, details = True, {"mcp": "not_required", "mission": "local_autonomous_evolution"}
             try:
                 record.status = "EVOLVING"
                 record.last_error = ""
