@@ -28,6 +28,12 @@ class EvolutionConfig:
             raise EvolutionLoopError("repo and goal are required")
         if self.max_attempts_per_cycle < 1 or self.max_cycles < 0:
             raise EvolutionLoopError("invalid limits")
+        for label, command in (("fast test", self.fast_test), ("full test", self.full_test)):
+            for part in command:
+                candidate = Path(part)
+                if candidate.suffix == ".py" and not candidate.is_absolute():
+                    if not (self.repo / candidate).is_file():
+                        raise EvolutionLoopError(f"{label} file not found: {part}")
 
 class GitGuard:
     def __init__(self, repo): self.repo=repo
@@ -142,6 +148,11 @@ class AutonomousEvolutionLoop:
             if not target.exists(): created.append(target)
             target.parent.mkdir(parents=True,exist_ok=True); target.write_text(content,encoding="utf-8")
         return created
+    def _log_event(self, event, **details):
+        record = {"event": event, "timestamp": time.time(), **details}
+        with self.log.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+
     def run_tests(self,command):
         try:
             r=run_pytest_command(self.config.repo, tuple(command), timeout=self.config.test_timeout)
@@ -152,6 +163,7 @@ class AutonomousEvolutionLoop:
         if self.git.branch()!=self.config.branch: raise EvolutionLoopError("wrong branch")
         if self.git.tracked_dirty(): raise EvolutionLoopError("tracked changes exist")
         checkpoint=self.git.head(); baseline=self.git.status(); failure=""
+        self._log_event("cycle_started", cycle=number, checkpoint=checkpoint)
         for attempt in range(1,self.config.max_attempts_per_cycle+1):
             created=[]
             try:
@@ -159,22 +171,32 @@ class AutonomousEvolutionLoop:
                 changes=doc.get("changes",[])
                 if not changes: return "blocked"
                 created=self.apply(changes,baseline)
+                self._log_event("changes_applied", cycle=number, attempt=attempt, paths=[str(item.get("path", "")) for item in changes])
                 ok,out=self.run_tests(self.config.fast_test)
+                self._log_event("fast_test", cycle=number, attempt=attempt, ok=ok, output=out)
                 if not ok:
                     failure="FAST TEST FAILURE:\n"+out; self.git.rollback(checkpoint,self.git.changed_since(checkpoint))
+                    self._log_event("rollback", cycle=number, attempt=attempt, stage="fast_test", failure=out)
                     for p in created:
                         if p.exists(): p.unlink()
                     continue
                 ok,out=self.run_tests(self.config.full_test)
+                self._log_event("full_test", cycle=number, attempt=attempt, ok=ok, output=out)
                 if not ok:
                     failure="FULL TEST FAILURE:\n"+out; self.git.rollback(checkpoint,self.git.changed_since(checkpoint))
+                    self._log_event("rollback", cycle=number, attempt=attempt, stage="full_test", failure=out)
                     for p in created:
                         if p.exists(): p.unlink()
                     continue
-                return self.git.commit(self.git.changed_since(checkpoint),str(doc.get("commit_message") or "evolution cycle"))
+                result = self.git.commit(self.git.changed_since(checkpoint),str(doc.get("commit_message") or "evolution cycle"))
+                self._log_event("cycle_committed", cycle=number, attempt=attempt, head=result)
+                return result
             except Exception as exc:
                 failure=type(exc).__name__+": "+str(exc)
+                self._log_event("attempt_failed", cycle=number, attempt=attempt, error=failure)
                 self.git.rollback(checkpoint,self.git.changed_since(checkpoint))
+                self._log_event("rollback", cycle=number, attempt=attempt, stage="exception", failure=failure)
+        self._log_event("cycle_rolled_back", cycle=number, attempts=self.config.max_attempts_per_cycle, last_failure=failure)
         return "rolled_back"
     def run_forever(self):
         cycle=1
