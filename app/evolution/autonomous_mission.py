@@ -322,6 +322,7 @@ actually verified."""
         if self.record.requires_unreal:
             allowed.update({"list_toolsets", "describe_toolset", "observe_unreal", "unreal_call"})
         planner_error = ""
+        progress = None
 
         try:
             if self.decision_provider is not None:
@@ -394,14 +395,15 @@ actually verified."""
         # or unsupported action, let the deterministic progress controller
         # recover instead of crashing the autonomous loop.
         proposed = action if isinstance(action, str) and action in allowed else ""
-        try:
-            brain = getattr(self, "brain", None)
-            progress = (
-                brain.decide(tuple(allowed), context=self._progress_context())
-                if brain is not None
-                else self.progress.recommend(tuple(allowed), context=self._progress_context())
-            )
-        except Exception as exc:
+        if progress is None:
+            try:
+                brain = getattr(self, "brain", None)
+                progress = (
+                    brain.decide(tuple(allowed), context=self._progress_context())
+                    if brain is not None
+                    else self.progress.recommend(tuple(allowed), context=self._progress_context())
+                )
+            except Exception as exc:
             progress_error = f"{type(exc).__name__}: {exc}"
             # A planner/progress-controller failure is recovery input, not a
             # reason to require a manual mission restart. Keep the mission
