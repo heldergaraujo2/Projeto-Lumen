@@ -12,6 +12,7 @@ salva (``data/settings.json`` + cofre) > variáveis de ambiente > ``.env``
 """
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 
@@ -89,6 +90,9 @@ def build_agent(settings: Settings) -> Agent:
 
 def main() -> int:
     """Inicializa a aplicação; devolve o código de saída do processo."""
+    parser = argparse.ArgumentParser(description="Inicia a interface gráfica da Lumen.")
+    parser.add_argument("--no-autonomous-mission-supervisor", action="store_true", help="Não inicia um segundo supervisor; use quando a missão já roda em outro processo.")
+    args = parser.parse_args()
     try:
         settings = Settings.load()
         setup_logging(settings)
@@ -175,13 +179,14 @@ def main() -> int:
         # F34: if the user has created the single durable autonomous mission,
         # keep watching the real Unreal MCP endpoint. The mission is resumed
         # automatically when the editor/server becomes available again.
-        supervisor = AutonomousMissionSupervisor(
-            repo=PROJECT_ROOT,
-            data_dir=settings.data_dir,
-            model=agent.provider.model_name or settings.model or "qwen2.5-coder:7b-instruct-q8_0",
-            ollama_url=settings.ollama_base_url,
-        )
-        supervisor.start()
+        if not args.no_autonomous_mission_supervisor:
+            supervisor = AutonomousMissionSupervisor(
+                repo=PROJECT_ROOT,
+                data_dir=settings.data_dir,
+                model=agent.provider.model_name or settings.model or "qwen2.5-coder:7b-instruct-q8_0",
+                ollama_url=settings.ollama_base_url,
+            )
+            supervisor.start()
         window = LumenWindow(
             root, agent,
             config_service=config_service,
