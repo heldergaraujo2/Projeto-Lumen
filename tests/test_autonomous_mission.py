@@ -462,7 +462,7 @@ def test_progress_guard_exhaustion_blocks_instead_of_restarting_planning(tmp_pat
     assert any(event["event"] == "decision_failed" and event.get("fallback") == "progress_guard_exhausted" for event in events)
 
 
-def test_supervisor_stops_when_mission_is_blocked(tmp_path: Path):
+def test_supervisor_start_resumes_blocked_mission(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionSupervisor
 
     path = tmp_path / "data" / "evolution" / "mission.json"
@@ -472,23 +472,25 @@ def test_supervisor_stops_when_mission_is_blocked(tmp_path: Path):
     record.last_error = "autonomous progress exhausted"
     MissionStore(path).save(record)
 
-    class Probe:
-        def __init__(self):
-            self.calls = 0
-
-        def probe(self):
-            self.calls += 1
-            raise AssertionError("blocked missions must not probe Unreal or restart planning")
-
     supervisor = object.__new__(AutonomousMissionSupervisor)
     supervisor.store = MissionStore(path)
-    supervisor.probe = Probe()
     supervisor._stop = __import__("threading").Event()
-    supervisor.poll_seconds = 0.01
+    supervisor._thread = None
 
-    supervisor._run()
+    supervisor.start()
 
-    assert supervisor.probe.calls == 0
+    resumed = MissionStore(path).load()
+    assert resumed is not None
+    assert resumed.status == "EVOLVING"
+    assert resumed.phase == "PLANNING"
+    assert resumed.last_error == ""
+    events = [
+        json.loads(line)
+        for line in supervisor.store.event_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert any(event["event"] == "mission_resumed" for event in events)
+    assert any(event["event"] == "supervisor_started" for event in events)
+    supervisor.stop()
 
 
 def test_run_command_starts_existing_mission_and_supports_once_mode(tmp_path: Path, monkeypatch, capsys):
