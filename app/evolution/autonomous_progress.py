@@ -53,6 +53,7 @@ class EvolutionProgressState:
     described_toolsets: list[str] = field(default_factory=list)
     toolset_descriptions: dict[str, Any] = field(default_factory=dict)
     observations: list[str] = field(default_factory=list)
+    observation_details: dict[str, Any] = field(default_factory=dict)
     last_observation_digest: str = ""
     pending_capability: str = ""
     verification_passed: bool = False
@@ -145,6 +146,7 @@ class AutonomousProgressController:
             described_toolsets=list(raw.get("described_toolsets", [])),
             toolset_descriptions=dict(raw.get("toolset_descriptions", {})),
             observations=list(raw.get("observations", [])),
+            observation_details=dict(raw.get("observation_details", {})),
             last_observation_digest=str(raw.get("last_observation_digest", "")),
             pending_capability=str(raw.get("pending_capability", "")),
             verification_passed=bool(raw.get("verification_passed", False)),
@@ -253,6 +255,9 @@ class AutonomousProgressController:
                 self.state.pending_capability = str(capability or "")
                 self.state.verification_passed = False
             if action == "observe_unreal" and success:
+                structured = (details or {}).get("observation_details")
+                if isinstance(structured, Mapping):
+                    self.state.observation_details = dict(structured)
                 digest = str((details or {}).get("observation_digest") or "")
                 if digest:
                     previous = self.state.last_observation_digest
@@ -412,6 +417,7 @@ class AutonomousProgressController:
                 "described_toolsets": tuple(self.state.described_toolsets),
                 "toolset_descriptions": dict(self.state.toolset_descriptions),
                 "observations": tuple(self.state.observations[-max_evidence:]),
+                "observation_details": dict(self.state.observation_details),
                 "last_observation_digest": self.state.last_observation_digest,
                 "pending_capability": self.state.pending_capability,
                 "verification_passed": self.state.verification_passed,
