@@ -132,6 +132,7 @@ def test_digest_changes_after_progress(tmp_path):
     assert c.digest() != before
 
 
+
 def test_new_mission_archives_previous_progress_state(tmp_path):
     p = tmp_path / "autonomous_progress.json"
 
@@ -201,6 +202,37 @@ def test_multiple_old_mission_archives_never_overwrite(tmp_path):
 
     assert json.loads(first.read_text(encoding="utf-8"))["cycle"] == 1
     assert json.loads(second.read_text(encoding="utf-8"))["cycle"] == 2
+
+def test_observation_details_are_persisted_and_exposed(tmp_path):
+    p = tmp_path / "progress.json"
+    details = {
+        "observation_details": {
+            "window_title": "AgeOfAether — Unreal Editor",
+            "root_ref": "w1",
+            "widgets": [
+                {"ref": "b17", "label": "Log de Saída"},
+            ],
+        },
+        "observation_digest": "digest-1",
+    }
+    c = AutonomousProgressController(p, "M")
+    c.record(
+        action="observe_unreal",
+        new_information=True,
+        observation="snapshot-1",
+        details=details,
+    )
+
+    assert c.state.observation_details["window_title"] == "AgeOfAether — Unreal Editor"
+    assert c.state.observation_details["root_ref"] == "w1"
+    assert c.state.observation_details["widgets"][0]["ref"] == "b17"
+
+    reloaded = AutonomousProgressController(p, "M")
+    assert reloaded.state.observation_details == c.state.observation_details
+    context = reloaded.planner_context()
+    assert context["observation_details"]["root_ref"] == "w1"
+    assert context["observation_details"]["widgets"][0]["label"] == "Log de Saída"
+
 
 def test_invalid_file_rejected(tmp_path):
     p = tmp_path / "p.json"

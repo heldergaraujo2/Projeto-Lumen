@@ -839,9 +839,9 @@ intenção
 
 ### 🟡 Conversão completa do Snapshot real para observation_details
 
-A infraestrutura de persistência já está pronta.
+A persistência e exposição de `observation_details` no `AutonomousProgressController` estão implementadas e cobertas por teste automatizado.
 
-Ainda deve ser conectada ao Snapshot real para produzir uma representação estruturada, compacta e útil para o planejador, evitando colocar payloads gigantes ou Base64 no contexto do Ollama.
+Ainda deve ser conectada ao **Snapshot real do Unreal** para produzir automaticamente uma representação estruturada, compacta e útil para o planejador, evitando colocar payloads gigantes ou Base64 no contexto do Ollama.
 
 ---
 
@@ -935,8 +935,8 @@ Antes de avançar para autonomia mais ampla:
 | Unreal PressKey real | 🟢 |
 | Observe → Call → Observe | 🟢 com ressalva semântica |
 | Ollama decision guard | 🟢 |
-| observation_details | 🟢 |
-| Verificação semântica | 🔴 |
+| observation_details — persistência/contexto | 🟢 |
+| Snapshot real → observation_details | 🟡 |
 | Gap → ferramenta automática | 🟡 |
 | Capability Registry fechado | 🟡 |
 | Verificador objetivo de missão | 🔴 |
