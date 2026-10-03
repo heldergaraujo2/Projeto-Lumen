@@ -405,39 +405,39 @@ actually verified."""
                 )
             except Exception as exc:
                 progress_error = f"{type(exc).__name__}: {exc}"
-            # A planner/progress-controller failure is recovery input, not a
-            # reason to require a manual mission restart. Keep the mission
-            # alive so the next decision can research the failure and recover.
-            self.record.status = "EVOLVING"
-            self.record.phase = "RECOVERY"
-            self.record.last_error = progress_error
-            self.progress.state.recovery_required = True
-            self.progress.state.current_gap = (
-                f"Autonomous progress/planner failure requires diagnosis: {progress_error}"
-            )
-            self.progress.save()
-            self.record.updated_at = time.time()
-            self.store.save(self.record)
-            self.store.event(
-                "decision_failed",
-                self.record,
-                error=progress_error,
-                fallback="autonomous_recovery",
-                proposed_action=proposed,
-            )
-            fallback_action = "research" if "research" in allowed else next(iter(allowed), "evolve_code")
-            return {
-                "action": fallback_action,
-                "reason": (
-                    "Progress guard failed; autonomously investigate the failure "
-                    f"before retrying. Error: {progress_error}"
-                ),
-                "query": f"Diagnose and fix autonomous mission failure: {progress_error}",
-                "recovery": True,
-                "toolset_name": "",
-                "tool_name": "",
-                "arguments": {},
-            }
+                # A planner/progress-controller failure is recovery input, not a
+                # reason to require a manual mission restart. Keep the mission
+                # alive so the next decision can research the failure and recover.
+                self.record.status = "EVOLVING"
+                self.record.phase = "RECOVERY"
+                self.record.last_error = progress_error
+                self.progress.state.recovery_required = True
+                self.progress.state.current_gap = (
+                    f"Autonomous progress/planner failure requires diagnosis: {progress_error}"
+                )
+                self.progress.save()
+                self.record.updated_at = time.time()
+                self.store.save(self.record)
+                self.store.event(
+                    "decision_failed",
+                    self.record,
+                    error=progress_error,
+                    fallback="autonomous_recovery",
+                    proposed_action=proposed,
+                )
+                fallback_action = "research" if "research" in allowed else next(iter(allowed), "evolve_code")
+                return {
+                    "action": fallback_action,
+                    "reason": (
+                        "Progress guard failed; autonomously investigate the failure "
+                        f"before retrying. Error: {progress_error}"
+                    ),
+                    "query": f"Diagnose and fix autonomous mission failure: {progress_error}",
+                    "recovery": True,
+                    "toolset_name": "",
+                    "tool_name": "",
+                    "arguments": {},
+                }
         proposed_payload = {
             "toolset_name": decision.get("toolset_name"),
             "tool_name": decision.get("tool_name"),
