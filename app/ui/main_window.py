@@ -64,6 +64,7 @@ class LumenWindow:
         tools_controller=None,
         plugin_reports=(),
         data_dir=None,
+        mission_supervisor_factory=None,
     ) -> None:
         self._root = root
         self._agent = agent
@@ -72,6 +73,8 @@ class LumenWindow:
         self._tools_controller = tools_controller
         self._plugin_reports = tuple(plugin_reports)
         self._data_dir = data_dir
+        self._mission_supervisor_factory = mission_supervisor_factory
+        self._mission_supervisor = None
         self._mission_monitor = None
         self._busy = False
         self._status = "ready"
@@ -113,6 +116,23 @@ class LumenWindow:
         """Atualiza o cabeçalho após troca de provedor (tela de configurações)."""
         self.subtitle_label.configure(text=self._provider_subtitle())
 
+    def _start_autonomous_mission(self) -> None:
+        """Inicia ou retoma a missão persistente pelo controle da UI."""
+        if self._mission_supervisor is not None:
+            return
+        if self._mission_supervisor_factory is None:
+            raise RuntimeError("Supervisor autônomo não configurado.")
+        self._mission_supervisor = self._mission_supervisor_factory()
+        self._mission_supervisor.start()
+
+    def _stop_autonomous_mission(self) -> None:
+        """Para o supervisor sem apagar a missão persistente."""
+        supervisor = self._mission_supervisor
+        if supervisor is None:
+            return
+        supervisor.stop()
+        self._mission_supervisor = None
+
     def _open_autonomous_monitor(self) -> None:
         """Abre o monitor em tempo real da missão autônoma persistente."""
         from app.ui.autonomous_mission_monitor import AutonomousMissionMonitor
@@ -128,7 +148,12 @@ class LumenWindow:
                     return
             except tk.TclError:
                 pass
-        self._mission_monitor = AutonomousMissionMonitor(self._root, data_dir=data_dir)
+        self._mission_monitor = AutonomousMissionMonitor(
+            self._root,
+            data_dir=data_dir,
+            on_start_mission=self._start_autonomous_mission,
+            on_stop_mission=self._stop_autonomous_mission,
+        )
 
     def _open_operations(self) -> None:
         """Abre o centro operacional com abas de runtime e capacidades."""
