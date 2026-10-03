@@ -21,6 +21,32 @@ _WARN = "#e2b93b"
 _ERR = "#e2606f"
 _ACCENT = "#7aa2ff"
 
+_STATUS_PT = {
+    "RUNNING": "EM EXECUÇÃO",
+    "EVOLVING": "EVOLUINDO",
+    "WAITING_UNREAL": "AGUARDANDO UNREAL",
+    "PLANNING": "PLANEJANDO",
+    "COMPLETED": "CONCLUÍDA",
+    "BLOCKED": "BLOQUEADA",
+}
+_PHASE_PT = {
+    "PLANNING": "PLANEJAMENTO",
+    "RESEARCH": "PESQUISA",
+    "EVOLVE_CODE": "EVOLUÇÃO DO CÓDIGO",
+    "VERIFY_VOICE": "VALIDAÇÃO DE VOZ",
+    "OBSERVE_UNREAL": "OBSERVAÇÃO DO UNREAL",
+    "UNREAL_CALL": "EXECUÇÃO NO UNREAL",
+    "WAITING_UNREAL": "AGUARDANDO UNREAL",
+}
+_ACTION_PT = {
+    "research": "pesquisa",
+    "evolve_code": "evolução do código",
+    "verify_voice": "validação da voz",
+    "observe_unreal": "observação do Unreal",
+    "unreal_call": "execução no Unreal",
+    "done": "conclusão",
+}
+
 
 class AutonomousMissionMonitor:
     """Live, read-only window for the persisted autonomous mission."""
@@ -246,7 +272,9 @@ class AutonomousMissionMonitor:
                 clock = __import__("datetime").datetime.fromtimestamp(stamp).strftime("%H:%M:%S")
             except (TypeError, ValueError, OSError):
                 clock = "--:--:--"
-            line = f"[{clock}] {action} | fase={phase}{suffix}\n"
+            action_pt = _ACTION_PT.get(str(event.get("action") or ""), str(event.get("action") or action))
+            phase_pt = _PHASE_PT.get(str(phase), str(phase))
+            line = f"[{clock}] {action} | fase={phase_pt}{suffix}\n"
             tag = "error" if "error" in action or event.get("status") == "BLOCKED" else (
                 "ok" if action in {"action_completed", "mission_completed"} else "muted"
             )
@@ -265,10 +293,12 @@ class AutonomousMissionMonitor:
         else:
             status = str(mission.get("status") or "UNKNOWN")
             color = _OK if status == "COMPLETED" else _ERR if status == "BLOCKED" else _WARN
-            self.connection.configure(text=f"● {status}", fg=color)
-            self.status.configure(text=status)
-            self.phase.configure(text=str(mission.get("phase") or "—"))
-            self.action.configure(text=str(mission.get("last_action") or "—"))
+            self.connection.configure(text=f"● {_STATUS_PT.get(status, status)}", fg=color)
+            self.status.configure(text=_STATUS_PT.get(status, status))
+            phase = str(mission.get("phase") or "—")
+            self.phase.configure(text=_PHASE_PT.get(phase, phase))
+            last_action = str(mission.get("last_action") or "—")
+            self.action.configure(text=_ACTION_PT.get(last_action, last_action))
             self.cycle.configure(text=str(mission.get("cycle", 0)))
             self.updated.configure(text=str(mission.get("updated_at") or "—"))
             self.goal.configure(text=str(mission.get("goal") or "—"))
