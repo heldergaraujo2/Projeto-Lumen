@@ -305,6 +305,7 @@ actually verified."""
             "can_evolve_code": True,
             "can_unreal_call": self.record.requires_unreal,
             "capability_gap": bool(self.progress.state.current_gap),
+            "recovery": self.record.phase == "RECOVERY",
         }
 
     def decide(self, context: str) -> dict[str, Any]:
@@ -424,6 +425,7 @@ actually verified."""
                     f"before retrying. Error: {progress_error}"
                 ),
                 "query": f"Diagnose and fix autonomous mission failure: {progress_error}",
+                "recovery": True,
                 "toolset_name": "",
                 "tool_name": "",
                 "arguments": {},
@@ -718,10 +720,16 @@ actually verified."""
                 action="research",
                 result=f"knowledge={len(learned)}",
                 success=True,
-                new_information=bool(learned),
+                # A successful recovery investigation is itself new
+                # evidence even when the web provider returns no previously
+                # unseen knowledge. This lets the progress controller move
+                # from diagnosis to a bounded corrective action instead of
+                # treating an empty research result as permission to repeat
+                # the same research forever.
+                new_information=bool(learned) or bool(decision.get("recovery")),
                 research_finding=query,
-                gap=gap or None,
-                details={"knowledge_items": len(learned)},
+                gap=gap or (self.progress.state.current_gap if decision.get("recovery") else None),
+                details={"knowledge_items": len(learned), "recovery": bool(decision.get("recovery"))},
             )
             self.record.status = "EVOLVING"
             self.record.phase = "RESEARCH"
