@@ -1051,6 +1051,15 @@ def main() -> int:
     )
     init.add_argument("--project-root", required=True)
     init.add_argument("--data-dir", default="data")
+
+    run = sub.add_parser("run", help="Executa/resume a missão persistente.")
+    run.add_argument("--project-root", default=str(Path.cwd()))
+    run.add_argument("--data-dir", default="data")
+    run.add_argument("--model", default="qwen3:8b")
+    run.add_argument("--ollama-url", default="http://127.0.0.1:11434")
+    run.add_argument("--poll-seconds", type=float, default=5.0)
+    run.add_argument("--once", action="store_true", help="Inicia o supervisor e retorna após um pequeno intervalo.")
+    run.add_argument("--once-seconds", type=float, default=0.25)
     args = parser.parse_args()
     if args.command == "init":
         goal = args.goal.strip()
@@ -1068,6 +1077,41 @@ def main() -> int:
         )
         print(json.dumps(asdict(record), ensure_ascii=False, indent=2))
         return 0
+    if args.command == "run":
+        data_dir = Path(args.data_dir)
+        project_root = Path(args.project_root).expanduser().resolve()
+        supervisor = AutonomousMissionSupervisor(
+            repo=project_root,
+            data_dir=data_dir,
+            model=args.model,
+            ollama_url=args.ollama_url,
+            poll_seconds=args.poll_seconds,
+        )
+        if supervisor.store.load() is None:
+            parser.error("nenhuma missão ativa encontrada; inicialize uma missão antes de usar run")
+        supervisor.start()
+        record = supervisor.store.load()
+        print(json.dumps({
+            "mission_id": record.mission_id if record else "",
+            "status": "RUNNING",
+            "project_root": str(project_root),
+            "data_dir": str(data_dir.resolve()),
+            "ui_command": "python main.py --no-autonomous-mission-supervisor",
+        }, ensure_ascii=False, indent=2))
+        if args.once:
+            time.sleep(max(0.05, args.once_seconds))
+            supervisor.stop()
+            return 0
+        print("Lumen autonomous mission running. Press Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(1.0)
+        except KeyboardInterrupt:
+            print("\nStopping autonomous mission...")
+        finally:
+            supervisor.stop()
+        return 0
+
     return 2
 
 
