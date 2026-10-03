@@ -487,6 +487,8 @@ def test_progress_guard_failure_enters_autonomous_recovery_instead_of_blocking(t
     assert record.status == "EVOLVING"
     assert record.phase == "RECOVERY"
     assert "progress exhausted" in record.last_error
+    assert engine.progress.state.recovery_required is True
+    assert "progress/planner failure" in engine.progress.state.current_gap
     events = [json.loads(line) for line in store.event_path.read_text(encoding="utf-8").splitlines()]
     assert any(event["event"] == "decision_failed" and event.get("fallback") == "autonomous_recovery" for event in events)
 
