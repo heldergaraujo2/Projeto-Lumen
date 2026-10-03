@@ -1,6 +1,41 @@
 {
   "experiences": {},
   "goals": {
+    "LEARN-001884017c5941aba328c999590d2930": {
+      "goal_id": "LEARN-001884017c5941aba328c999590d2930",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-027760485f254e8b8ed964aa4935a2fb": {
+      "goal_id": "LEARN-027760485f254e8b8ed964aa4935a2fb",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-090639414d194602adfd5727925ad1da": {
+      "goal_id": "LEARN-090639414d194602adfd5727925ad1da",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-124199e0498f4846b932a62fdddf6ac5": {
+      "goal_id": "LEARN-124199e0498f4846b932a62fdddf6ac5",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-13be5464768545c99e2559275fc87bf1": {
+      "goal_id": "LEARN-13be5464768545c99e2559275fc87bf1",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
     "LEARN-1dfc46ea8fe04b51bde4b2ea895fd0c1": {
       "goal_id": "LEARN-1dfc46ea8fe04b51bde4b2ea895fd0c1",
       "knowledge_ids": [
@@ -12,6 +47,216 @@
       "status": "researched",
       "topics": []
     },
+    "LEARN-24a9d9bda1f845caa75da6f803add129": {
+      "goal_id": "LEARN-24a9d9bda1f845caa75da6f803add129",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-291d7eede4004e12bc8e0e1f4483d72e": {
+      "goal_id": "LEARN-291d7eede4004e12bc8e0e1f4483d72e",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-2cefacc3366f415dbec90fcf1dcdd8ac": {
+      "goal_id": "LEARN-2cefacc3366f415dbec90fcf1dcdd8ac",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-2d43adeab40c4b9681f93901ae2edcb3": {
+      "goal_id": "LEARN-2d43adeab40c4b9681f93901ae2edcb3",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-2e29e83c9dc541dea1baf444e6beb932": {
+      "goal_id": "LEARN-2e29e83c9dc541dea1baf444e6beb932",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-3201cad07d3546d79d87d0846079c082": {
+      "goal_id": "LEARN-3201cad07d3546d79d87d0846079c082",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-34f145577fe1497880215ebdba47a506": {
+      "goal_id": "LEARN-34f145577fe1497880215ebdba47a506",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-3815d1e64965455ea5a0fc8540db283e": {
+      "goal_id": "LEARN-3815d1e64965455ea5a0fc8540db283e",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-3965d574a083400fa6d2f082f2ea7563": {
+      "goal_id": "LEARN-3965d574a083400fa6d2f082f2ea7563",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-3ef7d01d6d99441c83bf61b296af53b7": {
+      "goal_id": "LEARN-3ef7d01d6d99441c83bf61b296af53b7",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-436c01a588b94abd89dd6af69d01a93e": {
+      "goal_id": "LEARN-436c01a588b94abd89dd6af69d01a93e",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-4c77d15fe9c841cbb64083ef5ce67a75": {
+      "goal_id": "LEARN-4c77d15fe9c841cbb64083ef5ce67a75",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-50d8ae3be247421d898ca262f5bab576": {
+      "goal_id": "LEARN-50d8ae3be247421d898ca262f5bab576",
+      "knowledge_ids": [],
+      "objective": "Analise o Unreal Editor atualmente aberto, observe o estado da interface e do projeto/cena, identifique uma ação pequena e segura que possa ser executada no Unreal, execute essa ação e verifique por nova observação se a alteração ocorreu. Se faltar uma capacidade necessária, pesquise na web, aprenda com as evidências encontradas, desenvolva a capacidade necessária e tente novamente. Não considere a missão concluída sem evidência observável do resultado.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-51487cf2096d4f70bd6dce34eb9e35af": {
+      "goal_id": "LEARN-51487cf2096d4f70bd6dce34eb9e35af",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-5268ab19249342e7ad4a0087c26ad3d9": {
+      "goal_id": "LEARN-5268ab19249342e7ad4a0087c26ad3d9",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-5ccf0a48f0c64ac0bab7c35c3ce9fcca": {
+      "goal_id": "LEARN-5ccf0a48f0c64ac0bab7c35c3ce9fcca",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-60d1a14002c3467a8f652fffb7e710a2": {
+      "goal_id": "LEARN-60d1a14002c3467a8f652fffb7e710a2",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-6e31589e5d5e4f43864dd60cadad35b0": {
+      "goal_id": "LEARN-6e31589e5d5e4f43864dd60cadad35b0",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-6e4ceddf29f14d70ac3a12c635aea5ea": {
+      "goal_id": "LEARN-6e4ceddf29f14d70ac3a12c635aea5ea",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-7208f76cc6c345ac8b0eeee0ef75de60": {
+      "goal_id": "LEARN-7208f76cc6c345ac8b0eeee0ef75de60",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-78444a29ae4945b8b289c11913343d77": {
+      "goal_id": "LEARN-78444a29ae4945b8b289c11913343d77",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-78597ccb13094411ad5761114be11a34": {
+      "goal_id": "LEARN-78597ccb13094411ad5761114be11a34",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-79f066eff0e34051ab0b52ccfe27170e": {
+      "goal_id": "LEARN-79f066eff0e34051ab0b52ccfe27170e",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-7a3633b873e3415eadcdac806b224046": {
+      "goal_id": "LEARN-7a3633b873e3415eadcdac806b224046",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-7ab125c7d9324a43a4b7fc529507f39c": {
+      "goal_id": "LEARN-7ab125c7d9324a43a4b7fc529507f39c",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-835615f64c124ec7a0300c1641702157": {
+      "goal_id": "LEARN-835615f64c124ec7a0300c1641702157",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-86a754e4cbe7476b9e32b158d7678555": {
+      "goal_id": "LEARN-86a754e4cbe7476b9e32b158d7678555",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-8a55a91d297d4d8abfb33e44c6555988": {
+      "goal_id": "LEARN-8a55a91d297d4d8abfb33e44c6555988",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-9455f5927455455e8710f8ecc3a56a2a": {
+      "goal_id": "LEARN-9455f5927455455e8710f8ecc3a56a2a",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-981b5e8be0dc47e0ae1dc438225c18d1": {
+      "goal_id": "LEARN-981b5e8be0dc47e0ae1dc438225c18d1",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
     "LEARN-9894c034b5dc4ff1b79b2b9c26e26521": {
       "goal_id": "LEARN-9894c034b5dc4ff1b79b2b9c26e26521",
       "knowledge_ids": [
@@ -20,6 +265,160 @@
         "KNOW-09217458070c47688c6d485c186a4ea3"
       ],
       "objective": "What are the specific capabilities of the SlateInspectorToolset and ToolsetRegistry.AgentSkillToolset, and how can they be used to achieve the mission goals of making Lumen autonomous in Unreal Engine?",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-a4113e0db5ac421c8554fc319f6bcb23": {
+      "goal_id": "LEARN-a4113e0db5ac421c8554fc319f6bcb23",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-a5c707eef832419fbcf0df92f2d1af59": {
+      "goal_id": "LEARN-a5c707eef832419fbcf0df92f2d1af59",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-a6e0300693d1498e972c8738b4544ea8": {
+      "goal_id": "LEARN-a6e0300693d1498e972c8738b4544ea8",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-ace2627e822a4648822c14d38a73b2e0": {
+      "goal_id": "LEARN-ace2627e822a4648822c14d38a73b2e0",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-ad84ceab498e4c788419f93712adff58": {
+      "goal_id": "LEARN-ad84ceab498e4c788419f93712adff58",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-b6d4e93bb5004b7dbe55f5e158f57b64": {
+      "goal_id": "LEARN-b6d4e93bb5004b7dbe55f5e158f57b64",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-b6f496a05b1245fcbe0e7c3a852ed0ae": {
+      "goal_id": "LEARN-b6f496a05b1245fcbe0e7c3a852ed0ae",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-c2b5dc7ccf5e4335b99ec59fdaab100d": {
+      "goal_id": "LEARN-c2b5dc7ccf5e4335b99ec59fdaab100d",
+      "knowledge_ids": [],
+      "objective": "Analise o Unreal Editor atualmente aberto, observe o estado da interface e do projeto/cena, identifique uma ação pequena e segura que possa ser executada no Unreal, execute essa ação e verifique por nova observação se a alteração ocorreu. Se faltar uma capacidade necessária, pesquise na web, aprenda com as evidências encontradas, desenvolva a capacidade necessária e tente novamente. Não considere a missão concluída sem evidência observável do resultado.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-d23515fb016b466daba323bc9dca39a4": {
+      "goal_id": "LEARN-d23515fb016b466daba323bc9dca39a4",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-d3a21b715aaf4595b4cf9da3fd7122a9": {
+      "goal_id": "LEARN-d3a21b715aaf4595b4cf9da3fd7122a9",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-d3ee5a2e733749b7be6de2a7745b23c7": {
+      "goal_id": "LEARN-d3ee5a2e733749b7be6de2a7745b23c7",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-d569255893114d818953df20e49058d5": {
+      "goal_id": "LEARN-d569255893114d818953df20e49058d5",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-d9db07099373401ea0eb3010cfa36fbc": {
+      "goal_id": "LEARN-d9db07099373401ea0eb3010cfa36fbc",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-db4a32be59884b37a6d8de4ada9f2dbc": {
+      "goal_id": "LEARN-db4a32be59884b37a6d8de4ada9f2dbc",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-ddd94b0d414349f6a49e0ccf173378f3": {
+      "goal_id": "LEARN-ddd94b0d414349f6a49e0ccf173378f3",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-df7816edcac4483c8574024e5b5d319a": {
+      "goal_id": "LEARN-df7816edcac4483c8574024e5b5d319a",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-e34a7041a8894869861f901e67b95a58": {
+      "goal_id": "LEARN-e34a7041a8894869861f901e67b95a58",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-e821fff69f16437895d958339468094c": {
+      "goal_id": "LEARN-e821fff69f16437895d958339468094c",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-f1dd40561c5845b0859a7d52f04b456c": {
+      "goal_id": "LEARN-f1dd40561c5845b0859a7d52f04b456c",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-f38b789879d94e96955e53a62c85b24b": {
+      "goal_id": "LEARN-f38b789879d94e96955e53a62c85b24b",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-f670a2d85665480e838ca63fd3ecd43c": {
+      "goal_id": "LEARN-f670a2d85665480e838ca63fd3ecd43c",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
+      "status": "researched",
+      "topics": []
+    },
+    "LEARN-f8d90378cea84026bfd12d58c16dcd0e": {
+      "goal_id": "LEARN-f8d90378cea84026bfd12d58c16dcd0e",
+      "knowledge_ids": [],
+      "objective": "Torne a Lúmen progressivamente autônoma no Unreal Engine. Desenvolva, pesquise, implemente e teste as capacidades necessárias para observar, compreender, controlar, criar, modificar e validar um projeto Unreal de forma segura. Comece pelos controles e pela percepção do Unreal, descubra as capacidades disponíveis via MCP, crie ou evolua ferramentas quando faltarem, teste cada capacidade na prática e mantenha a evolução persistente até que a Lúmen consiga operar o Unreal de forma autônoma.",
       "status": "researched",
       "topics": []
     }
