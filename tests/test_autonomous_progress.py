@@ -71,6 +71,34 @@ def test_recovery_budget_is_bounded(tmp_path):
     with pytest.raises(RuntimeError):
         c.begin_recovery("x")
 
+
+def test_recovery_research_starts_a_new_code_correction_budget(tmp_path):
+    c = AutonomousProgressController(tmp_path / "p.json", "M", max_recovery_attempts=2)
+    c.begin_recovery("evolve_code")
+    c.begin_recovery("evolve_code")
+    assert not c.recovery_available("evolve_code")
+
+    c.record(
+        action="research",
+        result="knowledge=0",
+        success=True,
+        new_information=True,
+        details={"recovery": True},
+    )
+
+    assert c.state.recovery_counts["evolve_code"] == 0
+    assert c.recovery_available("evolve_code")
+    decision = c.recommend(
+        ("research", "evolve_code"),
+        context={
+            "recovery": True,
+            "capability_gap": True,
+            "can_evolve_code": True,
+        },
+    )
+    assert decision.action == "evolve_code"
+    assert decision.recovery
+
 def test_stagnation_guard_breaks_repeat_loop(tmp_path):
     c = AutonomousProgressController(tmp_path / "p.json", "M", stagnation_limit=2)
     c.record(action="research", new_information=False)
