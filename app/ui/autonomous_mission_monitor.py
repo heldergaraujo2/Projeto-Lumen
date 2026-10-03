@@ -205,7 +205,7 @@ class AutonomousMissionMonitor:
             return f"Encontrei um problema: {error}. Vou investigar a causa, corrigir o que for necessário e validar novamente."
         return "A missão registrou uma nova etapa. Estou usando esse resultado como evidência para decidir o próximo passo."
 
-    def _append_events(self):
+    def _append_events(self, mission_id: str | None = None):
         try:
             with self._event_path.open("r", encoding="utf-8") as handle:
                 handle.seek(self._last_event_offset)
@@ -220,6 +220,8 @@ class AutonomousMissionMonitor:
             try:
                 event = json.loads(raw)
             except json.JSONDecodeError:
+                continue
+            if mission_id and event.get("mission_id") != mission_id:
                 continue
             stamp = event.get("timestamp", 0)
             action = event.get("event", "?")
@@ -265,7 +267,7 @@ class AutonomousMissionMonitor:
             self.goal.configure(text=str(mission.get("goal") or "—"))
             self.result.configure(text=f"Último resultado:\n{mission.get('last_result') or '—'}")
             self.error.configure(text=f"Último erro:\n{mission.get('last_error') or 'Nenhum'}")
-        self._append_events()
+        self._append_events(str(mission.get("mission_id") or "") if mission else None)
 
     def _poll(self):
         if self._closed:
