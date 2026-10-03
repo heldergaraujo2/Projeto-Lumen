@@ -305,7 +305,7 @@ actually verified."""
             "can_evolve_code": True,
             "can_unreal_call": self.record.requires_unreal,
             "capability_gap": bool(self.progress.state.current_gap),
-            "recovery": self.record.phase == "RECOVERY",
+            "recovery": self.record.phase == "RECOVERY" or self.progress.state.recovery_required,
         }
 
     def decide(self, context: str) -> dict[str, Any]:
@@ -409,6 +409,11 @@ actually verified."""
             self.record.status = "EVOLVING"
             self.record.phase = "RECOVERY"
             self.record.last_error = progress_error
+            self.progress.state.recovery_required = True
+            self.progress.state.current_gap = (
+                f"Autonomous progress/planner failure requires diagnosis: {progress_error}"
+            )
+            self.progress.save()
             self.record.updated_at = time.time()
             self.store.save(self.record)
             self.store.event(
@@ -800,6 +805,7 @@ actually verified."""
                 )
                 self.record.status = "EVOLVING"
                 self.record.phase = "EVOLVE_CODE"
+                self.progress.state.recovery_required = True
                 self.record.last_result = "evolve_code_failed"
                 self.record.last_error = error
                 self.record.updated_at = time.time()
@@ -826,6 +832,7 @@ actually verified."""
             )
             self.record.status = "EVOLVING"
             self.record.phase = "EVOLVE_CODE"
+            self.progress.state.recovery_required = False
             self.record.last_result = str(result)
             self.record.last_error = ""
             self.store.save(self.record)
