@@ -496,6 +496,10 @@ class LumenWindow:
 
     def _handle_close(self) -> None:
         logger.info("Janela fechada pelo usuário.")
+        try:
+            self._stop_autonomous_mission()
+        except Exception:
+            logger.exception("Falha ao parar o supervisor autônomo durante o encerramento.")
         if self._on_close is not None:
             try:
                 self._on_close()
