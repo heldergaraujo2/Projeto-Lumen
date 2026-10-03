@@ -621,6 +621,151 @@ Campos validados:
 
 ---
 
+
+---
+
+## 11A. Bateria PASSOS 35A–35H — observação e ação real controlada
+
+### PASSO 35A — root observation
+
+**Status: 🟢 APROVADO**
+
+Snapshot real da janela `AgeOfAether — Unreal Editor` foi adquirido pelo cliente MCP.
+
+Evidências:
+- MCP acessível;
+- Snapshot real retornado;
+- `w1` identificado como referência da janela;
+- nenhuma mutação executada.
+
+### PASSO 35B — ListObservers
+
+**Status: 🟢 APROVADO**
+
+Resultado real identificou:
+- `observer_1` — observador raiz;
+- `observer_2` — observador profundo em `w1`.
+
+Nenhuma mutação executada.
+
+### PASSO 35C — inventário estrutural do Snapshot
+
+**Status: 🟢 APROVADO**
+
+Snapshot profundo:
+- tamanho: **5957** caracteres;
+- referências descobertas: **114**;
+- `b17` — Log de Saída;
+- `b19` — Diagnóstico;
+- `b33` — Compilar;
+- `b16` — Gaveta de Conteúdo.
+
+Nenhuma ação executada.
+
+### PASSO 35D–35G — resolução robusta de referência
+
+**Status: 🟢 APROVADO**
+
+Foi constatado que a saída textual do terminal pode apresentar mojibake em rótulos acentuados. A resolução final não dependeu do texto Unicode do rótulo: a referência estrutural `[ref=b17]` foi encontrada diretamente.
+
+Resultado:
+- `b17` confirmado;
+- `Log de Saída` estruturalmente identificado;
+- nenhuma ação adicional executada durante a resolução.
+
+### PASSO 35H — Click real em b17
+
+**Status: 🟢 APROVADO COMO EXECUÇÃO / 🟡 EFEITO SEMÂNTICO NÃO CONFIRMADO**
+
+Uma única chamada real foi executada:
+
+```
+Click(ref="b17")
+→ returnValue: true
+```
+
+Evidências pós-ação:
+- Snapshot antes: **5957** caracteres;
+- Snapshot depois: **5957** caracteres;
+- digest antes: `8e7cf1fcb2f5a9863a1f1b5e164cf37483b353798275b5090224e10f4825a78b`;
+- digest depois: `8e7cf1fcb2f5a9863a1f1b5e164cf37483b353798275b5090224e10f4825a78b`;
+- nenhuma linha nova;
+- nenhuma linha removida;
+- `b17` permaneceu presente;
+- nenhuma compilação foi executada.
+
+Conclusão: o MCP aceitou e executou o Click, mas a observação estrutural não mostrou alteração. Portanto, **não é permitido inferir que o painel foi aberto nem que qualquer efeito semântico ocorreu**.
+
+### PASSO 36 — descoberta das ferramentas de verificação
+
+**Status: 🟢 APROVADO**
+
+A descrição real de `SlateInspectorToolset.SlateInspectorToolset` confirmou as ferramentas:
+- `WaitFor`;
+- `Snapshot`;
+- `Screenshot`;
+- `Observe`;
+- `ListObservers`;
+- `Unobserve`;
+- `Click`;
+- `Type`;
+- `PressKey`;
+- `Hover`;
+- `FillForm`;
+- `SelectOption`;
+- `Drag`;
+- `Windows`.
+
+Descoberta especialmente relevante:
+- `Screenshot` retorna `ToolsetImage` com `mimeType` e `data` Base64;
+- `WaitFor` verifica presença/ausência de texto na árvore Slate;
+- `Observe` mantém referências atualizadas aproximadamente a cada 100 ms.
+
+Nenhuma ação Unreal foi executada neste passo.
+
+### PASSO 37 — evidência visual real
+
+**Status: 🟢 APROVADO**
+
+Foi executado somente `Screenshot(ref="w1")`, sem mutação.
+
+Evidências:
+- `B17_PRESENTE: PASS`;
+- `SCREENSHOT_MIME: image/png`;
+- Base64 retornado: **1.821.048** caracteres;
+- imagem decodificada: **1.365.785 bytes**;
+- arquivo runtime gerado em `data/evolution/pass37_unreal_ui.png`.
+
+A imagem é evidência de estado visual real da UI do Unreal. O arquivo é runtime/teste e **não deve ser tratado como alteração de código nem como evidência de sucesso semântico da ação de 35H**.
+
+### Conclusão da bateria 35–37
+
+O estado comprovado agora é:
+
+```
+MCP real
+  ↓
+toolset real
+  ↓
+Snapshot/Observe real
+  ↓
+widget real identificado
+  ↓
+Click real aceito/executado
+  ↓
+Snapshot pós-ação
+  ↓
+Screenshot real disponível
+  ↓
+efeito semântico ainda NÃO comprovado
+```
+
+Esta distinção deve permanecer explícita no desenvolvimento da Lúmen:
+
+**execução aceita ≠ efeito observado ≠ resultado semântico verificado.**
+
+---
+
 ## 12. O que já foi comprovado ponta a ponta
 
 ### 🟢 Pesquisa → aprendizagem
