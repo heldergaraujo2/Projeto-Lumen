@@ -51,9 +51,18 @@ _ACTION_PT = {
 class AutonomousMissionMonitor:
     """Live, read-only window for the persisted autonomous mission."""
 
-    def __init__(self, parent, *, data_dir: str | Path):
+    def __init__(
+        self,
+        parent,
+        *,
+        data_dir: str | Path,
+        on_start_mission=None,
+        on_stop_mission=None,
+    ):
         self._parent = parent
         self._data_dir = Path(data_dir)
+        self._on_start_mission = on_start_mission
+        self._on_stop_mission = on_stop_mission
         self._mission_path = self._data_dir / "evolution" / "mission.json"
         self._event_path = self._data_dir / "evolution" / "evolution_log.jsonl"
         self._last_event_offset = 0
@@ -154,10 +163,25 @@ class AutonomousMissionMonitor:
         )
         self.thinking.pack(fill=tk.X, padx=14, pady=(0, 12))
 
-        tk.Button(
-            right, text="Atualizar agora", command=self._refresh,
+        controls = tk.Frame(right, bg=_PANEL)
+        controls.pack(fill=tk.X, padx=14, pady=14)
+
+        self.start_button = tk.Button(
+            controls, text="▶ Iniciar / Retomar missão", command=self._start_mission,
             relief=tk.FLAT, bg=_ACCENT, fg="#0d1220",
-        ).pack(anchor=tk.W, padx=14, pady=14)
+        )
+        self.start_button.pack(fill=tk.X, pady=(0, 6))
+
+        self.stop_button = tk.Button(
+            controls, text="■ Parar supervisor", command=self._stop_mission,
+            relief=tk.FLAT, bg=_PANEL, fg=_TEXT,
+        )
+        self.stop_button.pack(fill=tk.X, pady=(0, 6))
+
+        tk.Button(
+            controls, text="Atualizar agora", command=self._refresh,
+            relief=tk.FLAT, bg=_PANEL, fg=_MUTED,
+        ).pack(fill=tk.X)
 
     def _metric(self, parent, title):
         frame = tk.Frame(parent, bg=_PANEL)
@@ -285,6 +309,40 @@ class AutonomousMissionMonitor:
             self.log.configure(state=tk.DISABLED)
             self.thinking.configure(text=explanation)
 
+    def _start_mission(self):
+        if self._on_start_mission is None:
+            self.thinking.configure(
+                text="O controle de início da missão não está disponível nesta execução da Lúmen."
+            )
+            return
+        try:
+            self._on_start_mission()
+            self.thinking.configure(
+                text="Solicitei o início/retomada da missão. Vou acompanhar a execução e registrar as próximas decisões aqui."
+            )
+            self._refresh()
+        except Exception as exc:
+            self.thinking.configure(
+                text=f"Não consegui iniciar a missão: {type(exc).__name__}: {exc}"
+            )
+
+    def _stop_mission(self):
+        if self._on_stop_mission is None:
+            self.thinking.configure(
+                text="O controle de parada do supervisor não está disponível nesta execução da Lúmen."
+            )
+            return
+        try:
+            self._on_stop_mission()
+            self.thinking.configure(
+                text="Solicitei a parada do supervisor. A missão continua salva e poderá ser retomada pelo botão."
+            )
+            self._refresh()
+        except Exception as exc:
+            self.thinking.configure(
+                text=f"Não consegui parar o supervisor: {type(exc).__name__}: {exc}"
+            )
+
     def _refresh(self):
         mission = self._read_json(self._mission_path)
         if mission is None:
@@ -304,6 +362,18 @@ class AutonomousMissionMonitor:
             self.goal.configure(text=str(mission.get("goal") or "—"))
             self.result.configure(text=f"Último resultado:\n{mission.get('last_result') or '—'}")
             self.error.configure(text=f"Último erro:\n{mission.get('last_error') or 'Nenhum'}")
+            if status == "COMPLETED":
+                self.start_button.configure(text="▶ Iniciar / Retomar missão", state=tk.DISABLED)
+                self.stop_button.configure(state=tk.DISABLED)
+            elif status == "RUNNING":
+                self.start_button.configure(text="↻ Retomar missão", state=tk.NORMAL)
+                self.stop_button.configure(state=tk.NORMAL)
+            elif status == "BLOCKED":
+                self.start_button.configure(text="↻ Retomar missão bloqueada", state=tk.NORMAL)
+                self.stop_button.configure(state=tk.DISABLED)
+            else:
+                self.start_button.configure(text="▶ Iniciar / Retomar missão", state=tk.NORMAL)
+                self.stop_button.configure(state=tk.NORMAL)
         self._append_events(str(mission.get("mission_id") or "") if mission else None)
 
     def _poll(self):
