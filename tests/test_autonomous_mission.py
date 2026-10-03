@@ -491,6 +491,72 @@ def test_progress_guard_failure_enters_autonomous_recovery_instead_of_blocking(t
     assert any(event["event"] == "decision_failed" and event.get("fallback") == "autonomous_recovery" for event in events)
 
 
+
+def test_recovery_research_escalates_to_bounded_code_correction(tmp_path: Path):
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    controller = AutonomousProgressController(tmp_path / "progress.json", "mission", repeat_limit=2)
+    controller.record(
+        action="evolve_code",
+        result="evolve_code_failed",
+        success=False,
+        error="RuntimeError: code evolution rolled back",
+        gap="Autonomous code evolution failed.",
+        details={"evolution_cycle": 1},
+    )
+    controller.record(
+        action="research",
+        result="knowledge=0",
+        success=True,
+        new_information=True,
+        research_finding="Diagnose the failed code evolution",
+        gap="Autonomous code evolution failed.",
+        details={"knowledge_items": 0, "recovery": True},
+    )
+
+    decision = controller.recommend(
+        ("research", "evolve_code", "observe_unreal"),
+        context={
+            "can_research": True,
+            "can_evolve_code": True,
+            "can_observe": True,
+            "capability_gap": controller.state.current_gap,
+            "recovery": True,
+        },
+    )
+
+    assert decision.action == "evolve_code"
+    assert decision.recovery is True
+    assert controller.state.recovery_counts["evolve_code"] == 1
+
+
+def test_progress_guard_recovery_fallback_marks_research_as_recovery(tmp_path: Path):
+    from app.evolution.autonomous_mission import AutonomousMissionEngine
+    from app.evolution.autonomous_progress import AutonomousProgressController
+
+    path = tmp_path / "mission.json"
+    record = create_mission(path, goal="operate Unreal", project_root=tmp_path)
+    store = MissionStore(path)
+    engine = object.__new__(AutonomousMissionEngine)
+    engine.record = record
+    engine.store = store
+    engine.progress = AutonomousProgressController(tmp_path / "progress.json", record.mission_id)
+    engine.decision_provider = lambda _goal, _context: (_ for _ in ()).throw(TimeoutError("planner timed out"))
+
+    decision = engine.decide("{}")
+
+    assert decision["action"] == "list_toolsets"
+    assert decision.get("recovery") is None
+
+    engine.progress.state.current_gap = "planner failure requires diagnosis"
+    engine.progress.recommend = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        RuntimeError("autonomous progress exhausted")
+    )
+    decision = engine.decide("{}")
+    assert decision["action"] == "research"
+    assert decision["recovery"] is True
+
+
 def test_supervisor_start_resumes_blocked_mission(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionSupervisor
 
