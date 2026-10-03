@@ -62,6 +62,7 @@ class EvolutionProgressState:
     repeat_counts: dict[str, int] = field(default_factory=dict)
     failure_counts: dict[str, int] = field(default_factory=dict)
     recovery_counts: dict[str, int] = field(default_factory=dict)
+    recovery_required: bool = False
     evidence: list[ActionEvidence] = field(default_factory=list)
 
     def validate(self) -> None:
@@ -188,6 +189,7 @@ class AutonomousProgressController:
             repeat_counts={str(k): int(v) for k, v in dict(raw.get("repeat_counts", {})).items()},
             failure_counts={str(k): int(v) for k, v in dict(raw.get("failure_counts", {})).items()},
             recovery_counts={str(k): int(v) for k, v in dict(raw.get("recovery_counts", {})).items()},
+            recovery_required=bool(raw.get("recovery_required", False)),
             evidence=[ActionEvidence(
                 action=str(x["action"]), fingerprint=str(x["fingerprint"]),
                 success=bool(x["success"]), new_information=bool(x["new_information"]),
