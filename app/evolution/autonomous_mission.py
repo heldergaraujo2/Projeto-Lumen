@@ -954,6 +954,20 @@ class AutonomousMissionSupervisor:
             return
         self._stop.clear()
         record = self.store.load()
+        if record is not None and record.status == "BLOCKED":
+            previous_error = record.last_error
+            record.status = "EVOLVING"
+            record.phase = "PLANNING"
+            record.last_error = ""
+            record.updated_at = time.time()
+            self.store.save(record)
+            self.store.event(
+                "mission_resumed",
+                record,
+                previous_status="BLOCKED",
+                previous_error=previous_error,
+                reason="Supervisor start explicitly resumes the persisted mission after a previous recoverable failure.",
+            )
         if record is not None:
             self.store.event("supervisor_started", record, result="ok")
         self._thread = threading.Thread(
@@ -975,12 +989,11 @@ class AutonomousMissionSupervisor:
     def _run(self) -> None:
         while not self._stop.is_set():
             record = self.store.load()
-            if record is None or record.status in {"COMPLETED", "BLOCKED"}:
-                # BLOCKED is a durable terminal state for the current mission.
-                # Do not immediately re-enter planning after a guard/evolution
-                # failure; a new mission or explicit recovery must provide new
-                # evidence before autonomous execution resumes.
+            if record is None or record.status == "COMPLETED":
                 return
+            # BLOCKED is recoverable when the supervisor is explicitly started
+            # again. This keeps the durable error visible while allowing the
+            # same mission to resume after code/tooling fixes have been applied.
             if record.requires_unreal:
                 ready, details = self.probe.probe()
                 if not ready:
@@ -1011,6 +1024,12 @@ class AutonomousMissionSupervisor:
                 record.last_error = f"{type(exc).__name__}: {exc}"
                 record.updated_at = time.time()
                 self.store.save(record)
+                self.store.event(
+                    "mission_blocked",
+                    record,
+                    error=record.last_error,
+                    recovery="Supervisor restart will resume the same mission from PLANNING without creating a new mission.",
+                )
                 LOGGER.exception("Autonomous mission paused: %s", exc)
                 self._stop.wait(self.poll_seconds)
                 continue
