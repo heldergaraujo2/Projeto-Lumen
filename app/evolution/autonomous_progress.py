@@ -302,6 +302,16 @@ class AutonomousProgressController:
             if gap:
                 self._append_unique(self.state.gaps, gap)
                 self.state.current_gap = gap
+            # A successful recovery research step establishes a new evidence
+            # epoch. Its bounded correction budget must therefore belong to
+            # the new recovery episode, not remain exhausted by an older one.
+            if (
+                action == "research"
+                and success
+                and new_information
+                and (details or {}).get("recovery")
+            ):
+                self.state.recovery_counts["evolve_code"] = 0
             self.state.evidence.append(evidence)
             if len(self.state.evidence) > self.evidence_limit:
                 del self.state.evidence[:-self.evidence_limit]
