@@ -6,7 +6,20 @@ from app.evolution.autonomous_loop import AutonomousEvolutionLoop, EvolutionConf
 
 
 def config(repo: Path, **kwargs) -> EvolutionConfig:
-    return EvolutionConfig(repo=repo, goal="test autonomous evolution", branch="feature/web-research-agent", **kwargs)
+    fast_test = kwargs.setdefault(
+        "fast_test",
+        ("python", "-m", "pytest", "tests/test_autonomous_evolution.py", "-q"),
+    )
+    del fast_test
+    test_file = repo / "tests" / "test_autonomous_evolution.py"
+    test_file.parent.mkdir(parents=True, exist_ok=True)
+    test_file.write_text("# isolated fast-test fixture\n", encoding="utf-8")
+    return EvolutionConfig(
+        repo=repo,
+        goal="test autonomous evolution",
+        branch="feature/web-research-agent",
+        **kwargs,
+    )
 
 
 def test_fast_test_points_to_existing_regression_suite():
