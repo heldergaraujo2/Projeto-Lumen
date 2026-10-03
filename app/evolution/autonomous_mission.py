@@ -377,6 +377,7 @@ actually verified."""
                 "toolset_name": "",
                 "tool_name": "",
                 "arguments": {},
+                "recovery": progress.recovery,
             }
             self.store.event(
                 "decision_guarded",
