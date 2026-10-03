@@ -180,7 +180,7 @@ class AutonomousMissionEngine:
 
     SYSTEM = """You are the Lumen autonomous mission planner.
 Return ONLY JSON:
-{"action":"research|list_toolsets|describe_toolset|evolve_code|observe_unreal|unreal_call|done",
+{"action":"research|list_toolsets|describe_toolset|evolve_code|observe_unreal|unreal_call|verify_voice|done",
  "reason":"...",
  "query":"...",
  "toolset_name":"...",
@@ -316,6 +316,8 @@ actually verified."""
         self.store.event("decision_started", self.record, model=model_name)
 
         allowed = {"research", "evolve_code", "done"}
+        if "voz" in self.record.goal.lower() or "voice" in self.record.goal.lower():
+            allowed.add("verify_voice")
         if self.record.requires_unreal:
             allowed.update({"list_toolsets", "describe_toolset", "observe_unreal", "unreal_call"})
         planner_error = ""
@@ -446,8 +448,12 @@ actually verified."""
                     reason=guarded["reason"],
                 )
         if guarded.get("action") == "done" and not self.progress.state.verification_passed:
-            guarded["action"] = "observe_unreal" if self.progress.state.pending_capability else "research"
-            guarded["reason"] = "Mission completion requires post-action observation evidence before done is admissible."
+            if "voz" in self.record.goal.lower() or "voice" in self.record.goal.lower():
+                guarded["action"] = "verify_voice"
+                guarded["reason"] = "Voice mission completion requires complete runtime evidence for every voice acceptance criterion."
+            else:
+                guarded["action"] = "observe_unreal" if self.progress.state.pending_capability else "research"
+                guarded["reason"] = "Mission completion requires post-action observation evidence before done is admissible."
 
         # A describe step is only executable when it carries the concrete
         # toolset selected by the progress controller. This must also be
@@ -516,6 +522,46 @@ actually verified."""
         self.record.updated_at = time.time()
         self.record.last_duration_seconds = max(0.0, self.record.updated_at - self.record.last_started_at)
         self.store.event("decision", self.record, action=action, reason=str(decision.get("reason") or ""), query=str(decision.get("query") or ""))
+
+        if action == "verify_voice":
+            from app.evolution.voice_verifier import VoiceMissionVerifier
+            evidence_path = self.store.path.parent / "voice_validation.json"
+            verified, missing, evidence = VoiceMissionVerifier(evidence_path).verify()
+            if verified:
+                self.progress.state.verification_passed = True
+                for criterion in VoiceMissionVerifier(evidence_path).spec.acceptance_criteria:
+                    if criterion not in self.progress.state.validated_capabilities:
+                        self.progress.state.validated_capabilities.append(criterion)
+                self.progress.record(
+                    action="verify_voice",
+                    result="voice_verification_ok",
+                    success=True,
+                    new_information=True,
+                    details={"evidence_path": str(evidence_path), "criteria": list(evidence)},
+                )
+                self.progress.save()
+                self.record.status = "EVOLVING"
+                self.record.phase = "VERIFY_VOICE"
+                self.record.last_result = "voice_verification_ok"
+                self.record.last_error = ""
+                self.store.save(self.record)
+                self.store.event("action_completed", self.record, action="verify_voice", result="ok")
+                return "verify_voice"
+            self.progress.record(
+                action="verify_voice",
+                result="voice_verification_incomplete",
+                success=False,
+                new_information=bool(evidence),
+                error="missing voice acceptance evidence: " + ", ".join(missing),
+                details={"evidence_path": str(evidence_path), "missing": list(missing)},
+            )
+            self.record.status = "EVOLVING"
+            self.record.phase = "VERIFY_VOICE"
+            self.record.last_result = "voice_verification_incomplete"
+            self.record.last_error = "Missing voice acceptance evidence: " + ", ".join(missing)
+            self.store.save(self.record)
+            self.store.event("action_completed", self.record, action="verify_voice", result="incomplete", missing=list(missing))
+            return "verify_voice"
 
         if action == "done":
             self.record.status = "COMPLETED"
