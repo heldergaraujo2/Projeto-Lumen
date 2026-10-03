@@ -22,6 +22,20 @@ def config(repo: Path, **kwargs) -> EvolutionConfig:
     )
 
 
+def test_extract_json_accepts_plain_object():
+    from app.evolution.autonomous_loop import extract_json
+    assert extract_json('{"changes":[],"summary":"ok"}')["summary"] == "ok"
+
+def test_extract_json_accepts_fenced_object():
+    from app.evolution.autonomous_loop import extract_json
+    response = '```json\n{"changes":[],"summary":"ok"}\n```'
+    assert extract_json(response)["summary"] == "ok"
+
+def test_extract_json_accepts_preamble_before_object():
+    from app.evolution.autonomous_loop import extract_json
+    response = 'I will make the requested change. {"changes":[],"summary":"ok"}'
+    assert extract_json(response)["summary"] == "ok"
+
 def test_fast_test_points_to_existing_regression_suite():
     cfg = EvolutionConfig(repo=Path.cwd(), goal="goal")
     fast_test_path = next((Path(part) for part in cfg.fast_test if part.endswith(".py")), None)
