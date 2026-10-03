@@ -489,3 +489,51 @@ def test_supervisor_stops_when_mission_is_blocked(tmp_path: Path):
     supervisor._run()
 
     assert supervisor.probe.calls == 0
+
+
+def test_run_command_starts_existing_mission_and_supports_once_mode(tmp_path: Path, monkeypatch, capsys):
+    import sys
+    import app.evolution.autonomous_mission as mission_module
+
+    path = tmp_path / "data" / "evolution" / "mission.json"
+    record = create_mission(path, goal="voice mission", project_root=tmp_path, requires_unreal=False)
+
+    class FakeSupervisor:
+        def __init__(self, **kwargs):
+            self.store = MissionStore(path)
+            self.started = False
+            self.stopped = False
+
+        def start(self):
+            self.started = True
+
+        def stop(self):
+            self.stopped = True
+
+    holder = {}
+    def factory(**kwargs):
+        supervisor = FakeSupervisor(**kwargs)
+        holder["supervisor"] = supervisor
+        return supervisor
+
+    monkeypatch.setattr(mission_module, "AutonomousMissionSupervisor", factory)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "autonomous_mission",
+            "run",
+            "--project-root",
+            str(tmp_path),
+            "--data-dir",
+            str(tmp_path / "data"),
+            "--once",
+            "--once-seconds",
+            "0.05",
+        ],
+    )
+
+    assert mission_module.main() == 0
+    assert holder["supervisor"].started is True
+    assert holder["supervisor"].stopped is True
+    assert "LUMEN-MISSION-" in capsys.readouterr().out
