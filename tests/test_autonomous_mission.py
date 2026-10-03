@@ -546,7 +546,7 @@ def test_progress_guard_recovery_fallback_marks_research_as_recovery(tmp_path: P
     decision = engine.decide("{}")
 
     assert decision["action"] == "list_toolsets"
-    assert decision.get("recovery") is None
+    assert decision.get("recovery") is False
 
     engine.progress.state.current_gap = "planner failure requires diagnosis"
     from app.evolution.autonomous_progress import ProgressDecision
