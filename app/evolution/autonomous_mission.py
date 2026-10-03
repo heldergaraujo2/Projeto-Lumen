@@ -49,6 +49,7 @@ class MissionRecord:
     last_duration_seconds: float = 0.0
     created_at: float = 0.0
     updated_at: float = 0.0
+    requires_unreal: bool = True
 
     def validate(self) -> None:
         if not self.mission_id.strip() or not self.goal.strip():
@@ -299,10 +300,10 @@ actually verified."""
     def _progress_context(self) -> dict[str, Any]:
         return {
             **self.progress.planner_context(),
-            "can_observe": True,
+            "can_observe": self.record.requires_unreal,
             "can_research": True,
             "can_evolve_code": True,
-            "can_unreal_call": True,
+            "can_unreal_call": self.record.requires_unreal,
             "capability_gap": bool(self.progress.state.current_gap),
         }
 
@@ -314,7 +315,9 @@ actually verified."""
         model_name = getattr(getattr(self, "ollama", None), "model", "unknown")
         self.store.event("decision_started", self.record, model=model_name)
 
-        allowed = {"research", "list_toolsets", "describe_toolset", "evolve_code", "observe_unreal", "unreal_call", "done"}
+        allowed = {"research", "evolve_code", "done"}
+        if self.record.requires_unreal:
+            allowed.update({"list_toolsets", "describe_toolset", "observe_unreal", "unreal_call"})
         planner_error = ""
 
         try:
@@ -465,12 +468,22 @@ actually verified."""
                 guarded["reason"] = "Progress guard rejected describe_toolset because no toolset inventory is available."
         return guarded
 
+    def _mission_capabilities(self) -> dict[str, Any]:
+        """Expose mission-specific constraints without hard-coding them in the planner."""
+        if "voz" in self.record.goal.lower() or "voice" in self.record.goal.lower():
+            from app.evolution.voice_mission import VoiceMissionSpec
+            return VoiceMissionSpec().planner_context()
+        return {"requires_unreal": self.record.requires_unreal}
+
     def context(self, readiness: dict[str, Any]) -> str:
         toolsets = ""
-        try:
-            toolsets = json.dumps(self.broker.list_toolsets(), ensure_ascii=False)[:24000]
-        except Exception as exc:
-            toolsets = json.dumps({"error": str(exc)})
+        if self.record.requires_unreal:
+            try:
+                toolsets = json.dumps(self.broker.list_toolsets(), ensure_ascii=False)[:24000]
+            except Exception as exc:
+                toolsets = json.dumps({"error": str(exc)})
+        else:
+            toolsets = json.dumps({"not_required": True})
         return json.dumps(
             {
                 "mission": asdict(self.record),
@@ -488,6 +501,7 @@ actually verified."""
                 ],
                 "learning_counts": self.learning.store.counts(),
                 "autonomous_progress": self.progress.planner_context(),
+                "mission_capabilities": self._mission_capabilities(),
                 "instruction": "Continue the mission; reuse persisted research knowledge when relevant. Do not treat candidate knowledge as verified truth. Do not stop merely because a capability is missing: research it, persist the evidence, then build the missing capability in Lumen and retry.",
             },
             ensure_ascii=False,
@@ -951,7 +965,7 @@ class AutonomousMissionSupervisor:
         return self.store.path
 
 
-def create_mission(path: str | Path, *, goal: str, project_root: str | Path) -> MissionRecord:
+def create_mission(path: str | Path, *, goal: str, project_root: str | Path, requires_unreal: bool = True) -> MissionRecord:
     now = time.time()
     record = MissionRecord(
         mission_id=f"LUMEN-MISSION-{uuid.uuid4().hex[:12]}",
@@ -959,6 +973,7 @@ def create_mission(path: str | Path, *, goal: str, project_root: str | Path) -> 
         project_root=str(Path(project_root).expanduser().resolve()),
         created_at=now,
         updated_at=now,
+        requires_unreal=requires_unreal,
     )
     record.validate()
     MissionStore(path).save(record)
@@ -995,6 +1010,7 @@ def main() -> int:
             Path(args.data_dir) / "evolution" / "mission.json",
             goal=goal,
             project_root=args.project_root,
+            requires_unreal=args.preset != "voice",
         )
         print(json.dumps(asdict(record), ensure_ascii=False, indent=2))
         return 0
