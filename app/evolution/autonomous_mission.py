@@ -425,7 +425,8 @@ actually verified."""
             self.progress.fingerprint(proposed, proposed_payload),
         )
         guarded = dict(decision)
-        if progress.action != proposed or not proposed_allowed:
+        voice_verification_action = proposed == "verify_voice" and ("voz" in self.record.goal.lower() or "voice" in self.record.goal.lower())
+        if (progress.action != proposed and not voice_verification_action) or not proposed_allowed:
             guarded["action"] = progress.action
             guarded["reason"] = f"Progress guard: {progress.reason}; planner proposed {action!r}."
             self.store.event(
