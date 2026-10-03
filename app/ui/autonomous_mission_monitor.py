@@ -132,6 +132,29 @@ class AutonomousMissionMonitor:
             fg=_TEXT, bg=_PANEL,
         ).pack(anchor=tk.W, padx=14, pady=(12, 6))
 
+        # Os controles ficam no topo do painel direito para permanecerem
+        # sempre acessíveis, independentemente do tamanho do texto da missão.
+        controls = tk.Frame(right, bg=_PANEL)
+        controls.pack(fill=tk.X, padx=14, pady=(0, 12))
+
+        self.start_button = tk.Button(
+            controls, text="▶ Iniciar / Retomar missão", command=self._start_mission,
+            relief=tk.FLAT, bg=_ACCENT, fg="#0d1220",
+        )
+        self.start_button.pack(fill=tk.X, pady=(0, 6))
+
+        self.stop_button = tk.Button(
+            controls, text="■ Parar supervisor", command=self._stop_mission,
+            relief=tk.FLAT, bg=_PANEL, fg=_TEXT,
+        )
+        self.stop_button.pack(fill=tk.X, pady=(0, 6))
+
+        self.refresh_button = tk.Button(
+            controls, text="Atualizar agora", command=self._refresh,
+            relief=tk.FLAT, bg=_PANEL, fg=_MUTED,
+        )
+        self.refresh_button.pack(fill=tk.X)
+
         self.goal = tk.Label(
             right, text="Nenhuma missão carregada.",
             font=("Segoe UI", 9), fg=_TEXT, bg=_PANEL,
@@ -162,26 +185,6 @@ class AutonomousMissionMonitor:
             justify=tk.LEFT, anchor=tk.NW, wraplength=280,
         )
         self.thinking.pack(fill=tk.X, padx=14, pady=(0, 12))
-
-        controls = tk.Frame(right, bg=_PANEL)
-        controls.pack(fill=tk.X, padx=14, pady=14)
-
-        self.start_button = tk.Button(
-            controls, text="▶ Iniciar / Retomar missão", command=self._start_mission,
-            relief=tk.FLAT, bg=_ACCENT, fg="#0d1220",
-        )
-        self.start_button.pack(fill=tk.X, pady=(0, 6))
-
-        self.stop_button = tk.Button(
-            controls, text="■ Parar supervisor", command=self._stop_mission,
-            relief=tk.FLAT, bg=_PANEL, fg=_TEXT,
-        )
-        self.stop_button.pack(fill=tk.X, pady=(0, 6))
-
-        tk.Button(
-            controls, text="Atualizar agora", command=self._refresh,
-            relief=tk.FLAT, bg=_PANEL, fg=_MUTED,
-        ).pack(fill=tk.X)
 
     def _metric(self, parent, title):
         frame = tk.Frame(parent, bg=_PANEL)
