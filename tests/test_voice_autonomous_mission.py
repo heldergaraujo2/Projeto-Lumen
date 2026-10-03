@@ -18,6 +18,17 @@ def test_voice_preset_mission_can_be_created_without_unreal(tmp_path: Path):
     assert loaded.requires_unreal is False
 
 
+def test_non_unreal_mission_starts_evolving_without_waiting_for_unreal(tmp_path: Path):
+    record = create_mission(
+        tmp_path / "mission.json",
+        goal=VOICE_GOAL,
+        project_root=tmp_path,
+        requires_unreal=False,
+    )
+    assert record.status == "EVOLVING"
+    assert record.phase == "PLANNING"
+
+
 def test_legacy_mission_records_keep_unreal_requirement_default(tmp_path: Path):
     path = tmp_path / "mission.json"
     path.write_text(
