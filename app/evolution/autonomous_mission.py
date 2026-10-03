@@ -1035,7 +1035,7 @@ def create_mission(path: str | Path, *, goal: str, project_root: str | Path, req
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Create/resume the Lumen autonomous mission.")
+    parser = argparse.ArgumentParser(description="Cria/retoma a missão autônoma da Lúmen.")
     sub = parser.add_subparsers(dest="command", required=True)
     init = sub.add_parser("init")
     init.add_argument(
@@ -1052,7 +1052,7 @@ def main() -> int:
     init.add_argument("--project-root", required=True)
     init.add_argument("--data-dir", default="data")
 
-    run = sub.add_parser("run", help="Executa/resume a missão persistente.")
+    run = sub.add_parser("run", help="Executa/retoma a missão persistente.")
     run.add_argument("--project-root", default=str(Path.cwd()))
     run.add_argument("--data-dir", default="data")
     run.add_argument("--model", default="qwen3:8b")
@@ -1102,12 +1102,12 @@ def main() -> int:
             time.sleep(max(0.05, args.once_seconds))
             supervisor.stop()
             return 0
-        print("Lumen autonomous mission running. Press Ctrl+C to stop.")
+        print("Lúmen: missão autônoma em execução. Pressione Ctrl+C para interromper.")
         try:
             while True:
                 time.sleep(1.0)
         except KeyboardInterrupt:
-            print("\nStopping autonomous mission...")
+            print("\nLúmen: interrompendo a missão autônoma...")
         finally:
             supervisor.stop()
         return 0
