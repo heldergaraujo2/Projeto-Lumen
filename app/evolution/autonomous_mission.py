@@ -19,7 +19,7 @@ import logging
 import threading
 import time
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Callable
 
@@ -401,8 +401,11 @@ actually verified."""
             )
         except Exception as exc:
             progress_error = f"{type(exc).__name__}: {exc}"
-            self.record.status = "BLOCKED"
-            self.record.phase = "PLANNING"
+            # A planner/progress-controller failure is recovery input, not a
+            # reason to require a manual mission restart. Keep the mission
+            # alive so the next decision can research the failure and recover.
+            self.record.status = "EVOLVING"
+            self.record.phase = "RECOVERY"
             self.record.last_error = progress_error
             self.record.updated_at = time.time()
             self.store.save(self.record)
@@ -410,10 +413,21 @@ actually verified."""
                 "decision_failed",
                 self.record,
                 error=progress_error,
-                fallback="progress_guard_exhausted",
+                fallback="autonomous_recovery",
                 proposed_action=proposed,
             )
-            raise RuntimeError(progress_error) from exc
+            fallback_action = "research" if "research" in allowed else next(iter(allowed), "evolve_code")
+            return {
+                "action": fallback_action,
+                "reason": (
+                    "Progress guard failed; autonomously investigate the failure "
+                    f"before retrying. Error: {progress_error}"
+                ),
+                "query": f"Diagnose and fix autonomous mission failure: {progress_error}",
+                "toolset_name": "",
+                "tool_name": "",
+                "arguments": {},
+            }
         proposed_payload = {
             "toolset_name": decision.get("toolset_name"),
             "tool_name": decision.get("tool_name"),
@@ -712,6 +726,7 @@ actually verified."""
             self.record.status = "EVOLVING"
             self.record.phase = "RESEARCH"
             self.record.last_result = f"research_ok:knowledge={len(learned)}"
+            self.record.last_error = ""
             self.store.save(self.record)
             self.store.event("action_completed", self.record, action="research", result="ok")
             return "research"
@@ -744,7 +759,7 @@ actually verified."""
                 ))
             evolution_config = getattr(self._evolution, "config", None)
             if evolution_config is not None:
-                evolution_config.goal = (
+                evolution_goal = (
                     f"{self.record.goal}\n\nCAPABILITY GAP:\n{gap_text}"
                     f"\n\nCOGNITIVE CONTEXT:\n"
                     + json.dumps(
@@ -753,6 +768,9 @@ actually verified."""
                         default=str,
                     )[:30000]
                 )
+                # EvolutionConfig is intentionally frozen. Replace the config
+                # object instead of mutating its goal in place.
+                self._evolution.config = replace(evolution_config, goal=evolution_goal)
             try:
                 result = self._evolution.cycle(self.record.cycle + 1)
                 if result in {"blocked", "rolled_back"}:
@@ -991,9 +1009,9 @@ class AutonomousMissionSupervisor:
             record = self.store.load()
             if record is None or record.status == "COMPLETED":
                 return
-            # BLOCKED is recoverable when the supervisor is explicitly started
-            # again. This keeps the durable error visible while allowing the
-            # same mission to resume after code/tooling fixes have been applied.
+            # Recoverable failures remain EVOLVING and are handled by the
+            # automatic recovery path below; BLOCKED is retained only for
+            # compatibility with older persisted mission records.
             if record.requires_unreal:
                 ready, details = self.probe.probe()
                 if not ready:
@@ -1020,18 +1038,24 @@ class AutonomousMissionSupervisor:
                 )
                 engine.step(details)
             except Exception as exc:
-                record.status = "BLOCKED"
-                record.last_error = f"{type(exc).__name__}: {exc}"
+                error = f"{type(exc).__name__}: {exc}"
+                # Recoverable runtime failures must never require a manual
+                # Retomar click. Persist the failure as evidence, keep the
+                # mission evolving, and let the next cycle research/correct it.
+                record.status = "EVOLVING"
+                record.phase = "RECOVERY"
+                record.last_error = error
+                record.last_result = "recovery_required"
                 record.updated_at = time.time()
                 self.store.save(record)
                 self.store.event(
-                    "mission_blocked",
+                    "mission_recovery",
                     record,
-                    error=record.last_error,
-                    recovery="Supervisor restart will resume the same mission from PLANNING without creating a new mission.",
+                    error=error,
+                    recovery="Automatic recovery: research the failure, apply a correction, validate it, and continue.",
                 )
-                LOGGER.exception("Autonomous mission paused: %s", exc)
-                self._stop.wait(self.poll_seconds)
+                LOGGER.exception("Autonomous mission recovery: %s", exc)
+                self._stop.wait(0.25)
                 continue
             self._stop.wait(0.25)
 
