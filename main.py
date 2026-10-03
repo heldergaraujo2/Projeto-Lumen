@@ -137,9 +137,16 @@ def main() -> int:
         LOGGER.exception("Não foi possível abrir a janela Tk (display disponível?).")
         return 1
 
-    supervisor = None
     try:
         from app.ui.main_window import LumenWindow
+
+        def mission_supervisor_factory():
+            return AutonomousMissionSupervisor(
+                repo=PROJECT_ROOT,
+                data_dir=settings.data_dir,
+                model=agent.provider.model_name or settings.model or "qwen2.5-coder:7b-instruct-q8_0",
+                ollama_url=settings.ollama_base_url,
+            )
 
         # 0.5.x: camada de controle de ferramentas (workspaces/permissões/
         # checkpoints/auditoria) — construída sem efeitos colaterais (nenhum
@@ -176,28 +183,20 @@ def main() -> int:
         # controller (permissões/workspaces/checkpoints/auditoria).
         agent.set_tools_controller(tools_controller)
 
-        # F34: if the user has created the single durable autonomous mission,
-        # keep watching the real Unreal MCP endpoint. The mission is resumed
-        # automatically when the editor/server becomes available again.
-        if not args.no_autonomous_mission_supervisor:
-            supervisor = AutonomousMissionSupervisor(
-                repo=PROJECT_ROOT,
-                data_dir=settings.data_dir,
-                model=agent.provider.model_name or settings.model or "qwen2.5-coder:7b-instruct-q8_0",
-                ollama_url=settings.ollama_base_url,
-            )
-            supervisor.start()
+        # F34: the durable mission is controlled explicitly from the
+        # existing "Autonomia ao vivo" UI. The terminal is no longer the
+        # normal mission control surface. The legacy flag is retained for
+        # compatibility and simply disables the UI supervisor controls.
         window = LumenWindow(
             root, agent,
             config_service=config_service,
             tools_controller=tools_controller,
             plugin_reports=plugin_reports,
             data_dir=settings.data_dir,
+            mission_supervisor_factory=None if args.no_autonomous_mission_supervisor else mission_supervisor_factory,
         )
         window.run()
     finally:
-        if supervisor is not None:
-            supervisor.stop()
         LOGGER.info("Lumen encerrada.")
     return 0
 
