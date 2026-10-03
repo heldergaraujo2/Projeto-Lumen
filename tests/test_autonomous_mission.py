@@ -428,7 +428,7 @@ def test_failed_evolve_code_recommends_research(tmp_path: Path):
     assert decision.action == "research"
 
 
-def test_progress_guard_exhaustion_blocks_instead_of_restarting_planning(tmp_path: Path):
+def test_progress_guard_failure_enters_autonomous_recovery_instead_of_blocking(tmp_path: Path):
     from app.evolution.autonomous_mission import AutonomousMissionEngine
     from app.evolution.autonomous_progress import AutonomousProgressController
 
@@ -449,17 +449,14 @@ def test_progress_guard_exhaustion_blocks_instead_of_restarting_planning(tmp_pat
 
     engine.progress.recommend = exhausted
 
-    try:
-        engine.decide("{}")
-    except RuntimeError as exc:
-        assert "progress exhausted" in str(exc)
-    else:
-        raise AssertionError("expected progress exhaustion to block the mission")
+    decision = engine.decide("{}")
 
-    assert record.status == "BLOCKED"
-    assert record.phase == "PLANNING"
+    assert decision["action"] == "research"
+    assert record.status == "EVOLVING"
+    assert record.phase == "RECOVERY"
+    assert "progress exhausted" in record.last_error
     events = [json.loads(line) for line in store.event_path.read_text(encoding="utf-8").splitlines()]
-    assert any(event["event"] == "decision_failed" and event.get("fallback") == "progress_guard_exhausted" for event in events)
+    assert any(event["event"] == "decision_failed" and event.get("fallback") == "autonomous_recovery" for event in events)
 
 
 def test_supervisor_start_resumes_blocked_mission(tmp_path: Path):
