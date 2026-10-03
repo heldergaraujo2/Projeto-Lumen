@@ -387,6 +387,26 @@ class AutonomousProgressController:
                     return ProgressDecision("describe_toolset", f"toolsets already discovered; inspect {item} instead of repeating discovery", True)
 
         if self.state.last_action == "research":
+            # During autonomous recovery, research is a diagnostic step, not
+            # the terminal state of recovery. Escalate to the bounded code
+            # evolution path when a capability gap is already known, even if
+            # the normal action repeat budget was consumed by the failed path.
+            # The recovery budget prevents this escalation from becoming an
+            # unbounded evolve_code loop.
+            if (
+                ctx.get("recovery")
+                and ctx.get("capability_gap")
+                and ctx.get("can_evolve_code")
+                and "evolve_code" in available
+                and self.recovery_available("evolve_code")
+            ):
+                self.begin_recovery("evolve_code")
+                return ProgressDecision(
+                    "evolve_code",
+                    "recovery research completed; apply a bounded correction to the known capability gap",
+                    True,
+                    True,
+                )
             if ctx.get("capability_gap") and ctx.get("can_evolve_code") and "evolve_code" in available and self.admit("evolve_code"):
                 return ProgressDecision("evolve_code", "research identified a capability gap; implement a bounded candidate", True)
             if ctx.get("can_observe") and "observe_unreal" in available and self.admit("observe_unreal"):
