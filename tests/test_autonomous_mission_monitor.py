@@ -59,11 +59,12 @@ def test_monitor_reads_mission_and_live_events(tmp_path, root):
     monitor = AutonomousMissionMonitor(root, data_dir=tmp_path)
     root.update()
 
-    assert monitor.status.cget("text") == "EVOLVING"
-    assert monitor.phase.cget("text") == "RESEARCH"
-    assert monitor.action.cget("text") == "research"
+    assert monitor.status.cget("text") == "EVOLUINDO"
+    assert monitor.phase.cget("text") == "PESQUISA"
+    assert monitor.action.cget("text") == "pesquisa"
     assert "Torne a Lúmen autônoma" in monitor.goal.cget("text")
     assert "action_completed" in monitor.log.get("1.0", tk.END)
+    assert "Lúmen:" in monitor.log.get("1.0", tk.END)
     monitor.close()
 
 
