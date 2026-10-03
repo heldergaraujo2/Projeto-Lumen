@@ -953,6 +953,9 @@ class AutonomousMissionSupervisor:
         if self.store.load() is None:
             return
         self._stop.clear()
+        record = self.store.load()
+        if record is not None:
+            self.store.event("supervisor_started", record, result="ok")
         self._thread = threading.Thread(
             target=self._run,
             name="lumen-autonomous-mission",
@@ -961,6 +964,9 @@ class AutonomousMissionSupervisor:
         self._thread.start()
 
     def stop(self) -> None:
+        record = self.store.load()
+        if record is not None and record.status not in {"COMPLETED", "BLOCKED"}:
+            self.store.event("supervisor_stopped", record, result="ok")
         self._stop.set()
         thread = self._thread
         if thread and thread.is_alive():
