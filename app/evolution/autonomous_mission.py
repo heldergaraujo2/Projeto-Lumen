@@ -1017,10 +1017,14 @@ class AutonomousMissionSupervisor:
 
 def create_mission(path: str | Path, *, goal: str, project_root: str | Path, requires_unreal: bool = True) -> MissionRecord:
     now = time.time()
+    initial_status = "WAITING_UNREAL" if requires_unreal else "EVOLVING"
+    initial_phase = "WAITING_UNREAL" if requires_unreal else "PLANNING"
     record = MissionRecord(
         mission_id=f"LUMEN-MISSION-{uuid.uuid4().hex[:12]}",
         goal=goal.strip(),
         project_root=str(Path(project_root).expanduser().resolve()),
+        status=initial_status,
+        phase=initial_phase,
         created_at=now,
         updated_at=now,
         requires_unreal=requires_unreal,
