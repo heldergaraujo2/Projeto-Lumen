@@ -505,6 +505,8 @@ def test_supervisor_start_resumes_blocked_mission(tmp_path: Path):
     supervisor.store = MissionStore(path)
     supervisor._stop = __import__("threading").Event()
     supervisor._thread = None
+    supervisor.poll_seconds = 5.0
+    supervisor.probe = type("Probe", (), {"probe": lambda self: (False, {"error": "test probe disabled"})})()
 
     supervisor.start()
 
