@@ -29,6 +29,7 @@ from app.learning.runtime import LearningRuntime, LearningStore
 from app.evolution.autonomous_progress import AutonomousProgressController
 from app.evolution.operational_brain import OperationalBrain
 from app.evolution.cognitive_fusion import CapabilityGap, EvolutionHypothesis, ResearchFinding, ToolCandidate, WorldFact
+from app.evolution.voice_mission import VOICE_GOAL
 
 LOGGER = logging.getLogger("lumen.autonomous_mission")
 
@@ -968,14 +969,31 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Create/resume the Lumen autonomous mission.")
     sub = parser.add_subparsers(dest="command", required=True)
     init = sub.add_parser("init")
-    init.add_argument("--goal", required=True)
+    init.add_argument(
+        "--goal",
+        default="",
+        help="Objetivo textual da missão. Opcional quando --preset voice é usado.",
+    )
+    init.add_argument(
+        "--preset",
+        choices=("voice",),
+        default="",
+        help="Missão canônica de evolução. Atualmente: voice.",
+    )
     init.add_argument("--project-root", required=True)
     init.add_argument("--data-dir", default="data")
     args = parser.parse_args()
     if args.command == "init":
+        goal = args.goal.strip()
+        if args.preset == "voice":
+            if goal and goal != VOICE_GOAL:
+                parser.error("--goal não pode ser combinado com --preset voice")
+            goal = VOICE_GOAL
+        if not goal:
+            parser.error("forneça --goal ou use --preset voice")
         record = create_mission(
             Path(args.data_dir) / "evolution" / "mission.json",
-            goal=args.goal,
+            goal=goal,
             project_root=args.project_root,
         )
         print(json.dumps(asdict(record), ensure_ascii=False, indent=2))
