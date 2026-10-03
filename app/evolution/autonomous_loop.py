@@ -105,12 +105,35 @@ class LocalOllama:
         return text
 
 def extract_json(text:str)->dict[str,Any]:
-    fence=chr(96)*3
-    text=text.strip().replace(fence+"json","").replace(fence,"").strip()
-    try: value=json.loads(text)
-    except json.JSONDecodeError as exc: raise EvolutionLoopError("model response is not JSON") from exc
-    if not isinstance(value,dict): raise EvolutionLoopError("model response must be object")
-    return value
+    """Parse a JSON object from a model response, tolerating fences/preamble."""
+    if not isinstance(text, str) or not text.strip():
+        raise EvolutionLoopError("model response is not JSON")
+    cleaned = text.strip()
+    fence = chr(96) * 3
+    if cleaned.startswith(fence):
+        lines = cleaned.splitlines()
+        if lines and lines[0].strip().startswith(fence):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == fence:
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    decoder = json.JSONDecoder()
+    candidates = [cleaned]
+    start = cleaned.find("{")
+    if start > 0:
+        candidates.append(cleaned[start:])
+    last_error: json.JSONDecodeError | None = None
+    for candidate in candidates:
+        try:
+            value, _ = decoder.raw_decode(candidate)
+        except json.JSONDecodeError as exc:
+            last_error = exc
+            continue
+        if not isinstance(value, dict):
+            raise EvolutionLoopError("model response must be object")
+        return value
+    raise EvolutionLoopError("model response is not JSON") from last_error
 
 class AutonomousEvolutionLoop:
     SYSTEM=("You are Lumen's autonomous software evolution engineer. "
