@@ -116,6 +116,18 @@ class AutonomousMissionMonitor:
         )
         self.error.pack(fill=tk.X, padx=14, pady=4)
 
+        tk.Label(
+            right, text="COMO A LÚMEN ESTÁ PENSANDO",
+            font=("Segoe UI", 11, "bold"), fg=_TEXT, bg=_PANEL,
+        ).pack(anchor=tk.W, padx=14, pady=(14, 6))
+        self.thinking = tk.Label(
+            right,
+            text="Aguardando a próxima atividade da missão.",
+            font=("Segoe UI", 9), fg=_TEXT, bg=_PANEL,
+            justify=tk.LEFT, anchor=tk.NW, wraplength=280,
+        )
+        self.thinking.pack(fill=tk.X, padx=14, pady=(0, 12))
+
         tk.Button(
             right, text="Atualizar agora", command=self._refresh,
             relief=tk.FLAT, bg=_ACCENT, fg="#0d1220",
@@ -137,6 +149,61 @@ class AutonomousMissionMonitor:
             return json.loads(path.read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             return None
+
+    @staticmethod
+    def _natural_explanation(event: dict) -> str:
+        """Transform a technical event into a human-readable mission update."""
+        kind = str(event.get("event") or "")
+        action = str(event.get("action") or "")
+        reason = str(event.get("reason") or "").strip()
+        error = str(event.get("error") or "").strip()
+        result = str(event.get("result") or "").strip()
+        query = str(event.get("query") or "").strip()
+        toolset = str(event.get("toolset") or "").strip()
+        tool = str(event.get("tool") or "").strip()
+        gap = str(event.get("gap") or "").strip()
+        planner_error = str(event.get("planner_error") or "").strip()
+        selected = str(event.get("selected_action") or "").strip()
+        proposed = str(event.get("proposed_action") or "").strip()
+
+        if kind == "decision_started":
+            return "Estou analisando o objetivo, o que já foi aprendido e quais evidências ainda faltam. Depois dessa análise vou escolher a próxima ação necessária."
+        if kind == "decision_failed":
+            detail = planner_error or error or "o planejador não conseguiu produzir uma decisão válida"
+            return f"Encontrei um erro ao decidir o próximo passo: {detail}. Não vou tratar isso como sucesso; vou usar o controle de progresso para escolher uma ação segura e continuar a recuperação."
+        if kind == "decision_guarded":
+            if proposed and selected and proposed != selected:
+                return f"Meu planejador sugeriu '{proposed}', mas o controle de progresso não aceitou essa ação neste momento. Vou executar '{selected}' porque preciso de novas evidências antes de avançar. Motivo: {reason or 'a ação anterior ainda não produziu evidência suficiente.'}"
+            return f"Ajustei a próxima ação para manter a missão baseada em evidências. {reason or 'Vou buscar informação nova antes de repetir uma ação.'}"
+        if kind == "action_started":
+            if action == "research":
+                return f"Vou pesquisar agora para reduzir uma lacuna de conhecimento{': ' + query if query else ''}. O objetivo é aprender antes de alterar o projeto."
+            if action == "evolve_code":
+                return "Vou implementar uma capacidade reutilizável no projeto, adicionar ou ajustar testes e validar a mudança. Se algo falhar, a falha será investigada antes de uma nova tentativa."
+            if action == "unreal_call":
+                target = f"{toolset}.{tool}" if toolset and tool else "uma ferramenta anunciada pelo Unreal MCP"
+                return f"Vou executar '{target}' usando a cadeia controlada de ferramentas. Depois preciso observar o resultado para verificar se o efeito realmente aconteceu."
+            return f"Comecei a ação '{action or 'próxima ação'}' para avançar a missão."
+        if kind == "action_failed":
+            detail = error or "o erro não trouxe detalhes adicionais"
+            recovery = gap or "Vou investigar a causa, pesquisar o que for necessário, corrigir a capacidade responsável e testar novamente."
+            return f"A ação '{action or 'atual'}' falhou. O erro foi: {detail}. Não vou declarar a missão concluída. Como próximo passo: {recovery}"
+        if kind == "action_completed":
+            if action == "research":
+                return f"Concluí a pesquisa e incorporei o conhecimento encontrado{': ' + result if result else ''}. Agora vou usar essa evidência para decidir o próximo avanço."
+            if action == "evolve_code":
+                return f"Concluí uma evolução no código e a etapa de validação retornou '{result or 'sucesso'}'. Vou considerar a mudança somente como progresso verificado e continuar procurando o que ainda falta."
+            if action == "unreal_call":
+                target = f"{toolset}.{tool}" if toolset and tool else "a ferramenta do Unreal MCP"
+                return f"A chamada '{target}' foi executada. Agora preciso observar o estado do Unreal para confirmar o efeito, porque execução aceita não significa que o objetivo já foi alcançado."
+            return f"Concluí a ação '{action or 'atual'}' com resultado '{result or 'sucesso'}'. Vou avaliar a evidência antes de avançar."
+        if kind == "mission_completed":
+            return "As evidências exigidas pela missão foram verificadas. O objetivo foi concluído e não há outra etapa necessária para esta missão."
+        if kind == "verification_failed":
+            return f"A verificação ainda não passou. {error or reason or 'Ainda faltam evidências objetivas.'} Vou continuar evoluindo e validar novamente."
+        if error:
+            return f"Encontrei um problema: {error}. Vou investigar a causa, corrigir o que for necessário e validar novamente."
+        return "A missão registrou uma nova etapa. Estou usando esse resultado como evidência para decidir o próximo passo."
 
     def _append_events(self):
         try:
@@ -165,6 +232,7 @@ class AutonomousMissionMonitor:
             if event.get("reason"):
                 details.append(f"motivo={event['reason']}")
             suffix = " | " + " | ".join(details) if details else ""
+            explanation = self._natural_explanation(event)
             try:
                 clock = __import__("datetime").datetime.fromtimestamp(stamp).strftime("%H:%M:%S")
             except (TypeError, ValueError, OSError):
@@ -175,8 +243,10 @@ class AutonomousMissionMonitor:
             )
             self.log.configure(state=tk.NORMAL)
             self.log.insert(tk.END, line, tag)
+            self.log.insert(tk.END, f"    Lúmen: {explanation}\n\n", "error" if tag == "error" else "muted")
             self.log.see(tk.END)
             self.log.configure(state=tk.DISABLED)
+            self.thinking.configure(text=explanation)
 
     def _refresh(self):
         mission = self._read_json(self._mission_path)
