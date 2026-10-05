@@ -37,6 +37,9 @@ class AutonomousMissionRuntime:
     stop_on_blocked: bool = True
 
     def __post_init__(self) -> None:
+        if self.provider is None:
+            from .modular_brain import ModularBrainProvider
+            self.provider = ModularBrainProvider()
         self.cognitive = CognitiveRuntime(
             self.brain,
             provider=self.provider,
