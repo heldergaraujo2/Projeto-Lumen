@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import sys
-import types
-
 from app.agent_runtime.universal import UniversalAgentRuntime
 
 
@@ -53,5 +50,5 @@ def test_runtime_is_optional_when_agents_sdk_is_unavailable(monkeypatch):
         model="qwen3:8b",
         ollama_url="http://127.0.0.1:11434",
     )
-    monkeypatch.setitem(sys.modules, "agents", types.ModuleType("agents"))
+    monkeypatch.setattr(runtime, "_importable", lambda _module: False)
     assert runtime.available() is False
