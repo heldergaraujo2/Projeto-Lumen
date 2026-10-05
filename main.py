@@ -1,15 +1,4 @@
-"""Ponto de entrada da Lumen.
-
-Execução (na raiz do projeto)::
-
-    python main.py
-
-Monta as camadas (provedor → memória → tarefas → permissões → agent +
-serviço de configuração), configura o logging e abre a interface
-Tkinter. A configuração de IA vigente combina: configuração gráfica
-salva (``data/settings.json`` + cofre) > variáveis de ambiente > ``.env``
-> padrões — ver ``app/config/user_config.py``.
-"""
+"""Ponto de entrada da Lumen com runtime universal opcional."""
 from __future__ import annotations
 
 import argparse
@@ -40,31 +29,19 @@ LOGGER = logging.getLogger("lumen")
 
 
 def build_app(settings: Settings) -> tuple[Agent, ConfigService]:
-    """Composition root: monta Agent + ConfigService.
-
-    A configuração gráfica salva pelo usuário (se existir) tem prioridade
-    sobre ``.env``/ambiente; a API Key vem do cofre (fallback ``.env``).
-    """
     user_store = UserConfigStore(settings.data_dir / UserConfigStore.FILENAME)
     try:
         overrides = user_store.load()
     except UserConfigError as exc:
         LOGGER.error("Configuração do usuário ignorada: %s", exc)
         overrides = {}
-
     secrets = create_secret_store(settings.data_dir)
     effective = apply_user_overrides(settings, overrides, secrets)
-
     provider = create_provider(effective)
     memory = MemoryStore(effective.memory_file)
     task_manager = TaskManager(effective.tasks_file)
-    permissions = PermissionManager()  # CHAT + WEB_ACCESS; capacidades operacionais continuam protegidas
-    # Memória estruturada 0.3: montada sem efeitos colaterais (arquivos
-    # de domínio só nascem no primeiro save) e usada como contexto de
-    # LEITURA pelo Planner (request_plan) — o fluxo de conversa não muda.
-    memory_system = MemorySystem(
-        settings.data_dir, max_context_records=effective.max_memory_records
-    )
+    permissions = PermissionManager()
+    memory_system = MemorySystem(settings.data_dir, max_context_records=effective.max_memory_records)
     agent = Agent(
         provider=provider,
         memory=memory,
@@ -83,15 +60,13 @@ def build_app(settings: Settings) -> tuple[Agent, ConfigService]:
 
 
 def build_agent(settings: Settings) -> Agent:
-    """Monta apenas o Agent (mantido para compatibilidade com testes)."""
     agent, _service = build_app(settings)
     return agent
 
 
 def main() -> int:
-    """Inicializa a aplicação; devolve o código de saída do processo."""
     parser = argparse.ArgumentParser(description="Inicia a interface gráfica da Lumen.")
-    parser.add_argument("--no-autonomous-mission-supervisor", action="store_true", help="Não inicia um segundo supervisor; use quando a missão já roda em outro processo.")
+    parser.add_argument("--no-autonomous-mission-supervisor", action="store_true")
     args = parser.parse_args()
     try:
         settings = Settings.load()
@@ -101,14 +76,6 @@ def main() -> int:
         print("Erro de configuração — veja o terminal ou data/logs/lumen.log.", file=sys.stderr)
         return 1
 
-    LOGGER.info("=" * 60)
-    LOGGER.info(
-        "Iniciando a Lumen v%s (provedor=%s, nível de log=%s).",
-        __version__,
-        settings.provider,
-        settings.log_level,
-    )
-
     try:
         agent, config_service = build_app(settings)
     except Exception as exc:
@@ -116,25 +83,13 @@ def main() -> int:
         LOGGER.exception("Detalhes técnicos:")
         return 1
 
-    current = config_service.current_config()
-    LOGGER.info(
-        "Componentes inicializados: provedor=%s (modelo=%s, chave=%s), memória=%s, tarefas=%s.",
-        agent.provider.name,
-        agent.provider.model_name or "-",
-        current["key_source"],
-        settings.memory_file,
-        settings.tasks_file,
-    )
-
     plugin_manager = PluginManager()
     plugin_reports = plugin_manager.discover()
-    LOGGER.info("Runtime: %s", "; ".join(f"{r.descriptor.id}={r.status.value}" for r in plugin_reports))
 
     try:
         root = tk_root()
     except Exception:
-        # Ex.: ambientes Linux/CI sem display. No Windows (alvo) nunca ocorre.
-        LOGGER.exception("Não foi possível abrir a janela Tk (display disponível?).")
+        LOGGER.exception("Não foi possível abrir a janela Tk.")
         return 1
 
     try:
@@ -148,9 +103,6 @@ def main() -> int:
                 ollama_url=settings.ollama_base_url,
             )
 
-        # 0.5.x: camada de controle de ferramentas (workspaces/permissões/
-        # checkpoints/auditoria) — construída sem efeitos colaterais (nenhum
-        # arquivo nasce, nenhuma permissão é concedida no startup).
         unreal = UnrealIntegration(mcp=UnrealMCPClient(), native=WindowsNativeIntelligence())
         computer_driver = WindowsComputerControlDriver(armed=False)
         computer_control = ComputerControlService(
@@ -162,33 +114,31 @@ def main() -> int:
             agent.permissions or PermissionManager(),
             workspaces_file=settings.data_dir / "workspaces.json",
             audit_file=settings.data_dir / "audit" / "audit.jsonl",
-            # 0.6.x: allowlist persistida (data/terminal.json). Apenas
-            # LIDA no startup — sem arquivo, terminal segue desabilitado;
-            # a permissão TERMINAL nunca é restaurada (explícita/sessão).
             terminal_file=settings.data_dir / "terminal.json",
-            # 11H: toggles persistentes de automação (corrections/
-            # verification) — fail-closed; SÓ capacidade, nunca concede
-            # permissão (ver docs/SPEC-11H-SETTINGS_UI_TOGGLES.md).
             toggles_file=settings.data_dir / "agent_toggles.json",
-            # 11I: export do relatório de evidências pós-execução —
-            # opt-in (LUMEN_EXPORT_EXECUTION_REPORTS), best-effort,
-            # sanitizado; nunca concede permissão (spec 11I).
             export_execution_reports=settings.export_execution_reports,
             reports_dir=settings.data_dir / "reports",
             unreal=unreal,
             computer_control_service=computer_control,
         )
-        # 0.6.3: liga o chat à fachada de ferramentas (tool calling via
-        # Planner com allowlist). Sem concessões: a autoridade segue no
-        # controller (permissões/workspaces/checkpoints/auditoria).
         agent.set_tools_controller(tools_controller)
 
-        # F34: the durable mission is controlled explicitly from the
-        # existing "Autonomia ao vivo" UI. The terminal is no longer the
-        # normal mission control surface. The legacy flag is retained for
-        # compatibility and simply disables the UI supervisor controls.
+        try:
+            from app.agent_runtime import UniversalAgentRuntime
+            runtime = UniversalAgentRuntime(
+                repo=PROJECT_ROOT,
+                model=agent.provider.model_name or settings.model or "qwen3:8b",
+                ollama_url=settings.ollama_base_url,
+                permissions=agent.permissions,
+            )
+            agent.set_universal_runtime(runtime)
+            LOGGER.info("Runtime universal: %s", runtime.status())
+        except Exception:
+            LOGGER.exception("Runtime universal indisponível; runtime nativo permanece ativo.")
+
         window = LumenWindow(
-            root, agent,
+            root,
+            agent,
             config_service=config_service,
             tools_controller=tools_controller,
             plugin_reports=plugin_reports,
@@ -202,9 +152,7 @@ def main() -> int:
 
 
 def tk_root():
-    """Cria a janela raiz Tk (separado para clareza/testes)."""
     import tkinter as tk
-
     return tk.Tk()
 
 
