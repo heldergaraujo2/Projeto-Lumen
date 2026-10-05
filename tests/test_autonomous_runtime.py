@@ -53,3 +53,19 @@ def test_environment_is_the_only_execution_boundary(tmp_path: Path):
 
     assert cycle.decision.action == env.calls[0][0]
     assert all("provider_hints" not in call[1] for call in env.calls)
+
+
+def test_runtime_defaults_to_modular_brain_provider(tmp_path):
+    from app.evolution.modular_brain import ModularBrainProvider
+    from app.evolution.autonomous_runtime import AutonomousMissionRuntime
+    from app.evolution.operational_brain import OperationalBrain
+
+    class Env:
+        def available_actions(self): return ("research",)
+        def observe(self): return {"objective": "pesquisar"}
+        def execute(self, action, *, context):
+            from app.evolution.operational_brain import ActionOutcome
+            return ActionOutcome(action=action, success=True, result="ok", new_information=True)
+
+    runtime = AutonomousMissionRuntime(OperationalBrain(tmp_path, "m", "pesquisar"), Env(), max_cycles=1)
+    assert isinstance(runtime.provider, ModularBrainProvider)
