@@ -20,6 +20,7 @@ from .cognitive_fusion import CapabilityGap, CognitiveFusion, Experience, Evolut
 from .operational_brain import ActionOutcome, BrainDecision, BrainState, OperationalBrain
 from .cognitive_runtime import CognitiveRuntime, CognitiveProvider, CognitiveToolExecutor, RuntimeCycle
 from .autonomous_runtime import AutonomousMissionRuntime, MissionEnvironment
+from .modular_brain import BackendSpec, BackendStatus, BACKENDS, ModularBrainProvider, ModularCognitiveBrain
 
 # Autonomous mission imports the tool/runtime stack, which in turn may import
 # the evolution package. Keep this boundary lazy so importing an unrelated
