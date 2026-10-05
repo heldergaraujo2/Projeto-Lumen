@@ -1,0 +1,7 @@
+# Optional agent-runtime integrations.
+# Kept separate from requirements.txt because OpenAI Agents SDK 0.22.x
+# requires openai>=3, while the native Lumen providers currently use openai<2.
+openai-agents>=0.22,<0.23
+openhands-sdk>=1.49,<2
+openhands-tools>=1.49,<2
+browser-use>=0.8,<1
