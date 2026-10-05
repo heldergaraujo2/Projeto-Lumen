@@ -1,0 +1,8 @@
+# Optional ecosystems for the modular cognitive brain.
+# The Lumen core remains dependency-light.
+openai-agents
+openhands
+browser-use
+autogen-agentchat
+autogen-core
+langgraph
