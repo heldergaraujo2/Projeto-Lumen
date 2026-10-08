@@ -2,7 +2,80 @@
 
 **Atualização:** 2026-09-28  
 **Roadmap/continuidade canônicos:** `docs/LUMEN_MASTER_ROADMAP.md`  
-**Estado:** 🟩 F0–F32 com implementação concluída e validação automatizada concluída. 🟨 F27–F30 ainda aguardam validações físicas/externas específicas (Windows, provider multimodal e Unreal). F31–F32 possuem implementação, integração, segurança, persistência e validação automatizada registradas; nenhuma validação física é inferida da CI.
+**Estado:** 🟩 F0–F32 com implementação concluída e validação automatizada concluída.
+
+---
+
+## ⚠️ NOTA DE ESTRUTURA (2026-10-08) — leia antes do resto
+
+Este arquivo cresceu por acúmulo e contém **duas eras sobrepostas**. Ele foi
+preservado como história, mas **não é mais a fonte de verdade do estado atual**:
+
+| Seção | Linhas | O que é |
+| --- | --- | --- |
+| Topo (F19→F32, "CURRENT OFFICIAL STATUS") | 1–723 | Relatórios de fase de 2026-09-27/28 |
+| Base (0.1→0.6.8, "VERSION"/"STATUS"/"NOT IMPLEMENTED") | 723–fim | Estado de 2026-09-01 |
+
+As seções `NOT IMPLEMENTED`, `VERSION` e `CURRENT FILE STRUCTURE` da **base**
+descrevem a 0.6.8 e ficaram **desatualizadas** após as fases F0–F32: elas
+afirmam que Unreal, vision, mouse, teclado e computer control são
+"❌ inexistentes", o que deixou de ser verdade quando esses módulos foram
+escritos — e depois voltou a ser parcialmente verdade quando eles foram
+**arquivados** na limpeza da Fase 0.
+
+### Situação real hoje (2026-10-08)
+
+- **Runtime vivo:** `main.py` → UI Tkinter → Agent/Bridge → Planner → Tools
+  (filesystem + terminal allowlistado). É isto que a suíte de **1.375 testes**
+  cobre.
+- **Arquivado:** ~8.819 LOC em `archive/` (ver [`archive/README.md`](archive/README.md)).
+  Não é mais importado por nada. Inclui `app/evolution/`, `app/computer_control/`,
+  `app/computer/`, `app/unreal/`, `app/workflows/`, `app/experience/`,
+  `app/autonomy/` e `app/learning/`.
+- **Trilha MCP + ponte Unreal (em construção, um commit por fase):**
+  - ✅ **Fase -1** — pesquisa de projetos MCP-Unreal existentes
+    ([`PESQUISA_MCP_EXISTENTES.md`](PESQUISA_MCP_EXISTENTES.md)); decisão:
+    implementar do zero, adotando "Remote Control API + Python Editor Script
+    Plugin" como referência validada.
+  - ✅ **Fase 0** — limpeza do código morto (~8.819 LOC em `archive/`) e
+    correção de docs.
+  - ✅ **Fase 1** — `app/research/`: pesquisa web (Tavily/Brave) como tool do
+    protocolo do LUMEN, opt-in e fail-closed.
+  - ✅ **Fase 2** — `app/planning/`: `FeaturePlan` + `ApprovalGate`. O plano
+    **não executa sem aprovação explícita**; `to_planner_plan()` levanta
+    `PlanNotApprovedError` enquanto o gate não decidir.
+  - ✅ **Fase 3** — `app/mcp_server/`: servidor MCP real (JSON-RPC 2.0 sobre
+    stdio). Somente-leitura por padrão; a escrita exige opt-in do operador e
+    a chamada entra por `run_tool_call()`, preservando permissões, sandbox e
+    checkpoints. `mcp_config.json` na raiz para Claude Desktop/Cline.
+  - ✅ **Fase 4** — `app/unreal_bridge/`: cliente da Remote Control API
+    (porta 30010) + 7 tools `unreal_*`. RC API pura para descrever, buscar,
+    definir propriedade e chamar função; **Python no editor** para criar
+    Blueprint e adicionar componente, porque a RC API **não tem rota para
+    criar assets**. Desligada por padrão.
+  - ✅ **Fase 5** — `TESTE_LOCAL.md`: pré-requisitos, configuração do cliente
+    MCP, teste mínimo de validação no PC do usuário e troubleshooting.
+  - ✅ **Fase 6** — `bootstrap.ps1`: prepara tudo em um comando, incluindo a
+    checagem dos dois plugins no `.uproject` e o probe da porta 30010.
+  - ✅ **Entrega final** — [`RELATORIO_FINAL.md`](RELATORIO_FINAL.md): o que
+    está implementado e testado, o que precisa de validação manual no PC do
+    usuário (item por item), bloqueios e decisões técnicas.
+- **Contagem de testes:** 1.375 passed / 7 skipped / 0 failed (revisão PR #33: +11 testes)
+  (era ~1.393 antes do arquivamento — a diferença é o código removido; as
+  Fases 1 e 2 somam 102 testes novos).
+- **Gate de segurança inalterado:** aprovar o PLANO (Fase 2) não aprova as
+  OPERAÇÕES. Cada escrita/comando destrutivo continua pausando no checkpoint
+  do `PlanExecutor` — dois portões independentes, cobertos por
+  `tests/test_planning_e2e.py`.
+
+### Cabeçalhos duplicados corrigidos
+
+Havia **15 cabeçalhos idênticos** `# CURRENT OFFICIAL TRACK — 2026-09-27`,
+tornando o sumário do arquivo inútil. Cada um recebeu sufixo com a fase que
+anuncia (ex.: `· F19 — LUMEN INTELLIGENCE LAB`).
+
+---
+ 🟨 F27–F30 ainda aguardam validações físicas/externas específicas (Windows, provider multimodal e Unreal). F31–F32 possuem implementação, integração, segurança, persistência e validação automatizada registradas; nenhuma validação física é inferida da CI.
 
 > O roadmap e a continuidade foram consolidados em um único documento. Não usar `docs/ROADMAP.md` ou `docs/LUMEN_CONTINUITY_PHASES.md` como fontes independentes.
 
@@ -231,7 +304,7 @@ Validação final:
 
 **Próxima fase oficial: F22 — Continuous Intelligence Evolution.**
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F19 — LUMEN INTELLIGENCE LAB
 
 **F19 — LUMEN INTELLIGENCE LAB: 🟩 CONCLUÍDA.
 
@@ -263,7 +336,7 @@ amplia Scope ou promove automaticamente.
 
 **Próxima fase oficial: F20 — Self-Optimizing Intelligence.**
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F18 — MODEL ADAPTATION LABORATORY
 
 **F18 — MODEL ADAPTATION LABORATORY: 🟩 CONCLUÍDA.**
 
@@ -290,7 +363,7 @@ O laboratório não treina, executa inferência, baixa modelos, acessa rede, faz
 
 **Próxima fase oficial: F19 — Lumen Intelligence Lab.**
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F17 — INTELLIGENCE STACK EVOLUTION
 
 **F17 — INTELLIGENCE STACK EVOLUTION: 🟩 CONCLUÍDA.**
 
@@ -353,7 +426,7 @@ A trilha oficial já permite à Lumen:
 
 **Limitação física:** CI Linux não é smoke test físico de Windows/Unreal. A validação real de mouse/teclado/UIA/Unreal em uma máquina Windows continua sendo uma etapa de ambiente, não declarada como concluída por esta CI.
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT
 
 **F14 — SELF-DIAGNOSTICS + RESEARCH FOR IMPROVEMENT: 🟩 CONCLUÍDA.**
 
@@ -390,7 +463,7 @@ Segurança:
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F13 — EVOLUTION LABORATORY
 
 **F13 — EVOLUTION LABORATORY: 🟩 CONCLUÍDA.**
 
@@ -424,7 +497,7 @@ Segurança:
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F12 — EVOLUTION FOUNDATION
 
 **F12 — EVOLUTION FOUNDATION: 🟩 CONCLUÍDA.**
 
@@ -465,7 +538,7 @@ Segurança:
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F12 — EVOLUTION FOUNDATION  ·  registro 2
 
 **F12 — EVOLUTION FOUNDATION: 🟨 IMPLEMENTAÇÃO CONCLUÍDA / CI PENDENTE.**
 
@@ -490,7 +563,7 @@ A fase só será marcada 🟩 após CI completa e correção de qualquer falha e
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F11 — AUTONOMOUS MULTI-STEP AGENT
 
 **F11 — AUTONOMOUS MULTI-STEP AGENT: 🟩 CONCLUÍDA.**
 
@@ -526,7 +599,7 @@ Próxima fase oficial: F12 — Evolution Foundation.
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F10 — WORKFLOW LEARNING
 
 **F10 — WORKFLOW LEARNING: 🟩 IMPLEMENTAÇÃO CONCLUÍDA / VALIDAÇÃO FOCADA CONCLUÍDA.**
 
@@ -558,7 +631,7 @@ Validação implementada:
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F9 — UNREAL ENGINE AGENT
 
 **F9 — UNREAL ENGINE AGENT: 🟩 CONCLUÍDA.**
 
@@ -582,7 +655,7 @@ Entregues:
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F7 — SECURE COMPUTER CONTROL
 
 **F7 — SECURE COMPUTER CONTROL: 🟩 CONCLUÍDA.**
 
@@ -612,7 +685,7 @@ Observação de validação: a CI é executada em ambiente Linux e, portanto, n�
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F6 — GROUNDING ENGINE
 
 **F6 — GROUNDING ENGINE: 🟩 CONCLUÍDA.**
 
@@ -641,7 +714,7 @@ A F6 não executa ações. O resultado é somente um GroundedTarget/TargetResolu
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F5 — VISION PROVIDER
 
 **F5 — VISION PROVIDER: 🟩 CONCLUÍDA.**
 
@@ -669,7 +742,7 @@ Computer Control físico continua protegido pelas camadas posteriores.
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F4 — WINDOWS NATIVE INTELLIGENCE
 
 **F4 — WINDOWS NATIVE INTELLIGENCE: 🟩 CONCLUÍDA.**
 
@@ -696,7 +769,7 @@ teclado ou Invoke. A execução física permanece na cadeia segura planejada par
 
 ---
 
-# CURRENT OFFICIAL TRACK — 2026-09-27
+# CURRENT OFFICIAL TRACK — 2026-09-27  ·  F3 — COMPUTER INTELLIGENCE
 
 **F3 — COMPUTER INTELLIGENCE: 🟩 CONCLUÍDA.**
 
@@ -2537,7 +2610,7 @@ Lumen/
 ├── .gitignore
 │
 ├── app/
-│   ├── __init__.py             # APP_NAME, __version__ = 0.4.0
+│   ├── __init__.py             # APP_NAME, __version__ = 0.6.8
 │   ├── ai/
 │   │   ├── __init__.py
 │   │   ├── provider.py         # AIProvider (ABC), erros, fábrica

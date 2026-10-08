@@ -10,6 +10,8 @@ import json
 
 import pytest
 
+pytest.importorskip("tkinter", reason="Tk nao disponivel neste ambiente (no Windows e no CI com python3-tk roda)")
+
 import app.ui.main_window as main_window_module
 import app.ui.tools_dialog as tools_dialog_module
 from app.ai.mock import MockProvider

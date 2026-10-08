@@ -60,7 +60,7 @@ OPERATION_DELETE = "delete"
 #: Ferramentas potencialmente destrutivas (mutam/apagam dados) —
 #: candidatas naturais a checkpoint/consentimento do usuário.
 FILESYSTEM_DESTRUCTIVE_TOOLS: frozenset[str] = frozenset(
-    {"write_file", "create_file", "delete_file", "edit_file"}
+    {"write_file", "create_file", "delete_file", "edit_file", "create_directory"}
 )
 
 #: Ferramentas fornecidas por :func:`build_filesystem_registry`.
@@ -73,6 +73,7 @@ FILESYSTEM_TOOLS: tuple[str, ...] = (
     "file_exists",
     "search_files",
     "edit_file",
+    "create_directory",
 )
 
 
@@ -560,6 +561,50 @@ class CreateFileTool(_WriteBaseTool):
         }
 
 
+class CreateDirectoryTool(_WriteBaseTool):
+    """Cria um diretório no workspace, incluindo pais ausentes.
+
+    Existe porque ``create_file`` **exige que o diretório pai já exista**
+    (``_ensure_parent``) — sem esta ferramenta nenhum plano que crie
+    arquivos aninhados (``Source/Jogo/Public/X.h``, o caso normal em C++)
+    poderia ser executado.
+
+    Idempotente: diretório já existente é sucesso (``created=False``), o
+    que torna a expansão automática de planos segura — reexecutar não
+    falha por causa da estrutura de pastas.
+
+    Confinada pelo sandbox como as demais: ``..``, caminhos absolutos
+    fora das raízes e escrita em workspace somente-leitura continuam
+    bloqueados. Alteração de filesystem ⇒ está em
+    ``FILESYSTEM_DESTRUCTIVE_TOOLS`` e passa por checkpoint.
+    """
+
+    name = "create_directory"
+    description = (
+        "Cria um diretório no workspace (inclusive diretórios pai ausentes). "
+        "Idempotente: diretório existente não é erro."
+    )
+
+    def _perform(self, resolved: Path, **kwargs: Any) -> dict[str, Any]:
+        if resolved.exists():
+            if not resolved.is_dir():
+                raise FilesystemError(
+                    f"Já existe um arquivo com esse nome (não é diretório): {resolved}"
+                )
+            return {"created": False, "already_existed": True, "_audit": {"created": False}}
+        missing = [p for p in [resolved, *resolved.parents] if not p.exists()]
+        try:
+            resolved.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise FilesystemError(f"Não foi possível criar o diretório {resolved}: {exc}") from exc
+        return {
+            "created": True,
+            "already_existed": False,
+            "parents_created": len(missing),
+            "_audit": {"created": True, "parents_created": len(missing)},
+        }
+
+
 class DeleteFileTool(_WriteBaseTool):
     """Apaga um **arquivo** do workspace (opt-in duplo da política).
 
@@ -605,7 +650,7 @@ def build_filesystem_registry(
     sandbox: WorkspaceSandbox,
     audit: FilesystemAudit | None = None,
 ) -> ToolRegistry:
-    """Registra as 8 ferramentas de filesystem em um ``ToolRegistry``.
+    """Registra as 9 ferramentas de filesystem em um ``ToolRegistry``.
 
     O registro é **sempre explícito** — nada é registrado globalmente no
     startup da aplicação; quem constrói o registry define o sandbox
@@ -622,6 +667,7 @@ def build_filesystem_registry(
         ReadFileTool(sandbox, audit),
         WriteFileTool(sandbox, audit),
         CreateFileTool(sandbox, audit),
+        CreateDirectoryTool(sandbox, audit),
         DeleteFileTool(sandbox, audit),
         FileExistsTool(sandbox, audit),
         SearchFilesTool(sandbox, audit),

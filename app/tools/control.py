@@ -293,6 +293,25 @@ class PrevalidatedCheckpoints(ToolCheckpoints):
         return True
 
 
+# Operações no editor não são filesystem: não existe path a pré-validar no
+# sandbox local. Elas continuam exigindo WRITE e aprovação por chamada.
+_UNREAL_MUTATING_TOOLS = frozenset({
+    "unreal_set_property", "unreal_call_function",
+    "unreal_create_blueprint_class", "unreal_add_component",
+})
+
+
+class _UnrealCheckpoints(ToolCheckpoints):
+    def __init__(self, permissions: PermissionManager) -> None:
+        super().__init__(_UNREAL_MUTATING_TOOLS)
+        self._permissions = permissions
+
+    def requires_checkpoint(self, task: PlannedTask) -> bool:
+        # Sem WRITE o handler reporta permissão negada, sem checkpoint inútil.
+        return (self._permissions.is_granted(PermissionLevel.WRITE)
+                and super().requires_checkpoint(task))
+
+
 class _CombinedCheckpoints(ToolCheckpoints):
     """Une as políticas de checkpoint (filesystem + terminal, 0.6).
 
@@ -414,6 +433,11 @@ class ToolsController:
         self._snapshot_store = SnapshotStore(
             self._snapshots_dir, max_snapshot_bytes=snapshot_max_bytes
         )
+        # Fase 1: pesquisa web (default OFF — habilitada só via
+        # enable_web_search(); nenhum efeito no startup).
+        self._web_search_provider = None
+        # Fase 4: ponte com o Unreal Editor. None = desabilitada (default).
+        self._unreal_client = None
         self._load_terminal()  # fail-closed; não cria arquivo nem concede nada
         self._apply_persisted_toggles()  # 11H: só capacidade, sem permissões
 
@@ -914,6 +938,80 @@ class ToolsController:
     def _sandbox(self) -> MultiWorkspaceSandbox:
         return MultiWorkspaceSandbox(self._store.load())
 
+    def enable_web_search(self, provider=None) -> dict:
+        """Habilita a tool ``web_search`` (Fase 1) — **explícito**.
+
+        Sem chamada, a tool não existe: não entra no registry nem no
+        catálogo do Planner (fail-closed, mesmo padrão de
+        :meth:`enable_terminal`). A permissão ``READ`` continua sendo
+        exigida na execução — habilitar **não concede nada**.
+
+        ``provider`` vazio tenta resolver pelo ambiente
+        (``TAVILY_API_KEY``/``BRAVE_API_KEY``). Falha de configuração é
+        reportada como dict, nunca como exceção — o caller decide.
+        """
+        from app.research.client import SearchProviderError, create_search_provider
+
+        try:
+            self._web_search_provider = provider or create_search_provider()
+        except SearchProviderError as exc:
+            logger.warning("Pesquisa web não habilitada: %s", exc)
+            return {"enabled": False, "provider": None, "reason": str(exc)}
+        name = getattr(self._web_search_provider, "name", "unknown")
+        logger.info("Pesquisa web habilitada (provedor=%s).", name)
+        return {"enabled": True, "provider": name, "reason": None}
+
+    def disable_web_search(self) -> None:
+        """Desabilita a tool de pesquisa web (volta ao estado fail-closed)."""
+        self._web_search_provider = None
+
+    @property
+    def web_search_enabled(self) -> bool:
+        return self._web_search_provider is not None
+
+    # ------------------------------------------------- Fase 4: Unreal bridge
+    def enable_unreal_bridge(self, client=None, **config_kwargs) -> dict:
+        """Habilita as ferramentas ``unreal_*`` (Fase 4) — **explícito**.
+
+        Mesmo padrão de :meth:`enable_web_search`: sem chamada, as
+        ferramentas não existem — não entram no registry nem no catálogo do
+        Planner. Não há tentativa automática de conexão no startup: um
+        projeto sem editor aberto não deve ver ferramentas que só sabem
+        falhar.
+
+        Não faz requisição de rede aqui: a disponibilidade do editor é
+        verificada pela própria tool ``unreal_get_info``, quando chamada.
+
+        Args:
+            client: ``RemoteControlClient`` pronto (usado em testes).
+            **config_kwargs: repassados a ``UnrealBridgeConfig``.
+
+        Returns:
+            ``{"enabled": bool, "base_url": str | None, "reason": str | None}``
+            — nunca levanta: configuração inválida devolve ``enabled=False``.
+        """
+        try:
+            if client is None:
+                from app.unreal_bridge import RemoteControlClient
+                from app.unreal_bridge.config import UnrealBridgeConfig
+
+                client = RemoteControlClient(UnrealBridgeConfig(**config_kwargs))
+        except Exception as exc:  # config inválida não deve derrubar o app
+            logger.warning("Ponte com o Unreal não habilitada: %s", exc)
+            return {"enabled": False, "base_url": None, "reason": str(exc)}
+        self._unreal_client = client
+        base_url = getattr(getattr(client, "config", None), "base_url", None)
+        logger.info("Ponte com o Unreal habilitada (%s).", base_url)
+        return {"enabled": True, "base_url": base_url, "reason": None}
+
+    def disable_unreal_bridge(self) -> None:
+        self._unreal_client = None
+        logger.info("Ponte com o Unreal desabilitada.")
+
+    @property
+    def unreal_bridge_enabled(self) -> bool:
+        return self._unreal_client is not None
+
     def planning_catalog(self) -> dict:
         """Allowlist de ferramentas que o chat pode planejar (0.6.3).
 
@@ -928,7 +1026,9 @@ class ToolsController:
         from app.planner.catalog import build_catalog
 
         return build_catalog(
-            include_terminal=self._terminal_policy is not None
+            include_terminal=self._terminal_policy is not None,
+            include_web_search=self._web_search_provider is not None,
+            include_unreal=self._unreal_client is not None,
         )
 
     def build_registry(self) -> ToolRegistry:
@@ -957,6 +1057,19 @@ class ToolsController:
                 RunCommandTool(self._terminal_policy, sandbox, self._audit)
             )
             registry.register(RunPytestTool(sandbox, self._audit))
+        # Fase 1: pesquisa web — SOMENTE quando um provedor foi
+        # explicitamente habilitado via enable_web_search(). Registro
+        # nunca automático; a chave de API continua vindo do ambiente.
+        if self._web_search_provider is not None:
+            from app.research.tool import WebSearchTool
+
+            registry.register(WebSearchTool(self._web_search_provider))
+        # Fase 4: ponte com o Unreal — idem, só quando habilitada.
+        if self._unreal_client is not None:
+            from app.unreal_bridge.tools import build_unreal_registry
+
+            for tool in build_unreal_registry(self._unreal_client):
+                registry.register(tool)
         return registry
 
     # ---------------------------------------------------------- F2 protocol
@@ -975,12 +1088,20 @@ class ToolsController:
                 )
                 for item in info.get("parameters", [])
             )
-            definitions[name] = ToolDefinition(
-                name=name,
-                description=str(info.get("description") or ""),
-                parameters=params,
-                destructive=name in FILESYSTEM_DESTRUCTIVE_TOOLS,
-            )
+            tool = registry.get(name)
+            if name.startswith("unreal_"):
+                # Não perca o metadata/destructive declarado pela ponte:
+                # reconstituir a partir do catálogo tornava as 7 tools
+                # visíveis no MCP sem --allow-write.
+                definitions[name] = tool.definition()
+            else:
+                definitions[name] = ToolDefinition(
+                    name=name,
+                    description=str(info.get("description") or ""),
+                    parameters=params,
+                    destructive=(name in FILESYSTEM_DESTRUCTIVE_TOOLS
+                                 or name in (TERMINAL_TOOL_NAME, "run_pytest")),
+                )
         available = {item["name"] for item in registry.list_tools()}
         definitions = {name: definition for name, definition in definitions.items()
                        if name in available}
@@ -1073,6 +1194,8 @@ class ToolsController:
                 snapshots_dir=self._snapshots_dir,
             )
         ]
+        if self._unreal_client is not None:
+            policies.append(_UnrealCheckpoints(self._permissions))
         if self._terminal_policy is not None:
             policies.append(
                 PrevalidatedTerminalCheckpoints(

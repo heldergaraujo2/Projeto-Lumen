@@ -2,6 +2,29 @@
 
 **Assistente de IA desktop para Windows** — versão **0.6.8 (Multi-tarefa via chat + Data-flow seguro + Persistência opt-in do Execution State)**.
 
+> ## ⚠️ Estado atual (2026-10-08)
+>
+> O README abaixo descreve as versões **0.1–0.6.8**, que é o núcleo vivo do
+> projeto. Duas mudanças recentes **não estão refletidas nas seções
+> históricas** deste documento:
+>
+> 1. **Limpeza da Fase 0** — ~8.819 LOC de código inalcançável foram movidos
+>    para [`archive/`](archive/README.md): os pacotes `app/evolution/`,
+>    `app/computer_control/`, `app/computer/`, `app/unreal/`,
+>    `app/workflows/`, `app/experience/`, `app/autonomy/` e `app/learning/`.
+>    Nenhum deles era importado por `main.py` ou pela UI. Onde as seções
+>    abaixo dizem "Unreal", "vision", "mouse" ou "computer control", leia-se:
+>    **arquivado, não parte do runtime**.
+> 2. **Trilha MCP + Unreal** — ver [`RELATORIO_FINAL.md`](RELATORIO_FINAL.md),
+>    [`TESTE_LOCAL.md`](TESTE_LOCAL.md) e
+>    [`PESQUISA_MCP_EXISTENTES.md`](PESQUISA_MCP_EXISTENTES.md).
+>
+> Suíte viva: **1375 passed / 7 skipped / 0 failed**
+> (Fase 0: 991; fases 1–6: +373; revisão PR #33: +11; ver relatório).
+>
+> O roadmap canônico é [`docs/LUMEN_MASTER_ROADMAP.md`](docs/LUMEN_MASTER_ROADMAP.md);
+> o log de estado é [`LUMEN_STATE.md`](LUMEN_STATE.md).
+
 A Lumen é uma assistente pessoal que, ao final do projeto, será capaz de
 receber comandos em linguagem natural e, de forma progressivamente
 autônoma, executar tarefas no computador do usuário: manter memória de
@@ -497,10 +520,9 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-1000 testes, todos offline — **995 passed / 5 skipped / 0 failed**.
-Os 5 skips são ambientais: introspecção dos SDKs
-`google-genai`/`groq`/`together` e do `keyring` quando ausentes, e o
-smoke test da UI Tk em ambientes sem display (no Windows ele roda). As chamadas aos provedores (OpenAI, Gemini, Groq,
+**1375 passed / 7 skipped / 0 failed** — todos offline.
+Os 7 skips são testes de UI que precisam do `tkinter`, indisponível neste
+sandbox; no Windows com Tcl/Tk instalado, rodam normalmente. As chamadas aos provedores (OpenAI, Gemini, Groq,
 Together), o cofre de credenciais, a memória estruturada e as
 **ferramentas de filesystem** usam fakes/diretórios temporários;
 nenhum teste toca API real nem arquivos fora de `tmp`.
@@ -509,9 +531,11 @@ nenhum teste toca API real nem arquivos fora de `tmp`.
 
 | Variável | Padrão | Descrição |
 | -------- | ------ | --------- |
-| `LUMEN_PROVIDER` | `mock` | `mock` (offline), `openai`, `gemini`, `groq` ou `together` (APIs reais). |
+| `LUMEN_PROVIDER` | `mock` | `mock` (offline), `ollama` (local), `openai`, `gemini`, `groq` ou `together` (APIs reais). |
 | `LUMEN_MODEL` | vazio | Modelo a usar (obrigatório com `openai`; nos demais, vazio usa o padrão do provedor — ver tabela abaixo). |
 | `LUMEN_API_KEY` | vazio | Chave de API (obrigatória com qualquer provider real). Nunca versione. |
+| `LUMEN_OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Endpoint do daemon Ollama local (não usa API key). |
+| `LUMEN_OLLAMA_KEEP_ALIVE` | `5m` | Tempo que o Ollama mantém o modelo carregado em memória. |
 | `LUMEN_DATA_DIR` | `data` | Diretório de dados (memória, tarefas, logs). |
 | `LUMEN_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
 | `LUMEN_MAX_CONTEXT_MESSAGES` | `50` | Máximo de mensagens de histórico enviadas ao modelo. |
@@ -524,6 +548,7 @@ de cada API em 2026-08; configuráveis pelo usuário):
 
 | Provedor | Padrão (modelo vazio) | Alternativas documentadas |
 | -------- | --------------------- | ------------------------- |
+| `ollama` | `qwen2.5-coder:7b-instruct-q8_0` | qualquer modelo instalado em `ollama list` |
 | `openai` | — (obrigatório) | `gpt-4o-mini`, `gpt-4o`, … |
 | `gemini` | `gemini-2.5-flash` | `gemini-2.5-pro`, … |
 | `groq` | `openai/gpt-oss-120b` | `openai/gpt-oss-20b`, `llama-3.3-70b-versatile`, `llama-3.1-8b-instant` |
@@ -540,14 +565,20 @@ registram API keys nem o conteúdo das conversas.
 ```text
 Lumen/
 ├── main.py                  # ponto de entrada (composition root)
+├── bootstrap.ps1            # bootstrap Windows: Python → venv → pip →
+│                            # pytest → .uproject/plugins → editor → MCP
 ├── LUMEN_STATE.md           # estado oficial do projeto
 ├── README.md
 ├── requirements.txt         # openai (provider real) + pytest (dev)
 ├── .env.example
+├── TESTE_LOCAL.md           # guia: pré-requisitos, como configurar o
+│                            # cliente MCP e validar a ponte no SEU PC
+├── RELATORIO_FINAL.md       # o que está pronto, o que falta validar, e por quê
+├── mcp_config.json          # modelo de configuração (Claude Desktop/Cline)
 ├── .gitignore
 │
 ├── app/
-│   ├── __init__.py          # APP_NAME, __version__ = 0.4.0
+│   ├── __init__.py          # APP_NAME, __version__ = 0.6.8
 │   ├── ai/                  # AI PROVIDER
 │   │   ├── provider.py      #   AIProvider (ABC), chat()/generate(),
 │   │   │                    #   taxonomia de erros, fábrica create_provider()
@@ -575,6 +606,36 @@ Lumen/
 │   │   └── planner.py       #   Planner.create_plan(): prompt JSON strict →
 │   │                        #   validação (deps/ciclos) → plano READY/FAILED/
 │   │                        #   BLOCKED; memória 0.3 como leitura opcional
+│   ├── research/            # PESQUISA WEB (Fase 1)
+│   │   ├── client.py        #   Tavily/Brave por HTTP (urllib), chave só em
+│   │   │                    #   variável de ambiente, transporte injetável
+│   │   ├── models.py        #   SearchResult/WebSearchResponse + citação
+│   │   └── tool.py          #   WebSearchTool (ToolDefinition, READ)
+│   ├── planning/            # PLANEJAMENTO (Fase 2)
+│   │   ├── models.py        #   FeaturePlan imutável + digest anti-TOCTOU;
+│   │   │                    #   to_planner_plan() exige aprovação
+│   │   ├── planner.py       #   FeaturePlanner: objetivo+pesquisa → plano
+│   │   ├── approval.py      #   ApprovalGate: submit/approve/reject/expire
+│   │   └── render.py        #   render_markdown(): o plano legível p/ aprovar
+│   ├── unreal_bridge/       # PONTE COM O UNREAL EDITOR (Fase 4)
+│   │   ├── config.py        #   UnrealBridgeConfig (LUMEN_UNREAL_*, porta 30010)
+│   │   ├── client.py        #   RemoteControlClient: /remote/info, object/call,
+│   │   │                    #   object/property, object/describe, search/assets,
+│   │   │                    #   batch, object/thumbnail, execute_python
+│   │   ├── python_script.py #   geradores de script p/ criar Blueprint e
+│   │   │                    #   adicionar componente (a RC API NÃO cria assets)
+│   │   └── tools.py         #   7 tools unreal_* (get_info, describe_object,
+│   │                        #   search_assets, set_property, call_function,
+│   │                        #   create_blueprint_class, add_component)
+│   ├── mcp_server/          # SERVIDOR MCP (Fase 3)
+│   │   ├── jsonrpc.py       #   envelope JSON-RPC 2.0 (códigos, parsing,
+│   │   │                    #   serialização compacta de 1 linha)
+│   │   ├── schema.py        #   ToolDefinition → schema oficial de tool MCP
+│   │   ├── gateway.py       #   MCP → ToolsController.run_tool_call()
+│   │   │                    #   (permissões/sandbox/checkpoint preservados)
+│   │   ├── server.py        #   initialize/tools.list/tools.call/ping
+│   │   ├── stdio.py         #   transporte stdio (newline-delimited)
+│   │   └── __main__.py      #   python -m app.mcp_server --workspace ...
 │   ├── executor/            # EXECUTOR (0.4.x)
 │   │   ├── handlers.py      #   TaskHandler (ABC) + SimulatedHandler
 │   │   │                    #   (in-memory; futura costura c/ ToolRegistry)
@@ -603,8 +664,9 @@ Lumen/
 │   │   ├── base.py          #   Tool (ABC) + ToolResult/StructuredTool +
 │   │   │                    #   ToolRegistry (porteiro de permissões)
 │   │   ├── filesystem.py    #   WorkspaceSandbox (política de raízes
-│   │   │                    #   autorizadas) + FilesystemAudit + 6 tools
-│   │   │                    #   (list/read/write/create/delete/exists)
+│   │   │                    #   autorizadas) + FilesystemAudit + 9 tools
+│   │   │                    #   (list/read/write/create/create_directory/
+│   │   │                    #   delete/exists/search/edit)
 │   │   ├── handler.py       #   ToolTaskHandler (Executor↔Tools) +
 │   │   │                    #   ToolCheckpoints (destrutivas p/ checkpoint)
 │   │   ├── workspaces.py    #   WorkspaceStore (autorizações persistidas)
@@ -634,7 +696,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # 1000 testes pytest (995 passed + 5 skipped; todos offline)
+├── tests/                   # suíte histórica + fases -1–6 (1375 passed + 7 skipped; offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura
@@ -701,11 +763,12 @@ Roadmap completo: [`docs/ROADMAP.md`](docs/ROADMAP.md).
   entre sessões) e a allowlist é gerenciada pela UI e persistida em
   `data/terminal.json` (fail closed: arquivo ilegível ou entrada
   denylistada ⇒ terminal desabilitado/entrada descartada).
-- Nenhuma outra ferramenta sensível existe — nem código para mouse,
-  teclado, captura de tela, visão, computer control, Unreal ou rede das
-  ferramentas (0.7+; `subprocess` existe somente em
+- A trilha MCP/Unreal adicionou ferramentas sensíveis opt-in (ver
+  `RELATORIO_FINAL.md`): não entram no catálogo sem ativação explícita.
+  Mouse, teclado, captura e computer control permanecem arquivados.
+  `subprocess` para ferramentas preexistentes existe somente em
   `app/tools/terminal.py` e `app/tools/run_pytest.py`, ambos
-  controlados, garantido por testes AST).
+  controlados (garantido por testes AST).
 - **Controle humano pela UI (0.5.x)**: workspaces, permissões
   `READ`/`WRITE` e aprovação de operações destrutivas partem **do
   usuário**, na tela 🛡 — a UI **rejeita** conceder níveis futuros

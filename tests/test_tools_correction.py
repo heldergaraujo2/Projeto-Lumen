@@ -320,6 +320,7 @@ def test_original_plan_object_stays_immutable(controller, ws):
 
 # ------------------------------------------------------------------- UI
 def test_dialog_shows_correction_card_and_approves_chain(tmp_path, ws):
+    pytest.importorskip("tkinter", reason="Tk nao disponivel neste ambiente")
     import app.ui.tools_dialog as tools_dialog_module
     from tests.fake_tk import FakeMessagebox, FakeRoot, FakeTkModule
 
@@ -356,6 +357,7 @@ def test_dialog_shows_correction_card_and_approves_chain(tmp_path, ws):
 
 
 def test_dialog_refused_correction_keeps_file(tmp_path, ws):
+    pytest.importorskip("tkinter", reason="Tk nao disponivel neste ambiente")
     import app.ui.tools_dialog as tools_dialog_module
     from tests.fake_tk import FakeMessagebox, FakeRoot, FakeTkModule
 
