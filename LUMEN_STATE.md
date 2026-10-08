@@ -26,7 +26,7 @@ escritos — e depois voltou a ser parcialmente verdade quando eles foram
 ### Situação real hoje (2026-10-08)
 
 - **Runtime vivo:** `main.py` → UI Tkinter → Agent/Bridge → Planner → Tools
-  (filesystem + terminal allowlistado). É isto que a suíte de **1.306 testes**
+  (filesystem + terminal allowlistado). É isto que a suíte de **1.364 testes**
   cobre.
 - **Arquivado:** ~8.819 LOC em `archive/` (ver [`archive/README.md`](archive/README.md)).
   Não é mais importado por nada. Inclui `app/evolution/`, `app/computer_control/`,
@@ -53,9 +53,12 @@ escritos — e depois voltou a ser parcialmente verdade quando eles foram
     definir propriedade e chamar função; **Python no editor** para criar
     Blueprint e adicionar componente, porque a RC API **não tem rota para
     criar assets**. Desligada por padrão.
-  - ⏳ **Fases 5–6** — `TESTE_LOCAL.md`, `bootstrap.ps1`.
-    Ver `RELATORIO_FINAL.md`.
-- **Contagem de testes:** 1.306 passed / 7 skipped / 0 failed
+  - ✅ **Fase 5** — `TESTE_LOCAL.md`: pré-requisitos, configuração do cliente
+    MCP, teste mínimo de validação no PC do usuário e troubleshooting.
+  - ✅ **Fase 6** — `bootstrap.ps1`: prepara tudo em um comando, incluindo a
+    checagem dos dois plugins no `.uproject` e o probe da porta 30010.
+  - ⏳ **Entrega final** — `RELATORIO_FINAL.md`. Ver abaixo.
+- **Contagem de testes:** 1.364 passed / 7 skipped / 0 failed
   (era ~1.393 antes do arquivamento — a diferença é o código removido; as
   Fases 1 e 2 somam 102 testes novos).
 - **Gate de segurança inalterado:** aprovar o PLANO (Fase 2) não aprova as

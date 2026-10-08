@@ -566,6 +566,8 @@ registram API keys nem o conteúdo das conversas.
 ```text
 Lumen/
 ├── main.py                  # ponto de entrada (composition root)
+├── bootstrap.ps1            # bootstrap Windows: Python → venv → pip →
+│                            # pytest → .uproject/plugins → editor → MCP
 ├── LUMEN_STATE.md           # estado oficial do projeto
 ├── README.md
 ├── requirements.txt         # openai (provider real) + pytest (dev)
