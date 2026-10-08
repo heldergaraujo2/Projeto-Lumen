@@ -570,6 +570,9 @@ Lumen/
 ├── README.md
 ├── requirements.txt         # openai (provider real) + pytest (dev)
 ├── .env.example
+├── TESTE_LOCAL.md           # guia: pré-requisitos, como configurar o
+│                            # cliente MCP e validar a ponte no SEU PC
+├── mcp_config.json          # modelo de configuração (Claude Desktop/Cline)
 ├── .gitignore
 │
 ├── app/
