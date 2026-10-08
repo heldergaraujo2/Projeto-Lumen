@@ -82,3 +82,16 @@ Suíte **com `PYTHONIOENCODING=cp1252` no processo pytest pai**:
 **1375 passed / 7 skipped / 0 failed**. A causa do check Windows só será
 considerada eliminada quando **os cinco checks do novo commit** ficarem
 verdes; merge continua bloqueado até lá.
+
+## Adendo — gate F27 obsoleto no CI Windows
+
+No commit `36f024e`, o job `windows` passou **`Tests`** e falhou somente em
+`F27 physical gate policy`. O workflow importava
+`app.computer_control.windows_driver`, movido para `archive/` na Fase 0;
+reproduzido localmente com `ModuleNotFoundError`. Antes de remover a etapa,
+foram inspecionados todos os quatro arquivos em `.github/workflows/`:
+nenhum outro job/workflow usa o módulo, a etapa, outputs dela ou `needs:`.
+Os scripts manuais legados `scripts/f27_windows_smoke.py` e
+`scripts/f28_vision_smoke.py` não são invocados pelo CI. A etapa foi
+removida com comentário explicativo; `Compile` e `Tests` permanecem.
+**Merge ainda condicionado aos cinco checks verdes no novo commit.**

@@ -377,7 +377,21 @@ pacote `app/planner/` não pode **importar** `app.tools`, `app.executor`,
 importar o código que executa, não. É uma garantia mais forte que a
 anterior.
 
-### 5.6 Ambiente
+### 5.6 CI Windows: gate F27 legado removido na revisão do PR #33
+
+A Fase 0 arquivou `app/computer_control/windows_driver.py`, mas
+`.github/workflows/windows-validation.yml` ainda tinha uma etapa
+`F27 physical gate policy` que importava `app.computer_control.windows_driver`.
+Depois que os testes de subprocesso MCP passaram no Windows, o check
+`windows` falhou **nessa etapa**, pois o módulo não existe mais em `app/`.
+Inspeção dos quatro workflows confirmou que nenhum outro job depende da
+etapa, de seus outputs ou do módulo. O gate foi removido com comentário
+explicativo; **`Compile` e `Tests` continuam ativos no Windows**. Scripts
+manuais antigos `scripts/f27_windows_smoke.py` e `scripts/f28_vision_smoke.py`
+ainda fazem referência ao módulo arquivado, mas nenhum workflow os executa;
+isso não constitui validação física do desktop no CI.
+
+### 5.7 Ambiente
 
 `tkinter` não está disponível no sandbox (sem `apt` com root), então os
 testes de UI são pulados com `importorskip` — não com `--ignore`, que

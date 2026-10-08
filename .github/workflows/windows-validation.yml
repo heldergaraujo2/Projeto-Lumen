@@ -19,8 +19,7 @@ jobs:
         run: python -m compileall -q app tests
       - name: Tests
         run: python -m pytest -q
-      - name: F27 physical gate policy
-        shell: pwsh
-        run: |
-          python -c "from app.computer_control.windows_driver import WindowsComputerControlDriver; print('F27 native driver import: PASS')"
-          Write-Host "F27 physical desktop smoke: NOT_EXECUTED (hosted CI is not accepted as physical evidence)"
+      # Fase 0: app/computer_control/windows_driver.py foi arquivado em
+      # archive/ (código morto). O gate F27 importava esse módulo removido
+      # do runtime e não realizava teste físico no runner hospedado.
+      # Compile + Tests continuam validando o código vivo no Windows.
