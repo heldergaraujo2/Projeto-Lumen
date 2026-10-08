@@ -438,6 +438,9 @@ class ToolsController:
         self._web_search_provider = None
         # Fase 4: ponte com o Unreal Editor. None = desabilitada (default).
         self._unreal_client = None
+        # UI pode habilitar somente consultas; outros consumers mantêm o
+        # registro completo pelo default False de enable_unreal_bridge().
+        self._unreal_read_only_only = False
         self._load_terminal()  # fail-closed; não cria arquivo nem concede nada
         self._apply_persisted_toggles()  # 11H: só capacidade, sem permissões
 
@@ -970,7 +973,9 @@ class ToolsController:
         return self._web_search_provider is not None
 
     # ------------------------------------------------- Fase 4: Unreal bridge
-    def enable_unreal_bridge(self, client=None, **config_kwargs) -> dict:
+    def enable_unreal_bridge(
+        self, client=None, *, read_only_only: bool = False, **config_kwargs
+    ) -> dict:
         """Habilita as ferramentas ``unreal_*`` (Fase 4) — **explícito**.
 
         Mesmo padrão de :meth:`enable_web_search`: sem chamada, as
@@ -983,7 +988,9 @@ class ToolsController:
         verificada pela própria tool ``unreal_get_info``, quando chamada.
 
         Args:
-            client: ``RemoteControlClient`` pronto (usado em testes).
+            client: ``RemoteControlClient`` pronto (usado em testes/UI).
+            read_only_only: se ``True``, registra somente as três consultas
+                e omite do catálogo/registry as quatro tools mutáveis.
             **config_kwargs: repassados a ``UnrealBridgeConfig``.
 
         Returns:
@@ -1000,28 +1007,37 @@ class ToolsController:
             logger.warning("Ponte com o Unreal não habilitada: %s", exc)
             return {"enabled": False, "base_url": None, "reason": str(exc)}
         self._unreal_client = client
+        self._unreal_read_only_only = bool(read_only_only)
         base_url = getattr(getattr(client, "config", None), "base_url", None)
-        logger.info("Ponte com o Unreal habilitada (%s).", base_url)
+        logger.info(
+            "Ponte com o Unreal habilitada (%s; read_only_only=%s).",
+            base_url, self._unreal_read_only_only,
+        )
         return {"enabled": True, "base_url": base_url, "reason": None}
 
     def disable_unreal_bridge(self) -> None:
         self._unreal_client = None
+        self._unreal_read_only_only = False
         logger.info("Ponte com o Unreal desabilitada.")
 
     @property
     def unreal_bridge_enabled(self) -> bool:
         return self._unreal_client is not None
 
+    @property
+    def unreal_bridge_read_only_only(self) -> bool:
+        """Se a ponte está limitada às três ferramentas de consulta."""
+        return self.unreal_bridge_enabled and self._unreal_read_only_only
+
     def planning_catalog(self) -> dict:
         """Allowlist de ferramentas que o chat pode planejar (0.6.3).
 
-        As 6 ferramentas de filesystem (sempre registradas por
-        :meth:`build_registry`) + ``run_command`` **somente** quando o
-        terminal já estiver explicitamente habilitado
-        (:meth:`enable_terminal`). Nada além disso: o Planner não
-        conhece ferramentas que a camada de tools não registraria — e o
-        registro continua sendo o porteiro real na execução (permissões,
-        sandbox e checkpoints inalterados).
+        As ferramentas de filesystem + ``run_command`` somente com terminal
+        habilitado, ``web_search`` somente com provider ativo, e Unreal
+        somente com ponte ativa (limitada às consultas quando configurada com
+        ``read_only_only=True``). O Planner não conhece ferramentas que a
+        camada de tools não registraria; permissões, sandbox e checkpoints
+        continuam sendo aplicados na execução.
         """
         from app.planner.catalog import build_catalog
 
@@ -1029,6 +1045,7 @@ class ToolsController:
             include_terminal=self._terminal_policy is not None,
             include_web_search=self._web_search_provider is not None,
             include_unreal=self._unreal_client is not None,
+            include_unreal_mutating=not self._unreal_read_only_only,
         )
 
     def build_registry(self) -> ToolRegistry:
@@ -1068,7 +1085,10 @@ class ToolsController:
         if self._unreal_client is not None:
             from app.unreal_bridge.tools import build_unreal_registry
 
-            for tool in build_unreal_registry(self._unreal_client):
+            for tool in build_unreal_registry(
+                self._unreal_client,
+                read_only_only=self._unreal_read_only_only,
+            ):
                 registry.register(tool)
         return registry
 
@@ -1091,8 +1111,8 @@ class ToolsController:
             tool = registry.get(name)
             if name.startswith("unreal_"):
                 # Não perca o metadata/destructive declarado pela ponte:
-                # reconstituir a partir do catálogo tornava as 7 tools
-                # visíveis no MCP sem --allow-write.
+                # o gateway MCP usa essa marca para separar consultas de
+                # ferramentas mutáveis.
                 definitions[name] = tool.definition()
             else:
                 definitions[name] = ToolDefinition(

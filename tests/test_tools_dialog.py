@@ -371,3 +371,126 @@ def test_tools_dialog_toggle_verification_persists(tmp_path):
     controller2 = make_toggles_controller(tmp_path, "2")
     assert controller2.verification_enabled is True
     assert controller2.terminal_status()["permission_granted"] is False
+
+
+def test_dialog_integrations_are_explicit_read_only_and_do_not_grant_read(
+    tmp_path, monkeypatch
+):
+    """A UI habilita pesquisa/Unreal sem conceder permissão nem mutações."""
+    from app.unreal_bridge import UNREAL_READ_ONLY_TOOLS, UNREAL_TOOLS
+
+    class SearchStub:
+        name = "ui-test"
+
+    monkeypatch.setattr(
+        "app.research.client.create_search_provider", lambda: SearchStub()
+    )
+    controller = make_controller(tmp_path)
+    dialog = tools_dialog_module.ToolsDialog(FakeRoot(), controller)
+    assert dialog.web_search_toggle.cget("text") == "Pesquisa web: OFF"
+    assert dialog.unreal_read_only_toggle.cget("text") == "Unreal (somente leitura): OFF"
+
+    dialog.web_search_toggle.invoke()
+    dialog.unreal_read_only_toggle.invoke()
+
+    assert controller.web_search_enabled
+    assert controller.unreal_bridge_read_only_only
+    assert "web_search" in controller.planning_catalog()
+    assert {name for name in controller.planning_catalog() if name.startswith("unreal_")} == set(
+        UNREAL_READ_ONLY_TOOLS
+    )
+    registered = {item["name"] for item in controller.build_registry().list_tools()}
+    assert set(UNREAL_READ_ONLY_TOOLS) <= registered
+    assert not (set(UNREAL_TOOLS) - set(UNREAL_READ_ONLY_TOOLS)) & registered
+    permission_rows = {
+        row["level"]: row["granted"] for row in controller.permission_status()
+    }
+    assert permission_rows["READ"] is False
+    assert permission_rows["WRITE"] is False
+    assert dialog.web_search_toggle.cget("text") == "Pesquisa web: ON"
+    assert dialog.unreal_read_only_toggle.cget("text") == "Unreal (somente leitura): ON"
+
+    dialog.web_search_toggle.invoke()
+    dialog.unreal_read_only_toggle.invoke()
+    assert not controller.web_search_enabled
+    assert not controller.unreal_bridge_enabled
+    assert "web_search" not in controller.planning_catalog()
+    assert not any(name.startswith("unreal_") for name in controller.planning_catalog())
+
+
+def test_dialog_shows_search_configuration_error_without_enabling(tmp_path, monkeypatch):
+    from app.research.client import SearchUnavailableError
+
+    def fail_configuration():
+        raise SearchUnavailableError("defina TAVILY_API_KEY")
+
+    monkeypatch.setattr(
+        "app.research.client.create_search_provider", fail_configuration
+    )
+    controller = make_controller(tmp_path)
+    dialog = tools_dialog_module.ToolsDialog(FakeRoot(), controller)
+
+    dialog.web_search_toggle.invoke()
+
+    assert not controller.web_search_enabled
+    assert "TAVILY_API_KEY" in dialog.status_label.cget("text")
+    assert dialog.web_search_toggle.cget("text") == "Pesquisa web: OFF"
+
+
+@pytest.mark.parametrize(
+    "provider_content,visible_reason",
+    [
+        (
+            '{"type":"plan","objective":"x","tasks":[}',
+            "JSON devolvido é inválido",
+        ),
+        (
+            json.dumps({
+                "type": "plan", "objective": "x", "analysis": [],
+                "tasks": [{
+                    "id": 1, "description": "tool não cadastrada",
+                    "dependencies": [], "tool": "ghost_tool", "parameters": {},
+                }],
+            }),
+            "ghost_tool",
+        ),
+    ],
+)
+def test_invalid_provider_plan_is_visible_in_chat_and_releases_busy_state(
+    tmp_path, provider_content, visible_reason
+):
+    from app.ai.types import AIResponse
+
+    class FixedProvider:
+        name = "fixed-provider"
+        model_name = "fixed-provider-v1"
+
+        def chat(self, message, context=None, *, system_prompt=None, **kwargs):
+            return AIResponse(content=provider_content, model=self.model_name)
+
+    permissions = PermissionManager()
+    controller = make_controller(tmp_path, permissions)
+    run_calls = []
+    controller.run_plan = lambda plan: run_calls.append(plan)
+    agent = Agent(
+        provider=FixedProvider(),
+        memory=MemoryStore(tmp_path / "conversation.json"),
+        permissions=permissions,
+    )
+    agent.set_tools_controller(controller)
+    window = main_window_module.LumenWindow(
+        FakeRoot(), agent, tools_controller=controller
+    )
+
+    window._set_busy(True)
+    window._set_status("busy")
+    window._worker("Pesquise e execute o objetivo", lambda _chunk: None)
+    window._poll_queue()
+
+    visible_chat = window.conversation.get("1.0", "end")
+    assert visible_reason in visible_chat
+    assert "Nada foi executado" in visible_chat
+    assert run_calls == []
+    assert controller._plan is None
+    assert window._busy is False
+    assert window._status == "ready"

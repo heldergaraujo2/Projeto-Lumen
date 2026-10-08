@@ -1,12 +1,17 @@
 # TESTE LOCAL — LUMEN como agente no seu PC
 
-Guia para colocar a LUMEN para trabalhar **na sua máquina**: pesquisar na
-web, montar um plano, pedir sua aprovação, escrever os arquivos e aplicar o
-resultado dentro do **Unreal Editor aberto**.
+Guia para testar a LUMEN **na sua máquina**. Há dois caminhos distintos:
 
-Escrito para ser seguido do começo ao fim. Onde eu não pude testar (não há
-Unreal neste ambiente de desenvolvimento), está dito explicitamente em
-**[NÃO VALIDADO]** — em vez de ser apresentado como se funcionasse.
+1. A **janela da Lumen**, que usa o planner do chat e pode consultar pesquisa
+   web e Unreal em modo somente leitura — veja **“Testar pela UI”** abaixo.
+   Este caminho não precisa de Claude Desktop, Cline nem servidor MCP.
+2. Um **cliente MCP** (Claude Desktop/Cline), documentado nas seções 2–4,
+   com permissões e ciclo de vida próprios. A UI da Lumen não compartilha
+   aprovações com o subprocesso MCP.
+
+O teste pela UI cobre as integrações de consulta; criação de Blueprint e
+outras alterações no editor são um fluxo separado e continuam marcadas como
+**[NÃO VALIDADO]** quando dependem de um Unreal real.
 
 ---
 
@@ -16,14 +21,16 @@ Isso importa antes de você gastar tempo.
 
 | Área | Status | Evidência |
 | --- | --- | --- |
-| Camada de pesquisa (Tavily/Brave) | ✅ testado | 59 testes (57 originais + 2 de revisão), HTTP mockado |
-| Camada de planejamento + aprovação | ✅ testado | 102 testes, incl. arquivos criados em disco de verdade |
-| Servidor MCP (JSON-RPC/stdio) | ✅ testado | 76 testes (70 originais + 6 de revisão), 13 deles subindo o servidor como **subprocesso real** |
-| Ponte RC API (rotas HTTP) | ✅ testado contra a doc | 88 testes (85 originais + 3 de revisão); o corpo de cada requisição é comparado com os exemplos da Epic |
-| Criar Blueprint / adicionar componente | ⚠️ **NÃO VALIDADO** [NÃO VALIDADO] | Exige Unreal real; ver §7 |
-| Bootstrap no Windows | ⚠️ **NÃO VALIDADO** [NÃO VALIDADO] | Escrito para PowerShell 5.1; sem Windows aqui |
+| Camada de pesquisa (Tavily/Brave) | ✅ testes automatizados | Provedor e HTTP mockados; nenhuma chamada a uma API de busca real nesta validação |
+| Planner + permissões/checkpoints | ✅ testes automatizados | Incluem validação do plano JSON, execução controlada e arquivos em workspace temporário |
+| Integrações do planner pela UI | ✅ testes automatizados | Web e três tools Unreal read-only testadas com fakes; JSON malformado/tool desconhecida aparecem como erro controlado, sem execução |
+| Servidor MCP (JSON-RPC/stdio) | ✅ testado | 76 testes; inclui subprocessos reais do servidor |
+| Ponte RC API (rotas HTTP) | ✅ testada contra a documentação | Corpos das requisições comparados aos exemplos da API; não é um Unreal Editor real |
+| Interface visual com provedor real / busca externa / Unreal real | ⚠️ **NÃO VALIDADO neste ambiente** | Os testes da UI usam toolkit falso; siga “Testar pela UI” neste guia na sua máquina |
+| Criar Blueprint / adicionar componente | ⚠️ **NÃO VALIDADO** | Exige Unreal real; ver §7 |
+| Bootstrap no Windows | ⚠️ **NÃO VALIDADO** | Escrito para PowerShell 5.1; sem Windows aqui |
 
-A suíte inteira após a revisão do PR #33: **1375 passed / 7 skipped / 0 failed**.
+Suíte completa executada nesta revisão: **1382 passed / 7 skipped / 0 failed**.
 
 ---
 
@@ -37,10 +44,11 @@ A suíte inteira após a revisão do PR #33: **1375 passed / 7 skipped / 0 faile
 | Python | **3.10 ou superior** (`python --version`) |
 | Unreal Engine | **5.0+**; recomendado **5.3+** (a Remote Control API existe desde 4.27, mas as ferramentas de edição de Blueprint mudaram bastante entre 5.0 e 5.5) |
 | Git | qualquer versão recente |
-| Claude Desktop **ou** Cline | o cliente MCP que vai conversar com o agente |
+| Claude Desktop **ou** Cline | **Opcional**: necessário apenas se for testar o caminho MCP (§§2–4); não é usado no teste pela UI |
 
-> O Unreal **não** é obrigatório para as Fases 1–3 (pesquisa, planejamento,
-> escrita de arquivos e servidor MCP funcionam sem ele). Só a Fase 4 precisa.
+> O Unreal **não** é obrigatório para testar pesquisa web, planejamento,
+> arquivos ou o servidor MCP. As consultas Unreal pela UI e as operações da
+> Fase 4 exigem o editor aberto com a Remote Control API.
 
 ### 1.2 Habilitar os plugins no Unreal
 
@@ -136,6 +144,115 @@ LUMEN_UNREAL_TIMEOUT=30
 
 > **Nunca** comite o `.env`. Ele já está no `.gitignore`.
 
+## Testar pela UI (sem cliente MCP)
+
+Este roteiro testa a integração do planner com pesquisa web e as **três
+consultas Unreal read-only** pela própria janela da Lumen. Não inicia
+`app.mcp_server`, não usa Claude Desktop/Cline e não chama as quatro tools
+mutáveis de Unreal.
+
+### Preparar e abrir a janela
+
+1. Se ainda não existir, crie o ambiente virtual; depois instale as dependências:
+
+   ```powershell
+   py -m venv .venv
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   ```
+
+2. Configure um provedor de IA real/local e um modelo que siga instruções e
+   produza o JSON pedido pelo planner. Faça isso em **Configurações** na UI
+   ou configure `LUMEN_PROVIDER`, `LUMEN_MODEL` e as credenciais no `.env`.
+   `MockProvider` é offline e útil para testar a janela, mas não escolhe
+   `web_search` nem ferramentas Unreal para objetivos livres; não o use para
+   validar estas duas integrações.
+3. Para pesquisa, configure no `.env` **um** provedor: `LUMEN_SEARCH_PROVIDER=tavily`
+   com `TAVILY_API_KEY`, ou `LUMEN_SEARCH_PROVIDER=brave` com `BRAVE_API_KEY`.
+   Salve o `.env` antes de abrir a Lumen. A chave de busca é independente da
+   chave do provedor de IA.
+4. Para Unreal, abra o editor e habilite o plugin **Remote Control API**.
+   Aponte `LUMEN_UNREAL_RC_HOST` e `LUMEN_UNREAL_RC_PORT` para a RC API
+   (por padrão `127.0.0.1:30010`). Para estas consultas **não** é necessário
+   habilitar Python remoto nem o Python Editor Script Plugin: o teste apenas
+   consulta informações, assets e descrições de objetos.
+5. Na raiz do repositório, abra a janela:
+
+   ```powershell
+   .\.venv\Scripts\python.exe main.py
+   ```
+
+6. Clique em **🛡 Ferramentas**. Em **INTEGRAÇÕES OPCIONAIS (planner da UI)**,
+   clique em `Pesquisa web: OFF` e `Unreal (somente leitura): OFF` conforme
+   o teste que pretende fazer. Os botões passam a `ON`. Para uma ativação
+   normal, o topo da janela do diálogo deve mostrar, respectivamente,
+   `🟢 Pesquisa web ativada (<provedor>); READ continua necessária para executar.`
+   e/ou `🟢 Consultas Unreal ativadas (somente leitura; READ continua necessária).
+   Nenhum pedido foi enviado ao editor.` A ativação só adiciona tools ao
+   planner; ainda não faz busca nem chama o editor.
+7. Na seção **PERMISSÕES**, clique **Conceder** na linha `READ`. Deve aparecer
+   `🟢 Permissão READ concedida.` e o estado passa a `● concedida`. Não conceda
+   `WRITE` para este teste. READ é independente dos toggles e precisa ser
+   concedida explicitamente. Integrações e permissões são opt-in da sessão;
+   confirme/ative novamente se reiniciar a Lumen.
+8. Feche o diálogo e envie um objetivo em linguagem natural no chat.
+   Uma consulta bem-sucedida aparece na conversa como uma mensagem `Lumen`,
+   precedida por `✔ Plano ... concluído`; abaixo, a UI mostra
+   `Resultados das consultas (dados para você revisar):` e os dados
+   formatados da tool. Durante o pedido, o status da janela mostra
+   `● Pensando…` e volta a `● Pronta` ao terminar.
+
+### Objetivos de teste e o que deve aparecer
+
+Faça os testes um de cada vez. Substitua nomes/caminhos de exemplo por algo
+que exista no seu projeto.
+
+**Pesquisa web** — com a integração web ligada:
+
+> Pesquise na web boas práticas atuais de organização de inventário em jogos
+> feitos na Unreal Engine e mostre títulos, links e trechos encontrados.
+
+Na conversa, espere `Pesquisa web — <consulta>`, títulos numerados (`[1]`),
+URLs e trechos. Podem aparecer até cinco resultados formatados. Não é uma
+resposta garantida sobre a qualidade das fontes; revise os links apresentados.
+
+**Estado da conexão Unreal** — com o editor aberto e Unreal read-only ligado:
+
+> Verifique se o Unreal Editor está conectado e me informe o endereço e as
+> rotas disponíveis.
+
+A resposta deve começar por `Unreal Editor — conectado`, seguida de
+`Endereço:` e `Rotas disponíveis:`. Este probe não altera o projeto.
+
+**Busca de asset Unreal**:
+
+> Procure no Content Browser assets cujo nome contenha `BP_` e liste os
+> caminhos encontrados.
+
+A resposta deve começar por `Assets Unreal — busca: BP_` e indicar
+`Encontrados: <n>`, com nomes, classes e caminhos quando existirem resultados.
+
+**Descrição de objeto Unreal** — use o caminho completo de um ator que esteja
+carregado no nível aberto. Em projetos com o mapa de exemplo, um caminho
+possível é `/Game/Maps/ThirdPersonExampleMap.ThirdPersonExampleMap:PersistentLevel.CubeMesh_5`:
+
+> Descreva o objeto Unreal `<caminho completo do ator>` e liste sua classe,
+> propriedades e funções.
+
+A resposta deve conter `Objeto Unreal —`, `Caminho:`, `Classe:`,
+`Propriedades (...)` e `Funções (...)`. Se o caminho não existir ou o ator
+não estiver carregado, a falha aparece como resposta no chat; nada é alterado.
+
+**Permissões e limites:** se READ não estiver concedida, a execução deve
+falhar de forma controlada e explicar a permissão ausente; se a chave de busca
+faltar, o toggle web fica `OFF` e o diálogo mostra uma mensagem vermelha de
+configuração. Nenhum desses casos deve executar a consulta. A UI não mostra as
+quatro tools Unreal mutáveis (`unreal_create_blueprint_class`,
+`unreal_add_component`, `unreal_set_property`, `unreal_call_function`) no
+catálogo read-only. Se o modelo devolver JSON malformado ou um nome de tool
+fora do catálogo, o chat mostra um aviso controlado terminado em
+`Nada foi executado.`. Para pesquisa/Unreal não é necessário cadastrar um
+workspace; workspaces continuam necessários para tools de arquivo.
+
 ---
 
 ## 2. Rodar o servidor MCP
@@ -152,15 +269,24 @@ editor e testa a porta 30010. Detalhes em §6.
 
 ### 2.2 Rodar à mão (para entender o que acontece)
 
-Na raiz do repositório, **somente leitura** — o mais seguro para começar:
+Na raiz do repositório, **somente leitura** — o mais seguro para começar.
+Este perfil registra pesquisa e as consultas Unreal, mas não ativa ferramentas
+mutáveis:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.mcp_server `
     --workspace "C:\MeuProjeto" `
-    --allow-read
+    --allow-read `
+    --enable-unreal-bridge --enable-web-search
 ```
 
-Com escrita habilitada, **com aprovação a cada operação** (recomendado):
+Sem `--allow-write`, o MCP filtra as quatro tools Unreal mutáveis. Com
+`--allow-read`, as três consultas (e `web_search`, se houver chave e opt-in)
+podem ser executadas; elas continuam exigindo READ.
+
+Com tools mutáveis expostas, mas sem pré-aprovação automática (mais restritivo;
+o servidor stdio pode deixar uma operação pendente porque não compartilha a
+UI para confirmar):
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.mcp_server `
@@ -170,11 +296,14 @@ Com escrita habilitada, **com aprovação a cada operação** (recomendado):
     --enable-unreal-bridge --enable-web-search
 ```
 
-`--enable-unreal-bridge` habilita o catálogo do editor (mas ainda exige
-`--allow-write` para aparecer no MCP); `--enable-web-search` habilita a busca
-somente se houver chave válida no ambiente ou no `.env`. As duas opções são
-**opt-in** e não concedem permissões adicionais. Sem elas as respectivas
-tools não aparecem no `tools/list`, mesmo com plugins e chave configurados.
+`--enable-unreal-bridge` registra as sete tools Unreal. Sem `--allow-write`,
+o gateway MCP expõe somente as três consultas (`unreal_get_info`,
+`unreal_search_assets`, `unreal_describe_object`); as quatro mutáveis ficam
+filtradas. `--enable-web-search` registra a busca somente se houver chave
+válida no ambiente ou no `.env`. As duas opções são **opt-in** e não concedem
+permissões adicionais: READ continua necessária para executar consultas;
+WRITE é necessária para as operações mutáveis. Sem os respectivos opt-ins,
+as tools não aparecem no `tools/list`, mesmo com plugins e chave configurados.
 
 Com escrita **pré-autorizada** (o cliente MCP escreve sem confirmar):
 
@@ -198,13 +327,13 @@ Com terminal allowlistado (para compilar via UnrealBuildTool):
 | Flag | Efeito |
 | --- | --- |
 | `--workspace <pasta>` | autoriza uma pasta (pode repetir) |
-| `--allow-read` | concede permissão de leitura (listar, ler, buscar) |
-| `--allow-write` | **expõe** as ferramentas destrutivas (escrever, criar, apagar) |
+| `--allow-read` | concede READ (ler/buscar arquivos e executar consultas web/Unreal) |
+| `--allow-write` | **expõe** ferramentas mutáveis de arquivo e Unreal; a execução continua sob as demais políticas/checkpoints |
 | `--auto-approve` | resolve os checkpoints sozinho — **exige** `--allow-write` |
 | `--terminal <CMDs>` | allowlist de comandos que podem rodar |
 | `--allow-terminal` | concede permissão de terminal (só faz sentido com `--terminal`) |
-| `--enable-unreal-bridge` | registra 7 tools do editor; elas só ficam visíveis com `--allow-write` |
-| `--enable-web-search` | registra `web_search` somente com chave Tavily/Brave configurada |
+| `--enable-unreal-bridge` | registra as 7 tools; sem `--allow-write`, o gateway expõe só as 3 consultas read-only. Executá-las exige READ. |
+| `--enable-web-search` | registra `web_search` somente com chave Tavily/Brave configurada; executar exige READ |
 
 Sem nenhuma flag, o servidor expõe **zero** ferramentas. Ele vai ficando
 mais capaz conforme você autoriza — e nunca concede nada sozinho.
@@ -286,10 +415,14 @@ No JSON do Windows, **toda barra invertida é dupla** (`\\`). Esquecer isso
 
 O `mcp_config.json` na raiz é um modelo com dois perfis. O perfil
 `lumen-com-escrita` inclui `--enable-unreal-bridge` e `--enable-web-search`,
-mas **não inclui `--auto-approve`**: até você optar por essa flag, não altera
-o editor. Copie apenas um perfil, troque os caminhos e **não cole o campo
-`_comment`** no arquivo do cliente. Se usar a amostra de §3.1 (somente
-leitura), `unreal_get_info` não aparece: as 7 tools requerem WRITE.
+mas **não inclui `--auto-approve`**: até você optar por essa flag, operações
+mutáveis não são executadas no subprocesso MCP. Copie apenas um perfil,
+troque os caminhos e **não cole o campo `_comment`** no arquivo do cliente.
+Para incluir as consultas Unreal no perfil somente leitura, acrescente
+`--enable-unreal-bridge` e mantenha `--allow-read`; o gateway então expõe
+`unreal_get_info`, `unreal_search_assets` e `unreal_describe_object`, sem
+expor as quatro ferramentas mutáveis. A busca web também precisa de
+`--enable-web-search` e uma chave válida.
 
 ---
 
@@ -321,11 +454,15 @@ editor (tecla `` ` ``), rode `WebControl.StartServer`.
 
 ### Passo 1 — o agente enxerga o editor?
 
-Antes do passo 1, configure o cliente com `--allow-write` e
-`--enable-unreal-bridge` e reinicie-o. Para executar os passos 2 e 4 pelo
-cliente MCP independente, acrescente **`--auto-approve` somente após
-revisar o risco**, em um projeto de teste. **Não há botão de aprovação
-interativa neste servidor stdio**; `-AllowWrite` no bootstrap não basta.
+Antes dos passos 1 e 3, configure o cliente com `--allow-read` e
+`--enable-unreal-bridge` e reinicie-o; não é necessário `--allow-write` para
+consultas. Para a busca web, acrescente `--enable-web-search` e configure a
+chave. O passo 2 e a alteração de propriedade no passo 4 são mutáveis:
+executá-los pelo cliente MCP exige `--allow-write` e, para realmente aplicar
+sem uma UI de aprovação (este servidor stdio não a oferece),
+`--auto-approve`. Use essa combinação somente após revisar o risco, em um
+projeto de teste. Para testes pela janela da Lumen, siga a seção “Testar pela
+UI”; não use `--auto-approve`.
 
 Peça ao agente (no chat do cliente MCP):
 
@@ -386,35 +523,39 @@ algo falhar — §8 tem as causas.
 
 ## 5. Fluxo completo (o objetivo original)
 
-**Arquitetura pretendida (não é um comando único integrado):** as camadas
-abaixo são testadas separadamente, mas ainda não há orquestrador que faça
-pesquisa → FeaturePlanner → ApprovalGate → MCP/UBT → Unreal em uma única
-solicitação de chat. Valide cada etapa individualmente antes de confiar no
-fluxo completo:
+Há um fluxo de consulta **conectado ao chat da UI**, mas ele não equivale ao
+pipeline completo de geração de uma feature C++/Blueprint.
 
+| Caminho | O que está conectado |
+| --- | --- |
+| Janela Lumen | O chat usa `app/planner/` e o `ToolCallingBridge` para validar e executar planos JSON. Com os toggles opt-in ligados, o catálogo pode incluir `web_search` e somente `unreal_get_info`, `unreal_search_assets` e `unreal_describe_object`. Os resultados aparecem na conversa. READ continua obrigatória; as quatro tools Unreal mutáveis são excluídas desse caminho. |
+| Cliente MCP | Processo separado, configurado nas seções 2–4. A exposição depende das flags MCP e não compartilha aprovações com a janela Lumen. |
+| Pipeline completo de feature | Ainda não há um fluxo único do chat que encadeie pesquisa → `FeaturePlanner`/`ApprovalGate` → escrita de C++ → UnrealBuildTool → aplicação de alterações no editor. `app/planning/` não foi usado para substituir o planner da UI. |
+
+O fluxo de consulta pela UI é:
+
+```text
+objetivo em linguagem natural
+  → planner JSON da UI + catálogo opt-in
+  → validação / permissões existentes (READ para consultas)
+  → web_search ou consulta Unreal somente leitura
+  → saída formatada na conversa
 ```
-você: "crie um sistema de inventário para RPG em mundo aberto,
-       usando C++ e Blueprints"
 
- 1. web_search     → pesquisa como fazer (Fase 1)
- 2. FeaturePlanner → monta o plano: arquivos + comandos (Fase 2)
- 3. ApprovalGate   → MOSTRA O PLANO e espera seu OK     ← você decide aqui
- 4. create_directory/create_file → escreve .h/.cpp (Fases 2–3)
- 5. run_command    → UnrealBuildTool compila (checkpoint próprio)
- 6. unreal_*       → aplica no editor aberto (Fase 4)
-```
+A seleção depende do modelo e do catálogo que você ativou. Para pesquisa, a
+UI apresenta os títulos, URLs e trechos recebidos; revise as fontes. Uma
+consulta Unreal lê informações do editor, assets ou descrição de objeto —
+não cria nem altera assets. A ativação dos toggles não concede READ e não
+substitui as verificações da execução.
 
-Duas coisas que vale saber sobre esse fluxo:
+Escrita de arquivos, comandos e operações mutáveis continuam sujeitas às
+permissões, workspaces, allowlists e checkpoints do respectivo caminho.
+`--auto-approve` vale apenas para o subprocesso MCP e pula sua confirmação
+por operação; não o confunda com uma aprovação interativa na UI.
 
-- **são dois portões, não um.** Aprovar o *plano* autoriza o trabalho;
-  cada *operação* destrutiva (cada arquivo, cada comando) pausa de novo no
-  checkpoint. É de propósito — e está coberto por
-  `tests/test_planning_e2e.py`. `--auto-approve` cobre apenas os checkpoints
-  de **operação** no servidor MCP; **não aprova o FeaturePlan**, que requer
-  `ApprovalGate` separado. A UI da LUMEN não compartilha estado com o
-  subprocesso MCP.
-- **`unreal_create_blueprint_class` não compila C++.** Ele cria a *classe
-  Blueprint*. Compilar o C++ é `run_command` com `UnrealBuildTool` (§6).
+**`unreal_create_blueprint_class` não compila C++.** Ele cria a *classe
+Blueprint* e não faz parte do catálogo Unreal read-only do chat. Compilar C++
+é uma etapa separada, por exemplo `run_command` com UnrealBuildTool (§6).
 
 ---
 
@@ -480,6 +621,12 @@ O que **funciona** com a RC API pura:
 | `unreal_search_assets` | `PUT /remote/search/assets` | |
 | `unreal_set_property` | `PUT /remote/object/property` | propriedade precisa ser pública, sem `BlueprintGetter`/`BlueprintSetter`, e `EditAnywhere` (editor) ou `BlueprintVisible` (PIE) |
 | `unreal_call_function` | `PUT /remote/object/call` | função precisa ser **chamável por Blueprint** |
+
+**Limite do planner da UI:** nessa integração, apenas `unreal_get_info`,
+`unreal_search_assets` e `unreal_describe_object` são registradas. As quatro
+tools de mutação abaixo continuam fora do catálogo/registry read-only da UI,
+mesmo se a permissão WRITE existir. O caminho MCP é separado e segue as
+flags/permissões descritas nas seções 2–4.
 
 O que **exige Python no editor**:
 

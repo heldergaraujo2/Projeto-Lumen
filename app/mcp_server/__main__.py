@@ -92,7 +92,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--enable-unreal-bridge", action="store_true",
-        help="Habilita as tools unreal_* (exigem também --allow-write); não conecta até o uso.",
+        help="Habilita tools unreal_*; consultas exigem READ e as mutáveis "
+             "são expostas somente com --allow-write. Não conecta até o uso.",
     )
     parser.add_argument(
         "--data-dir", default="", metavar="PASTA",

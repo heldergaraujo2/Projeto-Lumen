@@ -20,6 +20,7 @@ import pytest
 
 from app.unreal_bridge import (
     NEEDS_MANUAL_VALIDATION,
+    UNREAL_READ_ONLY_TOOLS,
     UNREAL_TOOLS,
     VALIDATED_AGAINST_DOC,
     RemoteControlClient,
@@ -379,7 +380,9 @@ class TestTools:
             assert definition.metadata["validation"] in {
                 VALIDATED_AGAINST_DOC, NEEDS_MANUAL_VALIDATION
             }
-            assert definition.destructive is True
+            assert definition.destructive is (
+                definition.name not in UNREAL_READ_ONLY_TOOLS
+            )
             assert definition.description.strip()
 
     def test_pure_rc_tools_are_marked_as_doc_validated(self):
@@ -395,12 +398,16 @@ class TestTools:
         for name in ("unreal_create_blueprint_class", "unreal_add_component"):
             assert by_name[name].metadata["validation"] == NEEDS_MANUAL_VALIDATION
 
-    def test_tools_require_write_permission(self):
+    def test_read_only_tools_require_read_and_mutations_require_write(self):
         from app.security.permissions import PermissionLevel
 
         client, _ = client_with({})
         for tool in build_unreal_registry(client):
-            assert tool.required_permission is PermissionLevel.WRITE
+            expected = (
+                PermissionLevel.READ if tool.name in UNREAL_READ_ONLY_TOOLS
+                else PermissionLevel.WRITE
+            )
+            assert tool.required_permission is expected
 
     # ------------------------------------------------------------- get_info
     def test_get_info_reports_connection_and_routes(self):
@@ -843,6 +850,15 @@ class TestPlannerCatalogIntegration:
         catalog = build_catalog(include_terminal=False, include_unreal=True)
         assert sorted(n for n in catalog if n.startswith("unreal_")) == sorted(UNREAL_TOOLS)
 
+    def test_catalog_can_filter_to_only_read_only_tools(self):
+        from app.planner.catalog import build_catalog
+
+        catalog = build_catalog(
+            include_terminal=False, include_unreal=True,
+            include_unreal_mutating=False,
+        )
+        assert {n for n in catalog if n.startswith("unreal_")} == set(UNREAL_READ_ONLY_TOOLS)
+
     def test_catalog_parameters_match_the_tool_definitions(self):
         """O catálogo e a ToolDefinition têm de listar os MESMOS parâmetros."""
         from app.planner.catalog import build_catalog
@@ -1006,7 +1022,11 @@ def test_unreal_mutation_waits_for_approval_before_any_http(tmp_path):
     )
     controller.enable_unreal_bridge(client)
     definitions = {d.name: d for d in controller.tool_protocol().definitions}
-    assert all(definitions[name].destructive for name in UNREAL_TOOLS)
+    assert all(not definitions[name].destructive for name in UNREAL_READ_ONLY_TOOLS)
+    assert all(
+        definitions[name].destructive
+        for name in set(UNREAL_TOOLS) - set(UNREAL_READ_ONLY_TOOLS)
+    )
     assert definitions["unreal_add_component"].metadata["validation"] == NEEDS_MANUAL_VALIDATION
 
     gateway = ControllerToolGateway(controller, allow_write=True)

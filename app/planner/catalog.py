@@ -3,8 +3,9 @@
 Este módulo é **dados + validação de protocolo**, nada mais:
 
 - descreve, em formato declarativo, as ferramentas **já existentes** na
-  arquitetura (6 de filesystem + ``run_command``) que o Planner pode
-  referenciar em tarefas estruturadas (``tool``/``parameters``);
+  arquitetura que o Planner pode referenciar em tarefas estruturadas
+  (``tool``/``parameters``), com inclusões condicionais para terminal, pesquisa
+  web e ferramentas do Unreal Editor;
 - valida a saída do provedor (nomes/parâmetros/tipos) **antes** de o
   plano existir de fato — uma saída inválida vira falha controlada no
   :class:`~app.planner.planner.Planner`, nunca execução parcial.
@@ -47,6 +48,7 @@ class ToolSpec:
     terminal: bool = False   # run_command: exige terminal habilitado
     web_search: bool = False  # web_search: exige provedor de busca configurado
     unreal: bool = False     # unreal_*: exige ponte com o editor habilitada
+    unreal_mutating: bool = False  # ações que alteram o projeto no editor
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -221,7 +223,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         name="unreal_get_info",
         description=(
             "Verifica a conexão com o Unreal Editor e lista as rotas da Remote "
-            "Control API. Use SEMPRE antes das outras ferramentas unreal_*."
+            "Control API. É uma consulta de saúde, sem alterações no projeto."
         ),
         parameters=(),
         unreal=True,
@@ -229,8 +231,8 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
     ToolSpec(
         name="unreal_describe_object",
         description=(
-            "Descreve um objeto do Unreal Editor (propriedades e funções com "
-            "tipos). Use para descobrir nomes REAIS antes de set_property/call."
+            "Consulta um objeto do Unreal Editor e lista propriedades e funções "
+            "com tipos. Somente leitura: não altera o objeto nem o projeto."
         ),
         parameters=(
             ParameterSpec(
@@ -276,6 +278,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
             ),
         ),
         unreal=True,
+        unreal_mutating=True,
     ),
     ToolSpec(
         name="unreal_call_function",
@@ -292,6 +295,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
             ),
         ),
         unreal=True,
+        unreal_mutating=True,
     ),
     ToolSpec(
         name="unreal_create_blueprint_class",
@@ -312,6 +316,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
             ),
         ),
         unreal=True,
+        unreal_mutating=True,
     ),
     ToolSpec(
         name="unreal_add_component",
@@ -334,6 +339,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
             ),
         ),
         unreal=True,
+        unreal_mutating=True,
     ),
 )
 
@@ -343,6 +349,7 @@ def build_catalog(
     include_terminal: bool,
     include_web_search: bool = False,
     include_unreal: bool = False,
+    include_unreal_mutating: bool = True,
 ) -> dict[str, dict]:
     """Allowlist de planejamento como dict serializável (para o prompt).
 
@@ -350,9 +357,10 @@ def build_catalog(
     habilitado) omite ``run_command``/``run_pytest``. Do mesmo modo,
     ``include_web_search=False`` (default quando nenhum provedor de
     busca está configurado) omite ``web_search`` e ``include_unreal=False``
-    (default quando não há ponte com o editor) omite as ``unreal_*`` — o
-    Planner simplesmente não as conhece; não há como planejar o que não
-    está na lista.
+    (default quando não há ponte com o editor) omite as ``unreal_*``. O
+    modo ``include_unreal_mutating=False`` mantém somente consultas Unreal,
+    para consumers que habilitam a ponte em modo read-only. O Planner não
+    conhece ferramentas omitidas; não há como planejar o que não está na lista.
     """
     catalog: dict[str, dict] = {}
     for spec in TOOL_SPECS:
@@ -361,6 +369,8 @@ def build_catalog(
         if spec.web_search and not include_web_search:
             continue
         if spec.unreal and not include_unreal:
+            continue
+        if spec.unreal_mutating and not include_unreal_mutating:
             continue
         catalog[spec.name] = {
             "description": spec.description,

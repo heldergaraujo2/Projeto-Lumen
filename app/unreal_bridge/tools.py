@@ -1,11 +1,11 @@
-"""Ferramentas MCP da ponte com o Unreal Editor (Fase 4).
+"""Ferramentas da ponte com o Unreal Editor (Fase 4).
 
 Segue o contrato de ``app/tools/base.py`` (``StructuredTool`` → ``ToolResult``),
 o mesmo das ferramentas de filesystem/terminal. Assim elas entram no
-``ToolRegistry``, passam pelo porteiro de permissões e aparecem no
-``tools/list`` do servidor MCP sem nenhum caminho especial.
+``ToolRegistry``, passam pelo porteiro de permissões e aparecem no MCP e no
+planner da UI conforme as opções de exposição de cada consumer.
 
-As quatro ferramentas pedidas na especificação:
+As quatro ferramentas que alteram o projeto:
 
 =========================================  ===========================  ==========
 Ferramenta                                 Como alcança o editor        Validação
@@ -16,14 +16,14 @@ Ferramenta                                 Como alcança o editor        Valida�
 ``unreal_call_function``                   RC API pura                  doc oficial
 =========================================  ===========================  ==========
 
-Mais três de apoio, sem as quais o trabalho seria adivinhação:
+Três consultas somente de leitura, disponíveis separadamente das ações:
 
-- ``unreal_get_info`` — ``GET /remote/info``: diz se há editor, qual porta
-  e quais rotas existem. É o **primeiro** comando a rodar;
+- ``unreal_get_info`` — ``GET /remote/info``: diz se há editor e quais rotas
+  existem. É o **primeiro** teste de conexão;
 - ``unreal_describe_object`` — ``PUT /remote/object/describe``: descobre os
-  nomes reais de propriedades e funções antes de chamar;
-- ``unreal_search_assets`` — ``PUT /remote/search/assets``: descobre o
-  caminho do asset antes de pedir para alterá-lo.
+  nomes reais de propriedades e funções sem alterá-las;
+- ``unreal_search_assets`` — ``PUT /remote/search/assets``: localiza assets
+  no Content Browser sem modificá-los.
 
 Cada ``ToolDefinition`` carrega ``metadata["validation"]`` dizendo o que foi
 conferido contra a documentação oficial e o que **ainda depende de teste
@@ -50,9 +50,10 @@ from app.unreal_bridge.python_script import (
 VALIDATED_AGAINST_DOC = "doc-oficial"
 NEEDS_MANUAL_VALIDATION = "precisa-validacao-manual"
 
-#: Permissão de todas as ferramentas da ponte: elas mudam estado do projeto
-#: no editor, então ficam atrás de WRITE — nunca de READ.
+#: Gate padrão das ferramentas mutáveis da ponte.
 REQUIRED_PERMISSION = PermissionLevel.WRITE
+#: Consultas Unreal exigem READ e não criam checkpoints de escrita.
+READ_ONLY_PERMISSION = PermissionLevel.READ
 
 
 class UnrealTool(StructuredTool):
@@ -61,6 +62,7 @@ class UnrealTool(StructuredTool):
     _abstract_base = True
 
     required_permission = REQUIRED_PERMISSION
+    mutates_state = True
     operation = "unreal"
 
     def __init__(self, client: RemoteControlClient) -> None:
@@ -75,7 +77,7 @@ class UnrealTool(StructuredTool):
             name=self.name,
             description=self.description,
             parameters=self.parameters(),
-            destructive=True,          # altera o projeto do usuário
+            destructive=self.mutates_state,
             metadata={"validation": self.validation_status},
         )
 
@@ -106,10 +108,12 @@ class UnrealGetInfoTool(UnrealTool):
     """``GET /remote/info`` — o teste de conexão da Fase 4."""
 
     name = "unreal_get_info"
+    required_permission = READ_ONLY_PERMISSION
+    mutates_state = False
     description = (
         "Verifica a conexão com o Unreal Editor e lista as rotas da Remote "
-        "Control API disponíveis. Use ANTES de qualquer outra ferramenta "
-        "unreal_*: é o teste de conexão."
+        "Control API disponíveis. É uma consulta de saúde, sem alterações "
+        "no projeto."
     )
     validation_status = VALIDATED_AGAINST_DOC
 
@@ -145,11 +149,12 @@ class UnrealDescribeObjectTool(UnrealTool):
     """``PUT /remote/object/describe`` — descobrir nomes reais antes de usar."""
 
     name = "unreal_describe_object"
+    required_permission = READ_ONLY_PERMISSION
+    mutates_state = False
     description = (
-        "Descreve um objeto do Unreal Editor em memória (Actor no nível ou "
-        "asset): lista propriedades e funções com tipos. Use para descobrir "
-        "os nomes REAIS antes de chamar unreal_set_property ou "
-        "unreal_call_function — os nomes em C++ e em Blueprint divergem."
+        "Consulta um objeto do Unreal Editor em memória (Actor no nível ou "
+        "asset) e lista propriedades e funções com tipos. Somente leitura: "
+        "não altera o objeto nem o projeto."
     )
     validation_status = VALIDATED_AGAINST_DOC
 
@@ -197,6 +202,8 @@ class UnrealSearchAssetsTool(UnrealTool):
     """``PUT /remote/search/assets`` — achar o caminho de um asset."""
 
     name = "unreal_search_assets"
+    required_permission = READ_ONLY_PERMISSION
+    mutates_state = False
     description = (
         "Busca assets no Content Browser pelo nome. Use para descobrir o "
         "caminho exato (ex.: '/Game/Blueprints/BP_Ator.BP_Ator') antes de "
@@ -585,21 +592,42 @@ UNREAL_TOOL_CLASSES: tuple[type[UnrealTool], ...] = (
 
 #: Nomes de todas as ferramentas da ponte.
 UNREAL_TOOLS: tuple[str, ...] = tuple(cls.name for cls in UNREAL_TOOL_CLASSES)
+#: Subconjunto que apenas consulta o estado do editor/projeto.
+UNREAL_READ_ONLY_TOOLS: tuple[str, ...] = tuple(
+    cls.name for cls in UNREAL_TOOL_CLASSES if not cls.mutates_state
+)
 
 
-def build_unreal_registry(client: RemoteControlClient) -> list[UnrealTool]:
-    """Instancia as ferramentas apontando para o cliente dado."""
-    return [cls(client) for cls in UNREAL_TOOL_CLASSES]
+def build_unreal_registry(
+    client: RemoteControlClient, *, read_only_only: bool = False
+) -> list[UnrealTool]:
+    """Instancia ferramentas para o cliente.
+
+    ``read_only_only=True`` retira do registry toda classe que altera o
+    projeto. É usado pela UI na ativação inicial segura; o default mantém
+    o comportamento completo para consumidores que já habilitam a ponte.
+    """
+    return [
+        cls(client) for cls in UNREAL_TOOL_CLASSES
+        if not read_only_only or not cls.mutates_state
+    ]
 
 
-def unreal_definitions(client: RemoteControlClient) -> tuple[ToolDefinition, ...]:
-    """``ToolDefinition`` de todas as ferramentas da ponte."""
-    return tuple(tool.definition() for tool in build_unreal_registry(client))
+def unreal_definitions(
+    client: RemoteControlClient, *, read_only_only: bool = False
+) -> tuple[ToolDefinition, ...]:
+    """``ToolDefinition`` das ferramentas expostas pela ponte."""
+    return tuple(
+        tool.definition()
+        for tool in build_unreal_registry(client, read_only_only=read_only_only)
+    )
 
 
 __all__ = [
     "NEEDS_MANUAL_VALIDATION",
+    "READ_ONLY_PERMISSION",
     "REQUIRED_PERMISSION",
+    "UNREAL_READ_ONLY_TOOLS",
     "UNREAL_TOOL_CLASSES",
     "UNREAL_TOOLS",
     "VALIDATED_AGAINST_DOC",

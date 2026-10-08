@@ -28,11 +28,141 @@ autorizou".
 """
 from __future__ import annotations
 
+import json
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 
 logger = logging.getLogger("lumen.bridge")
+
+_READ_ONLY_RESULT_TOOLS = frozenset({
+    "web_search",
+    "unreal_get_info",
+    "unreal_describe_object",
+    "unreal_search_assets",
+})
+
+
+def _display_text(value: object, limit: int = 500) -> str:
+    """Texto curto para a UI; não transforma dados externos em instruções."""
+    if value is None:
+        return ""
+    text = " ".join(str(value).replace("\x00", "").split())
+    if len(text) > limit:
+        return text[:limit].rstrip() + "…"
+    return text
+
+
+def _format_read_only_result(tool: str, data: Mapping) -> str:
+    """Renderiza somente os quatro resultados de leitura para o chat da UI."""
+    if tool == "web_search":
+        lines = [f"Pesquisa web — {_display_text(data.get('query'), 240)}"]
+        answer = _display_text(data.get("answer"), 800)
+        if answer:
+            lines.append(f"Resumo do provedor: {answer}")
+        results = data.get("results")
+        results = results if isinstance(results, list) else []
+        for index, result in enumerate(results[:5], start=1):
+            if not isinstance(result, Mapping):
+                continue
+            title = _display_text(result.get("title"), 180) or "Sem título"
+            url = _display_text(result.get("url"), 500)
+            snippet = _display_text(result.get("content"), 600)
+            lines.append(f"[{index}] {title}")
+            if url:
+                lines.append(f"    {url}")
+            if snippet:
+                lines.append(f"    {snippet}")
+        if not results:
+            lines.append("Nenhum resultado encontrado.")
+        return "\n".join(lines)
+
+    if tool == "unreal_get_info":
+        connection = "conectado" if data.get("connected") else "não conectado"
+        lines = [
+            f"Unreal Editor — {connection}",
+            f"Endereço: {_display_text(data.get('base_url'), 180) or '—'}",
+            f"Rotas disponíveis: {_display_text(data.get('route_count'), 20) or '0'}",
+        ]
+        routes = data.get("routes")
+        if isinstance(routes, list) and routes:
+            lines.extend(f"  • {_display_text(route, 240)}" for route in routes[:12])
+            if len(routes) > 12:
+                lines.append(f"  • … e mais {len(routes) - 12}")
+        return "\n".join(lines)
+
+    if tool == "unreal_describe_object":
+        lines = [
+            f"Objeto Unreal — {_display_text(data.get('name'), 180) or 'sem nome'}",
+            f"Caminho: {_display_text(data.get('object_path'), 400) or '—'}",
+            f"Classe: {_display_text(data.get('class'), 240) or '—'}",
+        ]
+        for label, key, count_key in (
+            ("Propriedades", "properties", "property_count"),
+            ("Funções", "functions", "function_count"),
+        ):
+            values = data.get(key)
+            values = values if isinstance(values, list) else []
+            count = data.get(count_key, len(values))
+            lines.append(f"{label} ({_display_text(count, 20)}):")
+            lines.extend(f"  • {_display_text(value, 180)}" for value in values[:30])
+            if len(values) > 30:
+                lines.append(f"  • … e mais {len(values) - 30}")
+        return "\n".join(lines)
+
+    if tool == "unreal_search_assets":
+        query = _display_text(data.get("query"), 200)
+        lines = [
+            f"Assets Unreal — busca: {query}",
+            f"Encontrados: {_display_text(data.get('count'), 20) or '0'}",
+        ]
+        assets = data.get("assets")
+        assets = assets if isinstance(assets, list) else []
+        for asset in assets[:20]:
+            if not isinstance(asset, Mapping):
+                continue
+            name = _display_text(asset.get("name"), 180) or "Sem nome"
+            asset_class = _display_text(asset.get("class"), 120)
+            path = _display_text(asset.get("path"), 400)
+            lines.append(f"  • {name}" + (f" ({asset_class})" if asset_class else ""))
+            if path:
+                lines.append(f"      {path}")
+        if len(assets) > 20:
+            lines.append(f"  • … e mais {len(assets) - 20}")
+        return "\n".join(lines)
+
+    return ""
+
+
+def _read_only_results_for_display(report) -> str:
+    """Extrai saída legível dos resultados de leitura, com tamanho limitado."""
+    blocks: list[str] = []
+    for run in getattr(report, "tasks", ()):
+        if getattr(getattr(run, "status", None), "value", None) != "DONE":
+            continue
+        raw = getattr(run, "result", None)
+        if not isinstance(raw, str) or not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(payload, Mapping) or not payload.get("ok"):
+            continue
+        data = payload.get("data")
+        if not isinstance(data, Mapping):
+            continue
+        name = data.get("tool") or data.get("operation")
+        if name not in _READ_ONLY_RESULT_TOOLS:
+            continue
+        block = _format_read_only_result(str(name), data)
+        if block:
+            blocks.append(block)
+    if not blocks:
+        return ""
+    text = "Resultados das consultas (dados para você revisar):\n" + "\n\n".join(blocks)
+    return text[:8_000] + ("\n… (saída truncada)" if len(text) > 8_000 else "")
 
 
 class RequestState(str, Enum):
@@ -186,7 +316,9 @@ class ToolCallingBridge:
                 "explícita)."
             )
             self._remember(request, message)
-            return AgentOutcome(RequestState.COMPLETED, message, plan_id)
+            results = _read_only_results_for_display(report)
+            visible = f"{message}\n\n{results}" if results else message
+            return AgentOutcome(RequestState.COMPLETED, visible, plan_id)
 
         if report.status is PlanStatus.RUNNING and self._controller.has_pending:
             pending = self._controller.pending_approval() or {}
@@ -204,7 +336,9 @@ class ToolCallingBridge:
                 "tudo como está."
             )
             self._remember(request, message)
-            return AgentOutcome(RequestState.WAITING_APPROVAL, message, plan_id)
+            results = _read_only_results_for_display(report)
+            visible = f"{message}\n\n{results}" if results else message
+            return AgentOutcome(RequestState.WAITING_APPROVAL, visible, plan_id)
 
         # FAILED (fail-fast) — distingue reprovação de verificação.
         rejected = next(
@@ -223,7 +357,9 @@ class ToolCallingBridge:
             f"({done}/{total} tarefa(s) concluída(s)). Nada mais foi executado."
         )
         self._remember(request, message)
-        return AgentOutcome(state, message, plan_id)
+        results = _read_only_results_for_display(report)
+        visible = f"{message}\n\n{results}" if results else message
+        return AgentOutcome(state, visible, plan_id)
 
     def _remember(self, request: str | None, reply: str) -> None:
         """Mantém o histórico de conversa coerente (ação também é conversa)."""

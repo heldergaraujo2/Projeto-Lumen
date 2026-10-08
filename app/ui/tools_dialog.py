@@ -50,7 +50,7 @@ class ToolsDialog:
 
         self.top = tk.Toplevel(parent)
         self.top.title("Ferramentas e Segurança")
-        self.top.geometry("640x680")  # +60: seção Automação (11H)
+        self.top.geometry("640x720")  # integrações + Automação (11H)
         self.top.configure(bg=_PANEL)
         self.top.transient(parent)
 
@@ -60,8 +60,9 @@ class ToolsDialog:
         ).pack(anchor=tk.W, padx=18, pady=(14, 2))
         tk.Label(
             self.top,
-            text="Nada é acessível até você autorizar um diretório (workspace) "
-                 "e conceder a permissão correspondente.",
+            text="Ativar uma integração não concede READ. A UI oferece pesquisa "
+                 "web e consultas Unreal somente de leitura; ferramentas de "
+                 "arquivos continuam exigindo workspace autorizado.",
             fg=_MUTED, bg=_PANEL, font=("Segoe UI", 9), justify=tk.LEFT,
         ).pack(anchor=tk.W, padx=18, pady=(0, 8))
 
@@ -74,6 +75,7 @@ class ToolsDialog:
         self._build_approval_section()
         self._build_workspaces_section()
         self._build_permissions_section()
+        self._build_integrations_section()
         self._build_terminal_section()
         self._build_automation_section()  # 11H: toggles persistentes
         self._build_audit_section()
@@ -351,8 +353,8 @@ class ToolsDialog:
         self.perm_rows: dict[str, dict] = {}
         for level, hint in (
             ("CHAT", "Conversar (padrão: sempre ativa)"),
-            ("READ", "Ler arquivos dos workspaces"),
-            ("WRITE", "Criar/modificar arquivos dos workspaces"),
+            ("READ", "Ler arquivos, pesquisar na web e consultar Unreal"),
+            ("WRITE", "Criar/modificar arquivos ou alterar o projeto"),
         ):
             line = tk.Frame(self.perm_frame, bg=_PANEL)
             line.pack(fill=tk.X, pady=1)
@@ -414,6 +416,109 @@ class ToolsDialog:
         self._set_status(True, f"🟢 Permissão {level} "
                                f"{'revogada' if granted else 'concedida'}.")
         self.refresh()
+
+    # ------------------------------------------------------------ integrações
+    def _build_integrations_section(self) -> None:
+        tk.Label(
+            self.top, text="INTEGRAÇÕES OPCIONAIS (planner da UI)",
+            font=("Segoe UI", 10, "bold"), fg=_TEXT, bg=_PANEL,
+        ).pack(anchor=tk.W, padx=18, pady=(6, 2))
+        tk.Label(
+            self.top,
+            text="Pesquisa usa TAVILY_API_KEY/BRAVE_API_KEY do .env. Unreal é "
+                 "limitado às três consultas; as quatro ações mutáveis não "
+                 "entram no planner desta UI. Ativação não concede READ.",
+            fg=_MUTED, bg=_PANEL, font=("Segoe UI", 8), justify=tk.LEFT,
+            wraplength=590,
+        ).pack(anchor=tk.W, padx=18)
+        row = tk.Frame(self.top, bg=_PANEL)
+        row.pack(fill=tk.X, padx=18, pady=(2, 2))
+        self.web_search_toggle = tk.Button(
+            row, text="Pesquisa web: OFF", relief=tk.FLAT, cursor="hand2",
+            bg=_PANEL, fg=_MUTED, font=("Segoe UI", 9), anchor="w",
+            command=self._toggle_web_search,
+        )
+        self.web_search_toggle.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.unreal_read_only_toggle = tk.Button(
+            row, text="Unreal (somente leitura): OFF", relief=tk.FLAT,
+            cursor="hand2", bg=_PANEL, fg=_MUTED,
+            font=("Segoe UI", 9), anchor="w",
+            command=self._toggle_unreal_read_only,
+        )
+        self.unreal_read_only_toggle.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+    def _toggle_web_search(self) -> None:
+        if self._controller.web_search_enabled:
+            self._controller.disable_web_search()
+            self._set_status(True, "🟢 Pesquisa web desativada; READ não foi alterada.")
+        else:
+            result = self._controller.enable_web_search()
+            if result.get("enabled"):
+                self._set_status(
+                    True,
+                    f"🟢 Pesquisa web ativada ({result.get('provider')}); "
+                    "READ continua necessária para executar.",
+                )
+            else:
+                self._set_status(
+                    False,
+                    "🔴 Pesquisa web não ativada: "
+                    f"{result.get('reason') or 'configuração indisponível'}",
+                )
+        self.refresh()
+
+    def _toggle_unreal_read_only(self) -> None:
+        if self._controller.unreal_bridge_enabled:
+            self._controller.disable_unreal_bridge()
+            self._set_status(
+                True, "🟢 Integração Unreal desativada; permissões não foram alteradas."
+            )
+            self.refresh()
+            return
+
+        try:
+            from app.unreal_bridge import RemoteControlClient, UnrealBridgeConfig
+
+            client = RemoteControlClient(UnrealBridgeConfig.from_env())
+            result = self._controller.enable_unreal_bridge(
+                client, read_only_only=True
+            )
+        except Exception as exc:
+            self._set_status(False, f"🔴 Integração Unreal não ativada: {exc}")
+            self.refresh()
+            return
+
+        if result.get("enabled"):
+            self._set_status(
+                True,
+                "🟢 Consultas Unreal ativadas (somente leitura; READ continua "
+                "necessária). Nenhum pedido foi enviado ao editor.",
+            )
+        else:
+            self._set_status(
+                False,
+                "🔴 Integração Unreal não ativada: "
+                f"{result.get('reason') or 'configuração indisponível'}",
+            )
+        self.refresh()
+
+    def _refresh_integrations(self) -> None:
+        web_enabled = self._controller.web_search_enabled
+        self.web_search_toggle.configure(
+            text=f"Pesquisa web: {'ON' if web_enabled else 'OFF'}",
+            fg=_OK_GREEN if web_enabled else _MUTED,
+        )
+        unreal_enabled = self._controller.unreal_bridge_enabled
+        read_only = self._controller.unreal_bridge_read_only_only
+        label = (
+            "Unreal (somente leitura): ON" if unreal_enabled and read_only
+            else "Unreal (modo completo): ON" if unreal_enabled
+            else "Unreal (somente leitura): OFF"
+        )
+        self.unreal_read_only_toggle.configure(
+            text=label,
+            fg=_OK_GREEN if unreal_enabled and read_only else _WARN if unreal_enabled else _MUTED,
+        )
 
     # --------------------------------------------------------------- terminal
     def _build_terminal_section(self) -> None:
@@ -690,7 +795,7 @@ class ToolsDialog:
         )
         self.refresh_audit_button.pack(side=tk.RIGHT)
         self.audit_text = tk.Text(
-            self.top, height=8, state=tk.DISABLED, wrap=tk.WORD,
+            self.top, height=6, state=tk.DISABLED, wrap=tk.WORD,
             relief=tk.FLAT, bg="#10141d", fg=_TEXT, font=("Consolas", 8),
         )
         self.audit_text.pack(fill=tk.BOTH, expand=True, padx=18, pady=(2, 4))
@@ -724,6 +829,7 @@ class ToolsDialog:
         self._refresh_pending()
         self._refresh_workspaces()
         self._refresh_permissions()
+        self._refresh_integrations()
         self._refresh_terminal()
         self._refresh_automation()  # 11H
         self._refresh_audit()
