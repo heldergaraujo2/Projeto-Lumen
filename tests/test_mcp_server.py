@@ -735,6 +735,45 @@ class TestRealSubprocess:
         text = responses[1]["result"]["content"][0]["text"]
         assert "conteúdo lido" in text
 
+    def test_cp1252_console_still_emits_utf8_checkpoint(self, tmp_path, workspace):
+        """Regressão Windows: ⏸ não pode derrubar o subprocesso MCP."""
+        responses, proc = self._run(
+            [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                 "params": {"protocolVersion": PROTOCOL_VERSION}},
+                {"jsonrpc": "2.0", "method": "notifications/initialized"},
+                {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                 "params": {"name": "create_file",
+                            "arguments": {"path": "teste.txt", "content": "olá"}}},
+            ],
+            workspace=workspace, data_dir=tmp_path / "data",
+            args=("--allow-read", "--allow-write"),
+            env={"PYTHONIOENCODING": "cp1252"},
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert "⏸" in responses[1]["result"]["content"][0]["text"]
+        assert "não" in proc.stderr, "stderr também deve ser UTF-8"
+        assert not (workspace / "teste.txt").exists()
+
+    def test_cp1252_console_decodes_utf8_input(self, tmp_path, workspace):
+        """Cliente MCP sempre envia UTF-8; stdin não pode corromper acentos."""
+        responses, proc = self._run(
+            [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                 "params": {"protocolVersion": PROTOCOL_VERSION}},
+                {"jsonrpc": "2.0", "method": "notifications/initialized"},
+                {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                 "params": {"name": "create_file",
+                            "arguments": {"path": "ação.txt", "content": "olá, mundo!"}}},
+            ],
+            workspace=workspace, data_dir=tmp_path / "data",
+            args=("--allow-read", "--allow-write", "--auto-approve"),
+            env={"PYTHONIOENCODING": "cp1252"},
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert responses[1]["result"]["isError"] is False
+        assert (workspace / "ação.txt").read_text(encoding="utf-8") == "olá, mundo!"
+
     def test_write_requires_write_mode_over_subprocess(self, tmp_path, workspace):
         responses, proc = self._run(
             [

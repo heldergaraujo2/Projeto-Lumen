@@ -3,7 +3,7 @@
 **Data:** 2026-10-08
 **Branch:** `arena/59a23416-projeto-lumen` (base `19764fc`)
 **Commits:** 8 fases + revisão do PR #33 (ver [`REVISAO_PR_33.md`](REVISAO_PR_33.md))
-**Suíte de testes:** **1372 passed / 0 failed / 7 skipped** (11,38 s, revisão PR #33)
+**Suíte de testes:** **1374 passed / 0 failed / 7 skipped** (12,61 s, revisão PR #33)
 
 ---
 
@@ -11,15 +11,15 @@
 
 ```
 $ python -m pytest -q --no-header
-1372 passed, 7 skipped in 11.38s
+1374 passed, 7 skipped in 12.61s
 ```
 
 **Antes desta trilha:** 1393 passed + **2 falhando**.
 **Depois da Fase 0** (limpeza): 991 passed / 7 skipped / **0 falhando**.
-**Agora:** 1372 passed / 7 skipped / 0 falhando (revisão PR #33).
+**Agora:** 1374 passed / 7 skipped / 0 falhando (revisão PR #33).
 
 Os 373 testes originais vêm das fases 1–6; a revisão do PR #33 acrescentou
-8 testes de regressão (3 MCP, 3 Unreal, 2 pesquisa). O salto 1393 → 991 é a Fase 0
+10 testes de regressão (5 MCP, 3 Unreal, 2 pesquisa). O salto 1393 → 991 é a Fase 0
 removendo ~8.819 LOC de código morto **junto com os testes dele** — a
 diferença é exatamente o código arquivado, não cobertura perdida. As duas
 falhas que existiam antes eram do `tkinter` ausente e foram resolvidas com
@@ -51,8 +51,8 @@ No Windows (e em CI com `python3-tk`) eles rodam.
 | 4 | `tests/test_unreal_bridge.py` | 85 |
 | 6 | `tests/test_bootstrap_script.py` | 58 |
 | — | demais (ajustes de inventário, `create_directory`) | ~12 |
-| revisão PR #33 | MCP (3), Unreal (3), pesquisa (2) | 8 |
-| | **total desde a Fase 0** | **381** |
+| revisão PR #33 | MCP (5), Unreal (3), pesquisa (2) | 10 |
+| | **total desde a Fase 0** | **383** |
 
 ---
 
@@ -394,7 +394,7 @@ suportada) e a lista de suportadas está isolada em
 ## 6. Estado do repositório
 
 ```
-1372 passed / 0 failed / 7 skipped (tkinter; revisão PR #33)
+1374 passed / 0 failed / 7 skipped (tkinter; revisão PR #33)
 
 a69c221  fase -1: pesquisa de projetos MCP-Unreal existentes
 4a47ea2  fase 0: limpeza de codigo morto e correcao de docs

@@ -19,8 +19,8 @@
 >    [`TESTE_LOCAL.md`](TESTE_LOCAL.md) e
 >    [`PESQUISA_MCP_EXISTENTES.md`](PESQUISA_MCP_EXISTENTES.md).
 >
-> Suíte viva: **1372 passed / 7 skipped / 0 failed**
-> (Fase 0: 991; fases 1–6: +373; revisão PR #33: +8; ver relatório).
+> Suíte viva: **1374 passed / 7 skipped / 0 failed**
+> (Fase 0: 991; fases 1–6: +373; revisão PR #33: +10; ver relatório).
 >
 > O roadmap canônico é [`docs/LUMEN_MASTER_ROADMAP.md`](docs/LUMEN_MASTER_ROADMAP.md);
 > o log de estado é [`LUMEN_STATE.md`](LUMEN_STATE.md).
@@ -520,7 +520,7 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-**1372 passed / 7 skipped / 0 failed** — todos offline.
+**1374 passed / 7 skipped / 0 failed** — todos offline.
 Os 7 skips são testes de UI que precisam do `tkinter`, indisponível neste
 sandbox; no Windows com Tcl/Tk instalado, rodam normalmente. As chamadas aos provedores (OpenAI, Gemini, Groq,
 Together), o cofre de credenciais, a memória estruturada e as
@@ -696,7 +696,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # suíte histórica + fases -1–6 (1372 passed + 7 skipped; offline)
+├── tests/                   # suíte histórica + fases -1–6 (1374 passed + 7 skipped; offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura

@@ -26,7 +26,7 @@ escritos — e depois voltou a ser parcialmente verdade quando eles foram
 ### Situação real hoje (2026-10-08)
 
 - **Runtime vivo:** `main.py` → UI Tkinter → Agent/Bridge → Planner → Tools
-  (filesystem + terminal allowlistado). É isto que a suíte de **1.372 testes**
+  (filesystem + terminal allowlistado). É isto que a suíte de **1.374 testes**
   cobre.
 - **Arquivado:** ~8.819 LOC em `archive/` (ver [`archive/README.md`](archive/README.md)).
   Não é mais importado por nada. Inclui `app/evolution/`, `app/computer_control/`,
@@ -60,7 +60,7 @@ escritos — e depois voltou a ser parcialmente verdade quando eles foram
   - ✅ **Entrega final** — [`RELATORIO_FINAL.md`](RELATORIO_FINAL.md): o que
     está implementado e testado, o que precisa de validação manual no PC do
     usuário (item por item), bloqueios e decisões técnicas.
-- **Contagem de testes:** 1.372 passed / 7 skipped / 0 failed (revisão PR #33: +8 testes)
+- **Contagem de testes:** 1.374 passed / 7 skipped / 0 failed (revisão PR #33: +10 testes)
   (era ~1.393 antes do arquivamento — a diferença é o código removido; as
   Fases 1 e 2 somam 102 testes novos).
 - **Gate de segurança inalterado:** aprovar o PLANO (Fase 2) não aprova as

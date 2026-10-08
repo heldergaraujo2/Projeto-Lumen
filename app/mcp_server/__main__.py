@@ -171,6 +171,15 @@ def _env_workspaces() -> list[str]:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    # O transporte MCP stdio exige UTF-8. No Windows, stdin/stdout/stderr
+    # podem herdar cp1252: um checkpoint com ⏸ então derruba o processo com
+    # UnicodeEncodeError. Também reconfigure stdin para preservar os bytes
+    # UTF-8 recebidos do cliente (nomes/conteúdo de arquivos com acentos).
+    # Streams injetados em testes podem não oferecer reconfigure().
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
     parser = build_parser()
     args = parser.parse_args(argv)
     _configure_logging()

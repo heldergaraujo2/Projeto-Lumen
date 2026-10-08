@@ -25,7 +25,7 @@ As correções e seus testes estão na branch do PR; não houve mudança de depe
 
 Comando: `/tmp/venv/bin/python -m pytest -q --no-header` na raiz.
 
-**1372 passed / 7 skipped / 0 failed (11,38 s).** Os 7 skips continuam sendo apenas `tkinter` ausente no sandbox. Diferença em relação ao relatório original (**1364 / 7 / 0**): **+8 testes de regressão desta revisão** — 3 em `tests/test_mcp_server.py`, 3 em `tests/test_unreal_bridge.py`, 2 em `tests/test_research_client.py`. Nenhum teste antigo foi removido ou passou a falhar. `RELATORIO_FINAL.md`, `TESTE_LOCAL.md`, `README.md` e `LUMEN_STATE.md` registram agora a nova contagem; os números por fase no relatório permanecem marcados como históricos.
+**1374 passed / 7 skipped / 0 failed (12,61 s).** Os 7 skips continuam sendo apenas `tkinter` ausente no sandbox. Diferença em relação ao relatório original (**1364 / 7 / 0**): **+10 testes de regressão desta revisão** — 5 em `tests/test_mcp_server.py`, 3 em `tests/test_unreal_bridge.py`, 2 em `tests/test_research_client.py`. Nenhum teste antigo foi removido ou passou a falhar. `RELATORIO_FINAL.md`, `TESTE_LOCAL.md`, `README.md` e `LUMEN_STATE.md` registram agora a nova contagem; os números por fase no relatório permanecem marcados como históricos.
 
 ## 4. Merge — BLOQUEADO
 
@@ -40,3 +40,23 @@ Sem merge em `main` (inexistente), não é possível afirmar que `bootstrap.ps1`
 ## 6. `PRONTO_PARA_TESTE.md` — NÃO CRIADO
 
 O arquivo solicitado exigiria **confirmação e hash de um merge bem-sucedido**, que ainda não ocorreu. Criá-lo agora com essa afirmação seria falso. Depois da autorização para usar a branch de destino real e do teste pós-merge, ele poderá incluir o comando `./bootstrap.ps1` do Windows (com caminho `.uproject` preenchido pelo usuário), o link direto a [`TESTE_LOCAL.md` §1 — Pré-requisitos](TESTE_LOCAL.md#1-pré-requisitos) e os 24 itens de validação manual de `RELATORIO_FINAL.md` §3 reordenados por risco/precedência (sem Unreal → conexão/RC API pura → Python no editor, componente por último).
+
+## Adendo — falha do check Windows em `Tests`
+
+O check `windows` no commit `ae43590` falhou em `Tests` (os outros 4
+passaram). O log bruto do GitHub não pôde ser baixado neste ambiente: o
+redirecionamento da API para o armazenamento de logs termina em EOF.
+Portanto, **não se afirma ter visto o traceback do CI**.
+
+Foi reproduzido localmente um erro da mesma classe, com o entry point real e
+`PYTHONIOENCODING=cp1252`: chamada MCP `create_file` sem auto-aprovação →
+`UnicodeEncodeError: 'charmap' codec can't encode character '\u23f8'` em
+`app/mcp_server/stdio.py:108`, exit code 1, sem escrita no workspace.
+`app/mcp_server/__main__.py` agora reconfigura `sys.stdin`, `sys.stdout` e
+`sys.stderr` para UTF-8 **no começo de `main()`**, antes de qualquer saída.
+Dois testes de regressão sob `cp1252` comprovam saída UTF-8 com checkpoint e
+entrada UTF-8 com acentos; a suíte completa passou com **1374 passed / 7
+skipped / 0 failed**. O check Windows **precisa ficar verde no commit novo**
+antes de qualquer merge. A etapa F27 no workflow Windows continua pendente
+de execução após `Tests` e importa um módulo movido para `archive/`: será
+necessário observar o check real; nenhuma correção especulativa foi feita.
