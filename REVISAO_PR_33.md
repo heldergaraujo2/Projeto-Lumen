@@ -25,7 +25,7 @@ As correções e seus testes estão na branch do PR; não houve mudança de depe
 
 Comando: `/tmp/venv/bin/python -m pytest -q --no-header` na raiz.
 
-**1374 passed / 7 skipped / 0 failed (12,61 s).** Os 7 skips continuam sendo apenas `tkinter` ausente no sandbox. Diferença em relação ao relatório original (**1364 / 7 / 0**): **+10 testes de regressão desta revisão** — 5 em `tests/test_mcp_server.py`, 3 em `tests/test_unreal_bridge.py`, 2 em `tests/test_research_client.py`. Nenhum teste antigo foi removido ou passou a falhar. `RELATORIO_FINAL.md`, `TESTE_LOCAL.md`, `README.md` e `LUMEN_STATE.md` registram agora a nova contagem; os números por fase no relatório permanecem marcados como históricos.
+**1375 passed / 7 skipped / 0 failed (11,99 s).** Os 7 skips continuam sendo apenas `tkinter` ausente no sandbox. Diferença em relação ao relatório original (**1364 / 7 / 0**): **+11 testes de regressão desta revisão** — 6 em `tests/test_mcp_server.py`, 3 em `tests/test_unreal_bridge.py`, 2 em `tests/test_research_client.py`. Nenhum teste antigo foi removido ou passou a falhar. `RELATORIO_FINAL.md`, `TESTE_LOCAL.md`, `README.md` e `LUMEN_STATE.md` registram agora a nova contagem; os números por fase no relatório permanecem marcados como históricos.
 
 ## 4. Merge — BLOQUEADO
 
@@ -55,8 +55,30 @@ Foi reproduzido localmente um erro da mesma classe, com o entry point real e
 `app/mcp_server/__main__.py` agora reconfigura `sys.stdin`, `sys.stdout` e
 `sys.stderr` para UTF-8 **no começo de `main()`**, antes de qualquer saída.
 Dois testes de regressão sob `cp1252` comprovam saída UTF-8 com checkpoint e
-entrada UTF-8 com acentos; a suíte completa passou com **1374 passed / 7
+entrada UTF-8 com acentos; a suíte completa passou com **1375 passed / 7
 skipped / 0 failed**. O check Windows **precisa ficar verde no commit novo**
 antes de qualquer merge. A etapa F27 no workflow Windows continua pendente
 de execução após `Tests` e importa um módulo movido para `archive/`: será
 necessário observar o check real; nenhuma correção especulativa foi feita.
+
+## Adendo — encoding no helper de subprocesso (Windows)
+
+Após o conserto de produção, o check `windows` do commit `4ae593d`
+**continuou falhando em `Tests`**; os outros quatro passaram. O download
+do traceback de CI ainda é bloqueado pelo redirecionamento do GitHub,
+então **não se afirma conhecer a lista exata de testes que falharam**.
+Uma segunda causa foi identificada no helper `TestRealSubprocess._run()`:
+`subprocess.run(text=True)` sem `encoding` usa o locale do processo **pai**
+(cp1252 no Windows), tanto para `input=payload` quanto para `stdout`/`stderr`.
+Agora usa `encoding="utf-8", errors="strict"`. Um novo teste força
+`subprocess._text_encoding` do pai a cp1252 e o filho a
+`PYTHONIOENCODING=cp1252`, verificando roundtrip MCP com nome e conteúdo
+acentuados. Varredura AST do projeto: outros dois `subprocess.Popen`
+(`app/tools/terminal.py`, `app/tools/run_pytest.py`) operam em **bytes**,
+sem `text=True`, e não exigem conversão de encoding. `bootstrap.ps1`
+usa `Start-Process` do PowerShell, não `subprocess` Python.
+
+Suíte **com `PYTHONIOENCODING=cp1252` no processo pytest pai**:
+**1375 passed / 7 skipped / 0 failed**. A causa do check Windows só será
+considerada eliminada quando **os cinco checks do novo commit** ficarem
+verdes; merge continua bloqueado até lá.

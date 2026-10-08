@@ -18,12 +18,12 @@ Isso importa antes de você gastar tempo.
 | --- | --- | --- |
 | Camada de pesquisa (Tavily/Brave) | ✅ testado | 59 testes (57 originais + 2 de revisão), HTTP mockado |
 | Camada de planejamento + aprovação | ✅ testado | 102 testes, incl. arquivos criados em disco de verdade |
-| Servidor MCP (JSON-RPC/stdio) | ✅ testado | 75 testes (70 originais + 5 de revisão), 12 deles subindo o servidor como **subprocesso real** |
+| Servidor MCP (JSON-RPC/stdio) | ✅ testado | 76 testes (70 originais + 6 de revisão), 13 deles subindo o servidor como **subprocesso real** |
 | Ponte RC API (rotas HTTP) | ✅ testado contra a doc | 88 testes (85 originais + 3 de revisão); o corpo de cada requisição é comparado com os exemplos da Epic |
 | Criar Blueprint / adicionar componente | ⚠️ **NÃO VALIDADO** [NÃO VALIDADO] | Exige Unreal real; ver §7 |
 | Bootstrap no Windows | ⚠️ **NÃO VALIDADO** [NÃO VALIDADO] | Escrito para PowerShell 5.1; sem Windows aqui |
 
-A suíte inteira após a revisão do PR #33: **1374 passed / 7 skipped / 0 failed**.
+A suíte inteira após a revisão do PR #33: **1375 passed / 7 skipped / 0 failed**.
 
 ---
 

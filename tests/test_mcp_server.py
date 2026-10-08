@@ -683,7 +683,10 @@ class TestRealSubprocess:
         proc = subprocess.run(
             [sys.executable, "-m", "app.mcp_server",
              "--workspace", str(workspace), "--data-dir", str(data_dir), *args],
-            input=payload, capture_output=True, text=True, timeout=90,
+            # MCP stdio é UTF-8 por contrato. `text=True` sozinho usa o locale
+            # do PAI (cp1252 no Windows), corrompendo input e stdout.
+            input=payload, capture_output=True, encoding="utf-8", errors="strict",
+            timeout=90,
             env={**os.environ, **(env or {})},
             cwd=str(Path(__file__).resolve().parent.parent),
         )
@@ -734,6 +737,30 @@ class TestRealSubprocess:
         assert proc.returncode == 0, proc.stderr
         text = responses[1]["result"]["content"][0]["text"]
         assert "conteúdo lido" in text
+
+    def test_cp1252_parent_locale_keeps_mcp_utf8(self, tmp_path, workspace, monkeypatch):
+        """O locale do processo PAI não pode codificar/decodificar o MCP."""
+        import subprocess
+
+        # Simula a escolha de codec do Windows quando `text=True` omite
+        # encoding, mesmo que o runner Linux tenha sys.flags.utf8_mode=1.
+        monkeypatch.setattr(subprocess, "_text_encoding", lambda: "cp1252")
+        responses, proc = self._run(
+            [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                 "params": {"protocolVersion": PROTOCOL_VERSION}},
+                {"jsonrpc": "2.0", "method": "notifications/initialized"},
+                {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                 "params": {"name": "create_file",
+                            "arguments": {"path": "ação.txt", "content": "olá, mundo!"}}},
+            ],
+            workspace=workspace, data_dir=tmp_path / "data",
+            args=("--allow-read", "--allow-write", "--auto-approve"),
+            env={"PYTHONIOENCODING": "cp1252"},
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert responses[1]["result"]["isError"] is False
+        assert (workspace / "ação.txt").read_text(encoding="utf-8") == "olá, mundo!"
 
     def test_cp1252_console_still_emits_utf8_checkpoint(self, tmp_path, workspace):
         """Regressão Windows: ⏸ não pode derrubar o subprocesso MCP."""
