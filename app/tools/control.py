@@ -414,6 +414,9 @@ class ToolsController:
         self._snapshot_store = SnapshotStore(
             self._snapshots_dir, max_snapshot_bytes=snapshot_max_bytes
         )
+        # Fase 1: pesquisa web (default OFF — habilitada só via
+        # enable_web_search(); nenhum efeito no startup).
+        self._web_search_provider = None
         self._load_terminal()  # fail-closed; não cria arquivo nem concede nada
         self._apply_persisted_toggles()  # 11H: só capacidade, sem permissões
 
@@ -914,6 +917,37 @@ class ToolsController:
     def _sandbox(self) -> MultiWorkspaceSandbox:
         return MultiWorkspaceSandbox(self._store.load())
 
+    def enable_web_search(self, provider=None) -> dict:
+        """Habilita a tool ``web_search`` (Fase 1) — **explícito**.
+
+        Sem chamada, a tool não existe: não entra no registry nem no
+        catálogo do Planner (fail-closed, mesmo padrão de
+        :meth:`enable_terminal`). A permissão ``READ`` continua sendo
+        exigida na execução — habilitar **não concede nada**.
+
+        ``provider`` vazio tenta resolver pelo ambiente
+        (``TAVILY_API_KEY``/``BRAVE_API_KEY``). Falha de configuração é
+        reportada como dict, nunca como exceção — o caller decide.
+        """
+        from app.research.client import SearchProviderError, create_search_provider
+
+        try:
+            self._web_search_provider = provider or create_search_provider()
+        except SearchProviderError as exc:
+            logger.warning("Pesquisa web não habilitada: %s", exc)
+            return {"enabled": False, "provider": None, "reason": str(exc)}
+        name = getattr(self._web_search_provider, "name", "unknown")
+        logger.info("Pesquisa web habilitada (provedor=%s).", name)
+        return {"enabled": True, "provider": name, "reason": None}
+
+    def disable_web_search(self) -> None:
+        """Desabilita a tool de pesquisa web (volta ao estado fail-closed)."""
+        self._web_search_provider = None
+
+    @property
+    def web_search_enabled(self) -> bool:
+        return self._web_search_provider is not None
+
     def planning_catalog(self) -> dict:
         """Allowlist de ferramentas que o chat pode planejar (0.6.3).
 
@@ -928,7 +962,8 @@ class ToolsController:
         from app.planner.catalog import build_catalog
 
         return build_catalog(
-            include_terminal=self._terminal_policy is not None
+            include_terminal=self._terminal_policy is not None,
+            include_web_search=self._web_search_provider is not None,
         )
 
     def build_registry(self) -> ToolRegistry:
@@ -957,6 +992,13 @@ class ToolsController:
                 RunCommandTool(self._terminal_policy, sandbox, self._audit)
             )
             registry.register(RunPytestTool(sandbox, self._audit))
+        # Fase 1: pesquisa web — SOMENTE quando um provedor foi
+        # explicitamente habilitado via enable_web_search(). Registro
+        # nunca automático; a chave de API continua vindo do ambiente.
+        if self._web_search_provider is not None:
+            from app.research.tool import WebSearchTool
+
+            registry.register(WebSearchTool(self._web_search_provider))
         return registry
 
     # ---------------------------------------------------------- F2 protocol

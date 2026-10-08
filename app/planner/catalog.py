@@ -45,6 +45,7 @@ class ToolSpec:
     description: str
     parameters: tuple[ParameterSpec, ...]
     terminal: bool = False   # run_command: exige terminal habilitado
+    web_search: bool = False  # web_search: exige provedor de busca configurado
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -182,19 +183,40 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         terminal=True,
     ),
+    ToolSpec(
+        name="web_search",
+        description=(
+            "Pesquisa na web e devolve resultados com título, URL e trecho. "
+            "Use ANTES de planejar uma implementação para descobrir como fazer."
+        ),
+        parameters=(
+            ParameterSpec("query", "string", True, "Texto da busca."),
+            ParameterSpec(
+                "max_results", "integer", False,
+                "Quantidade de resultados (1..10; default 5).",
+            ),
+        ),
+        web_search=True,
+    ),
 )
 
 
-def build_catalog(*, include_terminal: bool) -> dict[str, dict]:
+def build_catalog(
+    *, include_terminal: bool, include_web_search: bool = False
+) -> dict[str, dict]:
     """Allowlist de planejamento como dict serializável (para o prompt).
 
     ``include_terminal=False`` (default quando o terminal não está
-    habilitado) omite ``run_command`` — o Planner simplesmente não o
-    conhece; não há como planejar o que não está na lista.
+    habilitado) omite ``run_command``/``run_pytest``. Do mesmo modo,
+    ``include_web_search=False`` (default quando nenhum provedor de
+    busca está configurado) omite ``web_search`` — o Planner simplesmente
+    não o conhece; não há como planejar o que não está na lista.
     """
     catalog: dict[str, dict] = {}
     for spec in TOOL_SPECS:
         if spec.terminal and not include_terminal:
+            continue
+        if spec.web_search and not include_web_search:
             continue
         catalog[spec.name] = {
             "description": spec.description,
