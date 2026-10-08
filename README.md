@@ -612,6 +612,15 @@ Lumen/
 │   │   ├── planner.py       #   FeaturePlanner: objetivo+pesquisa → plano
 │   │   ├── approval.py      #   ApprovalGate: submit/approve/reject/expire
 │   │   └── render.py        #   render_markdown(): o plano legível p/ aprovar
+│   ├── mcp_server/          # SERVIDOR MCP (Fase 3)
+│   │   ├── jsonrpc.py       #   envelope JSON-RPC 2.0 (códigos, parsing,
+│   │   │                    #   serialização compacta de 1 linha)
+│   │   ├── schema.py        #   ToolDefinition → schema oficial de tool MCP
+│   │   ├── gateway.py       #   MCP → ToolsController.run_tool_call()
+│   │   │                    #   (permissões/sandbox/checkpoint preservados)
+│   │   ├── server.py        #   initialize/tools.list/tools.call/ping
+│   │   ├── stdio.py         #   transporte stdio (newline-delimited)
+│   │   └── __main__.py      #   python -m app.mcp_server --workspace ... 
 │   ├── executor/            # EXECUTOR (0.4.x)
 │   │   ├── handlers.py      #   TaskHandler (ABC) + SimulatedHandler
 │   │   │                    #   (in-memory; futura costura c/ ToolRegistry)

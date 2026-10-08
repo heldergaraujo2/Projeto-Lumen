@@ -1,0 +1,61 @@
+{
+  "_comment": [
+    "Configuração de exemplo do servidor MCP do LUMEN (Fase 3).",
+    "",
+    "ATENÇÃO: substitua os caminhos pelos do SEU PC.",
+    "  - 'command': caminho do python do virtualenv criado pelo bootstrap.ps1",
+    "               (no Windows: <repo>\\.venv\\Scripts\\python.exe)",
+    "  - 'cwd'    : pasta raiz do repositório clonado",
+    "  - '--workspace': a pasta do seu projeto Unreal (ou qualquer pasta",
+    "               onde o agente pode ler/escrever)",
+    "",
+    "PERMISSÕES — o padrão é SOMENTE LEITURA de propósito:",
+    "  --allow-read    concede READ (listar/ler arquivos)",
+    "  --allow-write   expõe escrita/criação/exclusão de arquivos",
+    "  --auto-approve  aprova os checkpoints sem confirmação (EXIGE",
+    "                  --allow-write). Só use quando o operador aceita",
+    "                  previamente que o cliente MCP escreva sozinho.",
+    "  --terminal      allowlist de comandos (ex.: 'UnrealBuildTool,git');",
+    "                  exige --allow-terminal para valer",
+    "",
+    "Sem --auto-approve, uma escrita solicitada pelo cliente MCP NÃO",
+    "acontece: o servidor responde 'aguardando aprovação no LUMEN' e o",
+    "usuário decide na janela do LUMEN. Isso é intencional.",
+    "",
+    "Este arquivo é um MODELO. As duas formas abaixo são as mesmas;",
+    "escolha a que combina com o seu cliente."
+  ],
+
+  "mcpServers": {
+    "lumen": {
+      "command": "C:\\Projeto-Lumen\\.venv\\Scripts\\python.exe",
+      "args": [
+        "-m", "app.mcp_server",
+        "--workspace", "C:\\MeuProjetoUnreal",
+        "--allow-read"
+      ],
+      "cwd": "C:\\Projeto-Lumen",
+      "env": {
+        "LUMEN_MCP_LOG_LEVEL": "WARNING",
+        "PYTHONIOENCODING": "utf-8"
+      }
+    },
+
+    "lumen-com-escrita": {
+      "command": "C:\\Projeto-Lumen\\.venv\\Scripts\\python.exe",
+      "args": [
+        "-m", "app.mcp_server",
+        "--workspace", "C:\\MeuProjetoUnreal",
+        "--allow-read",
+        "--allow-write",
+        "--terminal", "UnrealBuildTool,git",
+        "--allow-terminal"
+      ],
+      "cwd": "C:\\Projeto-Lumen",
+      "env": {
+        "LUMEN_MCP_LOG_LEVEL": "WARNING",
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}

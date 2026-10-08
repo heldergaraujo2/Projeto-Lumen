@@ -26,7 +26,7 @@ escritos — e depois voltou a ser parcialmente verdade quando eles foram
 ### Situação real hoje (2026-10-08)
 
 - **Runtime vivo:** `main.py` → UI Tkinter → Agent/Bridge → Planner → Tools
-  (filesystem + terminal allowlistado). É isto que a suíte de **1.150 testes**
+  (filesystem + terminal allowlistado). É isto que a suíte de **1.220 testes**
   cobre.
 - **Arquivado:** ~8.819 LOC em `archive/` (ver [`archive/README.md`](archive/README.md)).
   Não é mais importado por nada. Inclui `app/evolution/`, `app/computer_control/`,
@@ -44,9 +44,13 @@ escritos — e depois voltou a ser parcialmente verdade quando eles foram
   - ✅ **Fase 2** — `app/planning/`: `FeaturePlan` + `ApprovalGate`. O plano
     **não executa sem aprovação explícita**; `to_planner_plan()` levanta
     `PlanNotApprovedError` enquanto o gate não decidir.
-  - ⏳ **Fases 3–6** — `app/mcp_server/`, `app/unreal_bridge/`,
-    `TESTE_LOCAL.md`, `bootstrap.ps1`. Ver `RELATORIO_FINAL.md`.
-- **Contagem de testes:** 1.150 passed / 7 skipped / 0 failed
+  - ✅ **Fase 3** — `app/mcp_server/`: servidor MCP real (JSON-RPC 2.0 sobre
+    stdio). Somente-leitura por padrão; a escrita exige opt-in do operador e
+    a chamada entra por `run_tool_call()`, preservando permissões, sandbox e
+    checkpoints. `mcp_config.json` na raiz para Claude Desktop/Cline.
+  - ⏳ **Fases 4–6** — `app/unreal_bridge/`, `TESTE_LOCAL.md`,
+    `bootstrap.ps1`. Ver `RELATORIO_FINAL.md`.
+- **Contagem de testes:** 1.220 passed / 7 skipped / 0 failed
   (era ~1.393 antes do arquivamento — a diferença é o código removido; as
   Fases 1 e 2 somam 102 testes novos).
 - **Gate de segurança inalterado:** aprovar o PLANO (Fase 2) não aprova as
