@@ -46,6 +46,7 @@ class ToolSpec:
     parameters: tuple[ParameterSpec, ...]
     terminal: bool = False   # run_command: exige terminal habilitado
     web_search: bool = False  # web_search: exige provedor de busca configurado
+    unreal: bool = False     # unreal_*: exige ponte com o editor habilitada
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -211,25 +212,155 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         ),
         web_search=True,
     ),
+    # ---------------------------------------------------------------- Unreal
+    # Fase 4: as ferramentas da ponte com o editor. Ficam FORA do catálogo
+    # por padrão — um projeto sem Unreal aberto não deve ver ferramentas que
+    # só sabem falhar. `unreal: True` é o marcador que ToolsController usa
+    # para incluí-las apenas quando enable_unreal_bridge() foi chamado.
+    ToolSpec(
+        name="unreal_get_info",
+        description=(
+            "Verifica a conexão com o Unreal Editor e lista as rotas da Remote "
+            "Control API. Use SEMPRE antes das outras ferramentas unreal_*."
+        ),
+        parameters=(),
+        unreal=True,
+    ),
+    ToolSpec(
+        name="unreal_describe_object",
+        description=(
+            "Descreve um objeto do Unreal Editor (propriedades e funções com "
+            "tipos). Use para descobrir nomes REAIS antes de set_property/call."
+        ),
+        parameters=(
+            ParameterSpec(
+                "object_path", "string", True,
+                "Caminho do UObject, ex.: "
+                "'/Game/Maps/Mapa.Mapa:PersistentLevel.MeuAtor'.",
+            ),
+        ),
+        unreal=True,
+    ),
+    ToolSpec(
+        name="unreal_search_assets",
+        description=(
+            "Busca assets no Content Browser pelo nome e devolve o caminho "
+            "exato (ex.: '/Game/Blueprints/BP_Ator.BP_Ator')."
+        ),
+        parameters=(
+            ParameterSpec("query", "string", True, "Texto a procurar ('' = tudo)."),
+            ParameterSpec(
+                "class_names", "array", False,
+                "Filtra por classe, ex.: ['Blueprint', 'StaticMesh'].",
+            ),
+            ParameterSpec(
+                "package_paths", "array", False,
+                "Filtra por pasta, ex.: ['/Game/Blueprints'].",
+            ),
+        ),
+        unreal=True,
+    ),
+    ToolSpec(
+        name="unreal_set_property",
+        description=(
+            "Define uma propriedade de um objeto do Unreal Editor (Remote "
+            "Control API pura). A propriedade precisa ser pública, sem "
+            "BlueprintGetter/Setter, e EditAnywhere/BlueprintVisible."
+        ),
+        parameters=(
+            ParameterSpec("object_path", "string", True, "Caminho do UObject."),
+            ParameterSpec("property_name", "string", True, "Nome C++ da propriedade."),
+            ParameterSpec(
+                "value", "string", True,
+                "Novo valor como texto ('2', 'true', '{\"X\":1,\"Y\":2,\"Z\":3}').",
+            ),
+        ),
+        unreal=True,
+    ),
+    ToolSpec(
+        name="unreal_call_function",
+        description=(
+            "Chama uma função de um objeto do Unreal Editor (Remote Control API "
+            "pura). A função precisa ser chamável por Blueprint."
+        ),
+        parameters=(
+            ParameterSpec("object_path", "string", True, "Caminho do UObject."),
+            ParameterSpec("function_name", "string", True, "Nome C++ da função."),
+            ParameterSpec(
+                "parameters_json", "string", False,
+                "Parâmetros em JSON (vazio = nenhum).",
+            ),
+        ),
+        unreal=True,
+    ),
+    ToolSpec(
+        name="unreal_create_blueprint_class",
+        description=(
+            "Cria uma classe Blueprint no Content Browser. EXIGE o Python "
+            "Editor Script Plugin habilitado — a Remote Control API não tem "
+            "rota para criar assets."
+        ),
+        parameters=(
+            ParameterSpec("asset_name", "string", True, "Nome, ex.: 'BP_Inventario'."),
+            ParameterSpec(
+                "package_path", "string", False,
+                "Pasta no Content Browser (default '/Game/Blueprints').",
+            ),
+            ParameterSpec(
+                "parent_class", "string", False,
+                "Classe pai (default 'Actor'; use 'ActorComponent' p/ componente).",
+            ),
+        ),
+        unreal=True,
+    ),
+    ToolSpec(
+        name="unreal_add_component",
+        description=(
+            "Adiciona um componente a um Blueprint existente. EXIGE o Python "
+            "Editor Script Plugin e o transporte 'python' ou 'auto'."
+        ),
+        parameters=(
+            ParameterSpec(
+                "blueprint_path", "string", True,
+                "Caminho do asset, ex.: '/Game/Blueprints/BP_Ator.BP_Ator'.",
+            ),
+            ParameterSpec(
+                "component_class", "string", True,
+                "Classe do componente, ex.: 'StaticMeshComponent'.",
+            ),
+            ParameterSpec(
+                "component_name", "string", False,
+                "Nome do componente (vazio = o editor escolhe).",
+            ),
+        ),
+        unreal=True,
+    ),
 )
 
 
 def build_catalog(
-    *, include_terminal: bool, include_web_search: bool = False
+    *,
+    include_terminal: bool,
+    include_web_search: bool = False,
+    include_unreal: bool = False,
 ) -> dict[str, dict]:
     """Allowlist de planejamento como dict serializável (para o prompt).
 
     ``include_terminal=False`` (default quando o terminal não está
     habilitado) omite ``run_command``/``run_pytest``. Do mesmo modo,
     ``include_web_search=False`` (default quando nenhum provedor de
-    busca está configurado) omite ``web_search`` — o Planner simplesmente
-    não o conhece; não há como planejar o que não está na lista.
+    busca está configurado) omite ``web_search`` e ``include_unreal=False``
+    (default quando não há ponte com o editor) omite as ``unreal_*`` — o
+    Planner simplesmente não as conhece; não há como planejar o que não
+    está na lista.
     """
     catalog: dict[str, dict] = {}
     for spec in TOOL_SPECS:
         if spec.terminal and not include_terminal:
             continue
         if spec.web_search and not include_web_search:
+            continue
+        if spec.unreal and not include_unreal:
             continue
         catalog[spec.name] = {
             "description": spec.description,

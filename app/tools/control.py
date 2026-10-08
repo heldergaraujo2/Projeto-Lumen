@@ -417,6 +417,8 @@ class ToolsController:
         # Fase 1: pesquisa web (default OFF — habilitada só via
         # enable_web_search(); nenhum efeito no startup).
         self._web_search_provider = None
+        # Fase 4: ponte com o Unreal Editor. None = desabilitada (default).
+        self._unreal_client = None
         self._load_terminal()  # fail-closed; não cria arquivo nem concede nada
         self._apply_persisted_toggles()  # 11H: só capacidade, sem permissões
 
@@ -948,6 +950,49 @@ class ToolsController:
     def web_search_enabled(self) -> bool:
         return self._web_search_provider is not None
 
+    # ------------------------------------------------- Fase 4: Unreal bridge
+    def enable_unreal_bridge(self, client=None, **config_kwargs) -> dict:
+        """Habilita as ferramentas ``unreal_*`` (Fase 4) — **explícito**.
+
+        Mesmo padrão de :meth:`enable_web_search`: sem chamada, as
+        ferramentas não existem — não entram no registry nem no catálogo do
+        Planner. Não há tentativa automática de conexão no startup: um
+        projeto sem editor aberto não deve ver ferramentas que só sabem
+        falhar.
+
+        Não faz requisição de rede aqui: a disponibilidade do editor é
+        verificada pela própria tool ``unreal_get_info``, quando chamada.
+
+        Args:
+            client: ``RemoteControlClient`` pronto (usado em testes).
+            **config_kwargs: repassados a ``UnrealBridgeConfig``.
+
+        Returns:
+            ``{"enabled": bool, "base_url": str | None, "reason": str | None}``
+            — nunca levanta: configuração inválida devolve ``enabled=False``.
+        """
+        try:
+            if client is None:
+                from app.unreal_bridge import RemoteControlClient
+                from app.unreal_bridge.config import UnrealBridgeConfig
+
+                client = RemoteControlClient(UnrealBridgeConfig(**config_kwargs))
+        except Exception as exc:  # config inválida não deve derrubar o app
+            logger.warning("Ponte com o Unreal não habilitada: %s", exc)
+            return {"enabled": False, "base_url": None, "reason": str(exc)}
+        self._unreal_client = client
+        base_url = getattr(getattr(client, "config", None), "base_url", None)
+        logger.info("Ponte com o Unreal habilitada (%s).", base_url)
+        return {"enabled": True, "base_url": base_url, "reason": None}
+
+    def disable_unreal_bridge(self) -> None:
+        self._unreal_client = None
+        logger.info("Ponte com o Unreal desabilitada.")
+
+    @property
+    def unreal_bridge_enabled(self) -> bool:
+        return self._unreal_client is not None
+
     def planning_catalog(self) -> dict:
         """Allowlist de ferramentas que o chat pode planejar (0.6.3).
 
@@ -964,6 +1009,7 @@ class ToolsController:
         return build_catalog(
             include_terminal=self._terminal_policy is not None,
             include_web_search=self._web_search_provider is not None,
+            include_unreal=self._unreal_client is not None,
         )
 
     def build_registry(self) -> ToolRegistry:
@@ -999,6 +1045,12 @@ class ToolsController:
             from app.research.tool import WebSearchTool
 
             registry.register(WebSearchTool(self._web_search_provider))
+        # Fase 4: ponte com o Unreal — idem, só quando habilitada.
+        if self._unreal_client is not None:
+            from app.unreal_bridge.tools import build_unreal_registry
+
+            for tool in build_unreal_registry(self._unreal_client):
+                registry.register(tool)
         return registry
 
     # ---------------------------------------------------------- F2 protocol

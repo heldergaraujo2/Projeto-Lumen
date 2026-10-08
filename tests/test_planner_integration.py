@@ -172,7 +172,14 @@ FORBIDDEN_TOKENS = (
     "subprocess", "os.system", "os.exec", "popen", "shutil", "ctypes",
     "pyautogui", "pynput", "pytesseract", "opencv", "win32api",
     "send_keys", "click(", "move(", "scroll(", "PyMouse", "PyKeyboard",
-    "unreal", "editor",  # Unreal/editor automation
+)
+
+#: Pacotes que EXECUTAM coisas. O planner pode NOMEAR uma ferramenta (o
+#: catálogo é allowlist declarativa de protocolo), mas não pode importar o
+#: código que a executa — é isso que mantém o planejamento incapaz de agir.
+FORBIDDEN_IMPORTS = (
+    "app.tools", "app.executor", "app.unreal_bridge", "app.mcp_server",
+    "app.research.client",
 )
 
 
@@ -187,6 +194,35 @@ def test_planner_package_contains_no_execution_code():
     lowered = source.lower()
     for token in FORBIDDEN_TOKENS:
         assert token.lower() not in lowered, f"planner não deve conter {token!r}"
+
+
+def test_planner_package_imports_nothing_that_executes():
+    """Garantia estrutural, mais forte que procurar substring.
+
+    `app/planner/catalog.py` passou a DESCREVER ferramentas `unreal_*` na
+    Fase 4. Descrever é permitido — o catálogo é declarativo e é justamente
+    a allowlist que impede o Planner de inventar nomes. Importar o código
+    que executa continua proibido, e é isso que este teste verifica lendo a
+    AST: um comentário ou uma descrição não o disparam, um `import` sim.
+    """
+    import ast
+
+    root = Path(__file__).parent.parent / "app" / "planner"
+    for path in sorted(root.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                continue
+            for name in names:
+                for forbidden in FORBIDDEN_IMPORTS:
+                    assert not name.startswith(forbidden), (
+                        f"{path.name} importa {name!r}: o planner não pode "
+                        "depender do código que executa ferramentas."
+                    )
 
 
 def test_planner_module_has_no_file_write_calls():

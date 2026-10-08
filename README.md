@@ -612,6 +612,16 @@ Lumen/
 │   │   ├── planner.py       #   FeaturePlanner: objetivo+pesquisa → plano
 │   │   ├── approval.py      #   ApprovalGate: submit/approve/reject/expire
 │   │   └── render.py        #   render_markdown(): o plano legível p/ aprovar
+│   ├── unreal_bridge/       # PONTE COM O UNREAL EDITOR (Fase 4)
+│   │   ├── config.py        #   UnrealBridgeConfig (LUMEN_UNREAL_*, porta 30010)
+│   │   ├── client.py        #   RemoteControlClient: /remote/info, object/call,
+│   │   │                    #   object/property, object/describe, search/assets,
+│   │   │                    #   batch, object/thumbnail, execute_python
+│   │   ├── python_script.py #   geradores de script p/ criar Blueprint e
+│   │   │                    #   adicionar componente (a RC API NÃO cria assets)
+│   │   └── tools.py         #   7 tools unreal_* (get_info, describe_object,
+│   │                        #   search_assets, set_property, call_function,
+│   │                        #   create_blueprint_class, add_component)
 │   ├── mcp_server/          # SERVIDOR MCP (Fase 3)
 │   │   ├── jsonrpc.py       #   envelope JSON-RPC 2.0 (códigos, parsing,
 │   │   │                    #   serialização compacta de 1 linha)
