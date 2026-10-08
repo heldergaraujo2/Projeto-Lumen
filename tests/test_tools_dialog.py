@@ -371,3 +371,67 @@ def test_tools_dialog_toggle_verification_persists(tmp_path):
     controller2 = make_toggles_controller(tmp_path, "2")
     assert controller2.verification_enabled is True
     assert controller2.terminal_status()["permission_granted"] is False
+
+
+def test_dialog_integrations_are_explicit_read_only_and_do_not_grant_read(
+    tmp_path, monkeypatch
+):
+    """A UI habilita pesquisa/Unreal sem conceder permissão nem mutações."""
+    from app.unreal_bridge import UNREAL_READ_ONLY_TOOLS, UNREAL_TOOLS
+
+    class SearchStub:
+        name = "ui-test"
+
+    monkeypatch.setattr(
+        "app.research.client.create_search_provider", lambda: SearchStub()
+    )
+    controller = make_controller(tmp_path)
+    dialog = tools_dialog_module.ToolsDialog(FakeRoot(), controller)
+    assert dialog.web_search_toggle.cget("text") == "Pesquisa web: OFF"
+    assert dialog.unreal_read_only_toggle.cget("text") == "Unreal (somente leitura): OFF"
+
+    dialog.web_search_toggle.invoke()
+    dialog.unreal_read_only_toggle.invoke()
+
+    assert controller.web_search_enabled
+    assert controller.unreal_bridge_read_only_only
+    assert "web_search" in controller.planning_catalog()
+    assert {name for name in controller.planning_catalog() if name.startswith("unreal_")} == set(
+        UNREAL_READ_ONLY_TOOLS
+    )
+    registered = {item["name"] for item in controller.build_registry().list_tools()}
+    assert set(UNREAL_READ_ONLY_TOOLS) <= registered
+    assert not (set(UNREAL_TOOLS) - set(UNREAL_READ_ONLY_TOOLS)) & registered
+    permission_rows = {
+        row["level"]: row["granted"] for row in controller.permission_status()
+    }
+    assert permission_rows["READ"] is False
+    assert permission_rows["WRITE"] is False
+    assert dialog.web_search_toggle.cget("text") == "Pesquisa web: ON"
+    assert dialog.unreal_read_only_toggle.cget("text") == "Unreal (somente leitura): ON"
+
+    dialog.web_search_toggle.invoke()
+    dialog.unreal_read_only_toggle.invoke()
+    assert not controller.web_search_enabled
+    assert not controller.unreal_bridge_enabled
+    assert "web_search" not in controller.planning_catalog()
+    assert not any(name.startswith("unreal_") for name in controller.planning_catalog())
+
+
+def test_dialog_shows_search_configuration_error_without_enabling(tmp_path, monkeypatch):
+    from app.research.client import SearchUnavailableError
+
+    def fail_configuration():
+        raise SearchUnavailableError("defina TAVILY_API_KEY")
+
+    monkeypatch.setattr(
+        "app.research.client.create_search_provider", fail_configuration
+    )
+    controller = make_controller(tmp_path)
+    dialog = tools_dialog_module.ToolsDialog(FakeRoot(), controller)
+
+    dialog.web_search_toggle.invoke()
+
+    assert not controller.web_search_enabled
+    assert "TAVILY_API_KEY" in dialog.status_label.cget("text")
+    assert dialog.web_search_toggle.cget("text") == "Pesquisa web: OFF"

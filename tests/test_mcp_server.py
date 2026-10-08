@@ -911,22 +911,37 @@ class TestFinalReviewEntrypoint:
         assert "web_search" in names(yes_opt)
         assert env["TAVILY_API_KEY"] not in proc.stderr + proc.stdout
 
-    def test_unreal_tools_require_opt_in_and_write(self, tmp_path, workspace):
+    def test_unreal_tools_require_opt_in_and_separate_read_from_write(
+        self, tmp_path, workspace
+    ):
         lines = [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize",
              "params": {"protocolVersion": PROTOCOL_VERSION}},
             {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
         ]
-        no_write, _ = TestRealSubprocess()._run(
+        no_opt, _ = TestRealSubprocess()._run(
+            lines, workspace=workspace, data_dir=tmp_path / "data0",
+            args=("--allow-read",),
+        )
+        read_only, _ = TestRealSubprocess()._run(
             lines, workspace=workspace, data_dir=tmp_path / "data1",
             args=("--allow-read", "--enable-unreal-bridge"),
         )
-        yes_write, proc = TestRealSubprocess()._run(
+        write_enabled, proc = TestRealSubprocess()._run(
             lines, workspace=workspace, data_dir=tmp_path / "data2",
             args=("--allow-read", "--allow-write", "--enable-unreal-bridge"),
         )
         assert proc.returncode == 0, proc.stderr
         names = lambda responses: {t["name"] for t in responses[1]["result"]["tools"]}
-        assert not any(n.startswith("unreal_") for n in names(no_write))
-        assert "unreal_create_blueprint_class" in names(yes_write)
-        assert "unreal_get_info" in names(yes_write)
+        mutating = {
+            "unreal_create_blueprint_class", "unreal_add_component",
+            "unreal_set_property", "unreal_call_function",
+        }
+        read_only_names = {
+            "unreal_get_info", "unreal_search_assets", "unreal_describe_object",
+        }
+        assert not any(n.startswith("unreal_") for n in names(no_opt))
+        assert read_only_names <= names(read_only)
+        assert not (mutating & names(read_only))
+        assert mutating <= names(write_enabled)
+        assert read_only_names <= names(write_enabled)
