@@ -49,12 +49,12 @@ def _parse_env_file(path: Path) -> dict[str, str]:
         if line.startswith("export "):
             line = line[len("export "):].strip()
         if "=" not in line:
-            _MODULE_LOGGER.warning(".env:%d: linha ignorada (formato inválido): %r", line_no, raw_line)
+            _MODULE_LOGGER.warning(".env:%d: linha ignorada (formato inválido; valor omitido)", line_no)
             continue
         key, _, value = line.partition("=")
         key, value = key.strip(), value.strip().strip("'\"")
         if not key:
-            _MODULE_LOGGER.warning(".env:%d: chave vazia ignorada: %r", line_no, raw_line)
+            _MODULE_LOGGER.warning(".env:%d: chave vazia ignorada (valor omitido)", line_no)
             continue
         values[key] = value
     return values

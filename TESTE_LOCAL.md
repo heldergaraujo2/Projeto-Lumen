@@ -16,14 +16,14 @@ Isso importa antes de você gastar tempo.
 
 | Área | Status | Evidência |
 | --- | --- | --- |
-| Camada de pesquisa (Tavily/Brave) | ✅ testado | 57 testes de unidade, HTTP mockado |
+| Camada de pesquisa (Tavily/Brave) | ✅ testado | 59 testes (57 originais + 2 de revisão), HTTP mockado |
 | Camada de planejamento + aprovação | ✅ testado | 102 testes, incl. arquivos criados em disco de verdade |
-| Servidor MCP (JSON-RPC/stdio) | ✅ testado | 70 testes, 7 deles subindo o servidor como **subprocesso real** |
-| Ponte RC API (rotas HTTP) | ✅ testado contra a doc | 85 testes; o corpo de cada requisição é comparado com os exemplos da Epic |
+| Servidor MCP (JSON-RPC/stdio) | ✅ testado | 73 testes (70 originais + 3 de revisão), 10 deles subindo o servidor como **subprocesso real** |
+| Ponte RC API (rotas HTTP) | ✅ testado contra a doc | 88 testes (85 originais + 3 de revisão); o corpo de cada requisição é comparado com os exemplos da Epic |
 | Criar Blueprint / adicionar componente | ⚠️ **NÃO VALIDADO** [NÃO VALIDADO] | Exige Unreal real; ver §7 |
 | Bootstrap no Windows | ⚠️ **NÃO VALIDADO** [NÃO VALIDADO] | Escrito para PowerShell 5.1; sem Windows aqui |
 
-A suíte inteira: **1306 testes passando, 7 pulados, 0 falhando**.
+A suíte inteira após a revisão do PR #33: **1372 passed / 7 skipped / 0 failed**.
 
 ---
 
@@ -166,8 +166,15 @@ Com escrita habilitada, **com aprovação a cada operação** (recomendado):
 .\.venv\Scripts\python.exe -m app.mcp_server `
     --workspace "C:\MeuProjeto" `
     --allow-read `
-    --allow-write
+    --allow-write `
+    --enable-unreal-bridge --enable-web-search
 ```
+
+`--enable-unreal-bridge` habilita o catálogo do editor (mas ainda exige
+`--allow-write` para aparecer no MCP); `--enable-web-search` habilita a busca
+somente se houver chave válida no ambiente ou no `.env`. As duas opções são
+**opt-in** e não concedem permissões adicionais. Sem elas as respectivas
+tools não aparecem no `tools/list`, mesmo com plugins e chave configurados.
 
 Com escrita **pré-autorizada** (o cliente MCP escreve sem confirmar):
 
@@ -196,15 +203,19 @@ Com terminal allowlistado (para compilar via UnrealBuildTool):
 | `--auto-approve` | resolve os checkpoints sozinho — **exige** `--allow-write` |
 | `--terminal <CMDs>` | allowlist de comandos que podem rodar |
 | `--allow-terminal` | concede permissão de terminal (só faz sentido com `--terminal`) |
+| `--enable-unreal-bridge` | registra 7 tools do editor; elas só ficam visíveis com `--allow-write` |
+| `--enable-web-search` | registra `web_search` somente com chave Tavily/Brave configurada |
 
 Sem nenhuma flag, o servidor expõe **zero** ferramentas. Ele vai ficando
 mais capaz conforme você autoriza — e nunca concede nada sozinho.
 
 > **`--auto-approve` é uma decisão sua, não um detalhe técnico.** O cliente
-> MCP não tem como clicar "aprovar" na sua janela do LUMEN quando o servidor
-> roda como subprocesso do Claude Desktop. Essa flag *é* o seu
-> consentimento, dado de antemão. Sem ela, toda escrita pausa e o agente
-> responde "⏸ aguardando aprovação" em vez de escrever.
+> MCP não compartilha a janela da aplicação LUMEN quando roda como
+> subprocesso do Claude Desktop. Sem a flag, a escrita pausa **e não há
+> interface para aprovar nesse processo**: não repita a chamada (criaria um
+> novo checkpoint). Para testar escrita pelo cliente, revise o risco e
+> inicie o perfil com `--auto-approve`. Isso **pula a confirmação por
+> operação**; restringa o workspace e use um projeto descartável.
 
 ### 2.3 Testar sem cliente nenhum
 
@@ -273,8 +284,12 @@ bandeja do sistema) e abra de novo. Ele só lê esse arquivo na inicialização.
 No JSON do Windows, **toda barra invertida é dupla** (`\\`). Esquecer isso
 é o erro de configuração mais comum.
 
-O `mcp_config.json` na raiz do repositório é um modelo pronto com os dois
-perfis (leitura e escrita) — copie e troque os caminhos.
+O `mcp_config.json` na raiz é um modelo com dois perfis. O perfil
+`lumen-com-escrita` inclui `--enable-unreal-bridge` e `--enable-web-search`,
+mas **não inclui `--auto-approve`**: até você optar por essa flag, não altera
+o editor. Copie apenas um perfil, troque os caminhos e **não cole o campo
+`_comment`** no arquivo do cliente. Se usar a amostra de §3.1 (somente
+leitura), `unreal_get_info` não aparece: as 7 tools requerem WRITE.
 
 ---
 
@@ -305,6 +320,12 @@ Control API não está habilitado, ou o servidor web não subiu. No console do
 editor (tecla `` ` ``), rode `WebControl.StartServer`.
 
 ### Passo 1 — o agente enxerga o editor?
+
+Antes do passo 1, configure o cliente com `--allow-write` e
+`--enable-unreal-bridge` e reinicie-o. Para executar os passos 2 e 4 pelo
+cliente MCP independente, acrescente **`--auto-approve` somente após
+revisar o risco**, em um projeto de teste. **Não há botão de aprovação
+interativa neste servidor stdio**; `-AllowWrite` no bootstrap não basta.
 
 Peça ao agente (no chat do cliente MCP):
 
@@ -365,7 +386,11 @@ algo falhar — §8 tem as causas.
 
 ## 5. Fluxo completo (o objetivo original)
 
-Depois que a ponte está validada, o ciclo inteiro fica assim:
+**Arquitetura pretendida (não é um comando único integrado):** as camadas
+abaixo são testadas separadamente, mas ainda não há orquestrador que faça
+pesquisa → FeaturePlanner → ApprovalGate → MCP/UBT → Unreal em uma única
+solicitação de chat. Valide cada etapa individualmente antes de confiar no
+fluxo completo:
 
 ```
 você: "crie um sistema de inventário para RPG em mundo aberto,
@@ -384,8 +409,10 @@ Duas coisas que vale saber sobre esse fluxo:
 - **são dois portões, não um.** Aprovar o *plano* autoriza o trabalho;
   cada *operação* destrutiva (cada arquivo, cada comando) pausa de novo no
   checkpoint. É de propósito — e está coberto por
-  `tests/test_planning_e2e.py`. Com `--auto-approve` os dois ficam
-  pré-autorizados.
+  `tests/test_planning_e2e.py`. `--auto-approve` cobre apenas os checkpoints
+  de **operação** no servidor MCP; **não aprova o FeaturePlan**, que requer
+  `ApprovalGate` separado. A UI da LUMEN não compartilha estado com o
+  subprocesso MCP.
 - **`unreal_create_blueprint_class` não compila C++.** Ele cria a *classe
   Blueprint*. Compilar o C++ é `run_command` com `UnrealBuildTool` (§6).
 
@@ -400,7 +427,7 @@ Duas coisas que vale saber sobre esse fluxo:
 O que ele faz, em ordem:
 
 1. confere **Python 3.10+**;
-2. clona o repositório (se você rodou de fora) ou faz `git pull`;
+2. verifica o repositório existente e tenta `git pull --ff-only` (não faz clone);
 3. cria e ativa o **virtualenv** em `.venv`;
 4. `pip install -r requirements.txt`;
 5. roda o **pytest** e reporta a contagem;
@@ -410,8 +437,14 @@ O que ele faz, em ordem:
    exatamente o que editar;
 8. se você passou **`-LaunchUnreal`**, abre o editor;
 9. espera a porta **30010** responder;
-10. inicia o **servidor MCP**;
-11. imprime `✅ Pronto para uso` ou `❌ Falhou na etapa X, motivo Y`.
+10. gera o comando e o JSON do MCP; **o cliente MCP inicia o subprocesso** depois que você configura o cliente;
+11. imprime `✅ Pronto para uso após configurar o cliente MCP` ou `❌ Falhou na etapa X, motivo Y`.
+
+**O bootstrap NÃO inicia um servidor stdio persistente**, nem habilita
+`--auto-approve`. Com `-AllowWrite` e um `.uproject`, o JSON gerado inclui
+`--enable-unreal-bridge`, mas operações mutáveis ficam pendentes até você
+reiniciar o cliente com `--auto-approve` (consentimento antecipado). Não há
+aprovação compartilhada com a UI.
 
 Opções:
 
@@ -420,7 +453,7 @@ Opções:
 | `-UnrealProjectPath <arquivo.uproject>` | obrigatório para os passos 6–9 |
 | `-LaunchUnreal` | abre o editor automaticamente |
 | `-SkipTests` | pula a suíte (bootstrap mais rápido) |
-| `-AllowWrite` | inicia o servidor MCP com escrita (senão, somente leitura) |
+| `-AllowWrite` | inclui escrita no JSON gerado (não aprova checkpoints nem inicia servidor) |
 
 Se você não passar `-UnrealProjectPath`, ele **pergunta** (`Read-Host`) em
 vez de adivinhar um caminho.
@@ -520,7 +553,7 @@ arquivo é **`DefaultRemoteControl.ini`**, não `DefaultEngine.ini`.
 | --- | --- |
 | Cliente não lista nenhuma ferramenta | faltam `--allow-read`/`--allow-write`: sem flag, o servidor expõe zero |
 | "Ferramenta X não está exposta" | ela é destrutiva e você não passou `--allow-write` |
-| "⏸ aguardando aprovação" | comportamento **correto**: aprove na janela do LUMEN, ou use `--auto-approve` |
+| "⏸ aguardando aprovação" | comportamento **correto**: este processo MCP não compartilha a UI; para testar escrita, reinicie o cliente com `--auto-approve` **depois de revisar o risco** |
 | Escrita bloqueada mesmo com `--allow-write` | permissão `WRITE` não foi concedida — expor ≠ conceder |
 | Cliente não vê o servidor | `claude_desktop_config.json` só é lido na inicialização: feche o Claude **por completo** e reabra |
 | JSON inválido na config | barra invertida simples no Windows — use `\\` |

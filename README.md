@@ -19,8 +19,8 @@
 >    [`TESTE_LOCAL.md`](TESTE_LOCAL.md) e
 >    [`PESQUISA_MCP_EXISTENTES.md`](PESQUISA_MCP_EXISTENTES.md).
 >
-> Suíte viva: **991 passed / 7 skipped / 0 failed**
-> (não mais 1000 testes — a diferença é o código arquivado).
+> Suíte viva: **1372 passed / 7 skipped / 0 failed**
+> (Fase 0: 991; fases 1–6: +373; revisão PR #33: +8; ver relatório).
 >
 > O roadmap canônico é [`docs/LUMEN_MASTER_ROADMAP.md`](docs/LUMEN_MASTER_ROADMAP.md);
 > o log de estado é [`LUMEN_STATE.md`](LUMEN_STATE.md).
@@ -520,10 +520,9 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-**991 passed / 7 skipped / 0 failed** — todos offline.
-Os 7 skips são ambientais: introspecção dos SDKs
-`google-genai`/`groq`/`together` e do `keyring` quando ausentes, e o
-smoke test da UI Tk em ambientes sem display (no Windows ele roda). As chamadas aos provedores (OpenAI, Gemini, Groq,
+**1372 passed / 7 skipped / 0 failed** — todos offline.
+Os 7 skips são testes de UI que precisam do `tkinter`, indisponível neste
+sandbox; no Windows com Tcl/Tk instalado, rodam normalmente. As chamadas aos provedores (OpenAI, Gemini, Groq,
 Together), o cofre de credenciais, a memória estruturada e as
 **ferramentas de filesystem** usam fakes/diretórios temporários;
 nenhum teste toca API real nem arquivos fora de `tmp`.
@@ -636,7 +635,7 @@ Lumen/
 │   │   │                    #   (permissões/sandbox/checkpoint preservados)
 │   │   ├── server.py        #   initialize/tools.list/tools.call/ping
 │   │   ├── stdio.py         #   transporte stdio (newline-delimited)
-│   │   └── __main__.py      #   python -m app.mcp_server --workspace ... 
+│   │   └── __main__.py      #   python -m app.mcp_server --workspace ...
 │   ├── executor/            # EXECUTOR (0.4.x)
 │   │   ├── handlers.py      #   TaskHandler (ABC) + SimulatedHandler
 │   │   │                    #   (in-memory; futura costura c/ ToolRegistry)
@@ -697,7 +696,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # 991 testes pytest (991 passed + 7 skipped; todos offline)
+├── tests/                   # suíte histórica + fases -1–6 (1372 passed + 7 skipped; offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura
@@ -764,11 +763,12 @@ Roadmap completo: [`docs/ROADMAP.md`](docs/ROADMAP.md).
   entre sessões) e a allowlist é gerenciada pela UI e persistida em
   `data/terminal.json` (fail closed: arquivo ilegível ou entrada
   denylistada ⇒ terminal desabilitado/entrada descartada).
-- Nenhuma outra ferramenta sensível existe — nem código para mouse,
-  teclado, captura de tela, visão, computer control, Unreal ou rede das
-  ferramentas (0.7+; `subprocess` existe somente em
+- A trilha MCP/Unreal adicionou ferramentas sensíveis opt-in (ver
+  `RELATORIO_FINAL.md`): não entram no catálogo sem ativação explícita.
+  Mouse, teclado, captura e computer control permanecem arquivados.
+  `subprocess` para ferramentas preexistentes existe somente em
   `app/tools/terminal.py` e `app/tools/run_pytest.py`, ambos
-  controlados, garantido por testes AST).
+  controlados (garantido por testes AST).
 - **Controle humano pela UI (0.5.x)**: workspaces, permissões
   `READ`/`WRITE` e aprovação de operações destrutivas partem **do
   usuário**, na tela 🛡 — a UI **rejeita** conceder níveis futuros

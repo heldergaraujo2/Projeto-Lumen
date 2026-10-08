@@ -21,11 +21,12 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Callable, Iterator, Mapping, Protocol, Sequence
+from typing import Callable, Mapping, Protocol, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from app.config.settings import ENV_FILE, _parse_env_file
 from app.research.models import (
     MAX_RAW_CONTENT_CHARS,
     MAX_SNIPPET_CHARS,
@@ -79,9 +80,15 @@ def redact_secret(text: str, secret: str | None) -> str:
     return text.replace(secret, "***REDACTED***")
 
 
+def _search_config(name: str, file_values: Mapping[str, str]) -> str:
+    """Ambiente real vence .env; nunca registra o valor em logs."""
+    return (os.environ[name] if name in os.environ else file_values.get(name, "")).strip()
+
+
 def _resolve_key(env_vars: Sequence[str]) -> str:
+    file_values = _parse_env_file(ENV_FILE)
     for name in env_vars:
-        value = (os.environ.get(name) or "").strip()
+        value = _search_config(name, file_values)
         if value:
             return value
     return ""
@@ -427,7 +434,7 @@ def create_search_provider(
     Nunca faz fallback silencioso para um provedor sem chave: falha alto e
     claro para o bootstrap poder explicar ao usuário o que configurar.
     """
-    explicit = (provider or os.environ.get("LUMEN_SEARCH_PROVIDER") or "").strip().lower()
+    explicit = (provider or _search_config("LUMEN_SEARCH_PROVIDER", _parse_env_file(ENV_FILE))).strip().lower()
     if explicit:
         if explicit == "tavily":
             return TavilySearchProvider.from_env(transport=transport, **kwargs)

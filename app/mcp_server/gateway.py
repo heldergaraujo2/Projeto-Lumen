@@ -35,10 +35,12 @@ logger = logging.getLogger(__name__)
 
 #: Prefixo de toda mensagem devolvida ao cliente MCP.
 CHECKPOINT_PENDING_MESSAGE = (
-    "⏸ A operação está aguardando aprovação do usuário no LUMEN "
-    "(checkpoint {checkpoint_id}). Nada foi executado. "
-    "O usuário deve aprovar ou recusar na janela do LUMEN; depois disso a "
-    "chamada pode ser repetida."
+    "⏸ A operação está aguardando aprovação (checkpoint {checkpoint_id}). "
+    "Nada foi executado. Este servidor MCP independente NÃO tem interface "
+    "para aprovar este checkpoint: não repita a chamada (criaria outro). "
+    "Para testar operações com escrita, reinicie o servidor explicitamente "
+    "com --allow-write --auto-approve, APÓS revisar o risco; esse modo "
+    "executa sem confirmação por operação."
 )
 
 

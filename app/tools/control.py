@@ -293,6 +293,25 @@ class PrevalidatedCheckpoints(ToolCheckpoints):
         return True
 
 
+# Operações no editor não são filesystem: não existe path a pré-validar no
+# sandbox local. Elas continuam exigindo WRITE e aprovação por chamada.
+_UNREAL_MUTATING_TOOLS = frozenset({
+    "unreal_set_property", "unreal_call_function",
+    "unreal_create_blueprint_class", "unreal_add_component",
+})
+
+
+class _UnrealCheckpoints(ToolCheckpoints):
+    def __init__(self, permissions: PermissionManager) -> None:
+        super().__init__(_UNREAL_MUTATING_TOOLS)
+        self._permissions = permissions
+
+    def requires_checkpoint(self, task: PlannedTask) -> bool:
+        # Sem WRITE o handler reporta permissão negada, sem checkpoint inútil.
+        return (self._permissions.is_granted(PermissionLevel.WRITE)
+                and super().requires_checkpoint(task))
+
+
 class _CombinedCheckpoints(ToolCheckpoints):
     """Une as políticas de checkpoint (filesystem + terminal, 0.6).
 
@@ -1069,12 +1088,20 @@ class ToolsController:
                 )
                 for item in info.get("parameters", [])
             )
-            definitions[name] = ToolDefinition(
-                name=name,
-                description=str(info.get("description") or ""),
-                parameters=params,
-                destructive=name in FILESYSTEM_DESTRUCTIVE_TOOLS,
-            )
+            tool = registry.get(name)
+            if name.startswith("unreal_"):
+                # Não perca o metadata/destructive declarado pela ponte:
+                # reconstituir a partir do catálogo tornava as 7 tools
+                # visíveis no MCP sem --allow-write.
+                definitions[name] = tool.definition()
+            else:
+                definitions[name] = ToolDefinition(
+                    name=name,
+                    description=str(info.get("description") or ""),
+                    parameters=params,
+                    destructive=(name in FILESYSTEM_DESTRUCTIVE_TOOLS
+                                 or name in (TERMINAL_TOOL_NAME, "run_pytest")),
+                )
         available = {item["name"] for item in registry.list_tools()}
         definitions = {name: definition for name, definition in definitions.items()
                        if name in available}
@@ -1167,6 +1194,8 @@ class ToolsController:
                 snapshots_dir=self._snapshots_dir,
             )
         ]
+        if self._unreal_client is not None:
+            policies.append(_UnrealCheckpoints(self._permissions))
         if self._terminal_policy is not None:
             policies.append(
                 PrevalidatedTerminalCheckpoints(

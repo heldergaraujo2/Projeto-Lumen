@@ -361,3 +361,29 @@ def test_response_context_block_truncates():
     block = response.as_context_block(max_chars=1_000)
     assert len(block) < 1_200
     assert "truncado" in block
+
+
+def test_search_factory_loads_key_from_env_file_without_logging_it(tmp_path, monkeypatch):
+    import app.research.client as module
+    env_file = tmp_path / ".env"
+    env_file.write_text("LUMEN_SEARCH_PROVIDER=tavily\nTAVILY_API_KEY=tvly-FAKE-FILE\n", encoding="utf-8")
+    monkeypatch.setattr(module, "ENV_FILE", env_file)
+    for name in ("LUMEN_SEARCH_PROVIDER", *TAVILY_KEY_ENV_VARS, *BRAVE_KEY_ENV_VARS):
+        monkeypatch.delenv(name, raising=False)
+    transport = RecordingTransport(payload=tavily_payload(SAMPLE_RESULT))
+    provider = module.create_search_provider(transport=transport)
+    provider.search("teste")
+    assert transport.last["headers"]["Authorization"] == "Bearer tvly-FAKE-FILE"
+    monkeypatch.setenv("TAVILY_API_KEY", "tvly-FAKE-ENV")
+    module.create_search_provider(transport=transport).search("teste")
+    assert transport.last["headers"]["Authorization"] == "Bearer tvly-FAKE-ENV"
+
+
+def test_malformed_env_file_never_logs_api_key(tmp_path, caplog, monkeypatch):
+    import app.research.client as module
+    env_file = tmp_path / ".env"
+    env_file.write_text("TAVILY_API_KEY=tvly-FAKE-SECRET\nNO_EQUALS tvly-FAKE-SECRET\n=tvly-FAKE-SECRET\n", encoding="utf-8")
+    monkeypatch.setattr(module, "ENV_FILE", env_file)
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    module._resolve_key(TAVILY_KEY_ENV_VARS)
+    assert "tvly-FAKE-SECRET" not in caplog.text

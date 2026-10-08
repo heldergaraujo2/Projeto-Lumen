@@ -974,3 +974,73 @@ class TestPlannerCatalogIntegration:
 
         with pytest.raises(PermissionDeniedError):
             controller.build_registry().execute("unreal_get_info")
+
+
+def test_unreal_config_reads_env_file_with_environment_precedence(tmp_path, monkeypatch):
+    import app.unreal_bridge.config as module
+    env_file = tmp_path / ".env"
+    env_file.write_text("LUMEN_UNREAL_RC_PORT=30011\nLUMEN_UNREAL_TRANSPORT=rc\n", encoding="utf-8")
+    monkeypatch.setattr(module, "ENV_FILE", env_file)
+    for name in ("LUMEN_UNREAL_RC_PORT", "LUMEN_UNREAL_TRANSPORT"):
+        monkeypatch.delenv(name, raising=False)
+    assert module.UnrealBridgeConfig.from_env().port == 30011
+    assert module.UnrealBridgeConfig.from_env().transport == "rc"
+    monkeypatch.setenv("LUMEN_UNREAL_RC_PORT", "30012")
+    assert module.UnrealBridgeConfig.from_env().port == 30012
+
+
+def test_unreal_mutation_waits_for_approval_before_any_http(tmp_path):
+    from app.mcp_server.gateway import ControllerToolGateway
+    from app.security.permissions import PermissionLevel, PermissionManager
+    from app.tools.control import ToolsController
+
+    permissions = PermissionManager()
+    permissions.grant(PermissionLevel.WRITE)
+    client, transport = client_with({
+        "/remote/info": INFO_BODY,
+        "/remote/object/property": (200, b""),
+    })
+    controller = ToolsController(
+        permissions, workspaces_file=tmp_path / "w.json",
+        audit_file=tmp_path / "a.jsonl", terminal_file=tmp_path / "t.json",
+    )
+    controller.enable_unreal_bridge(client)
+    definitions = {d.name: d for d in controller.tool_protocol().definitions}
+    assert all(definitions[name].destructive for name in UNREAL_TOOLS)
+    assert definitions["unreal_add_component"].metadata["validation"] == NEEDS_MANUAL_VALIDATION
+
+    gateway = ControllerToolGateway(controller, allow_write=True)
+    outcome = gateway.call("unreal_set_property", {
+        "object_path": "/Game/A.A:A", "property_name": "bHidden", "value": "true",
+    })
+    assert outcome.awaiting_approval is True
+    assert transport.calls == [], "o editor não pode ser alterado antes de aprovar"
+    controller.refuse()
+    assert transport.calls == [], "recusa não toca a RC API"
+
+    outcome = gateway.call("unreal_set_property", {
+        "object_path": "/Game/A.A:A", "property_name": "bHidden", "value": "true",
+    })
+    assert outcome.awaiting_approval is True
+    assert transport.calls == []
+    controller.approve()
+    assert any(call["url"].endswith("/remote/object/property") for call in transport.calls)
+
+
+def test_unreal_mutation_without_write_never_calls_editor(tmp_path):
+    from app.security.permissions import PermissionManager
+    from app.tools.control import ToolsController
+    from app.tools.protocol import ToolCall
+
+    client, transport = client_with({"/remote/info": INFO_BODY})
+    controller = ToolsController(
+        PermissionManager(), workspaces_file=tmp_path / "w.json",
+        audit_file=tmp_path / "a.jsonl", terminal_file=tmp_path / "t.json",
+    )
+    controller.enable_unreal_bridge(client)
+    result = controller.run_tool_call(ToolCall(tool="unreal_set_property", parameters={
+        "object_path": "/Game/A.A:A", "property_name": "bHidden", "value": "true",
+    }))
+    assert result.ok is False
+    assert not result.data.get("awaiting_approval")
+    assert transport.calls == []

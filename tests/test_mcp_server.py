@@ -674,15 +674,17 @@ class TestRealSubprocess:
     ``__main__`` — este pega.
     """
 
-    def _run(self, lines, *, workspace, data_dir, args=()):
+    def _run(self, lines, *, workspace, data_dir, args=(), env=None):
         import subprocess
         import sys
+        import os
 
         payload = "\n".join(dumps_line(line) for line in lines) + "\n"
         proc = subprocess.run(
             [sys.executable, "-m", "app.mcp_server",
              "--workspace", str(workspace), "--data-dir", str(data_dir), *args],
             input=payload, capture_output=True, text=True, timeout=90,
+            env={**os.environ, **(env or {})},
             cwd=str(Path(__file__).resolve().parent.parent),
         )
         responses = [json.loads(l) for l in proc.stdout.splitlines() if l.strip()]
@@ -800,3 +802,65 @@ class TestRealSubprocess:
         )
         assert proc.returncode == 2
         assert "allow_write" in proc.stderr
+
+
+# Revisão PR #33: estes cenários só aparecem no entry point real, não num
+# McpServer montado manualmente em teste.
+class TestFinalReviewEntrypoint:
+    def test_write_env_grants_permission_and_writable_workspace(self, tmp_path, workspace):
+        lines = [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+             "params": {"protocolVersion": PROTOCOL_VERSION}},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+             "params": {"name": "create_file", "arguments":
+                        {"path": "revisao.txt", "content": "ok"}}},
+        ]
+        responses, proc = TestRealSubprocess()._run(
+            lines, workspace=workspace, data_dir=tmp_path / "data",
+            args=("--allow-read", "--auto-approve"),
+            env={"LUMEN_MCP_ALLOW_WRITE": "true"},
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert responses[1]["result"]["isError"] is False
+        assert (workspace / "revisao.txt").read_text(encoding="utf-8") == "ok"
+
+    def test_web_search_requires_opt_in_and_key(self, tmp_path, workspace):
+        lines = [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+             "params": {"protocolVersion": PROTOCOL_VERSION}},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+        ]
+        env = {"TAVILY_API_KEY": "tvly-FAKE-REVIEW-KEY"}
+        no_opt, _ = TestRealSubprocess()._run(
+            lines, workspace=workspace, data_dir=tmp_path / "data1",
+            args=("--allow-read",), env=env,
+        )
+        yes_opt, proc = TestRealSubprocess()._run(
+            lines, workspace=workspace, data_dir=tmp_path / "data2",
+            args=("--allow-read", "--enable-web-search"), env=env,
+        )
+        assert proc.returncode == 0, proc.stderr
+        names = lambda responses: {t["name"] for t in responses[1]["result"]["tools"]}
+        assert "web_search" not in names(no_opt)
+        assert "web_search" in names(yes_opt)
+        assert env["TAVILY_API_KEY"] not in proc.stderr + proc.stdout
+
+    def test_unreal_tools_require_opt_in_and_write(self, tmp_path, workspace):
+        lines = [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+             "params": {"protocolVersion": PROTOCOL_VERSION}},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+        ]
+        no_write, _ = TestRealSubprocess()._run(
+            lines, workspace=workspace, data_dir=tmp_path / "data1",
+            args=("--allow-read", "--enable-unreal-bridge"),
+        )
+        yes_write, proc = TestRealSubprocess()._run(
+            lines, workspace=workspace, data_dir=tmp_path / "data2",
+            args=("--allow-read", "--allow-write", "--enable-unreal-bridge"),
+        )
+        assert proc.returncode == 0, proc.stderr
+        names = lambda responses: {t["name"] for t in responses[1]["result"]["tools"]}
+        assert not any(n.startswith("unreal_") for n in names(no_write))
+        assert "unreal_create_blueprint_class" in names(yes_write)
+        assert "unreal_get_info" in names(yes_write)

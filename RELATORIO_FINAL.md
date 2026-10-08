@@ -2,8 +2,8 @@
 
 **Data:** 2026-10-08
 **Branch:** `arena/59a23416-projeto-lumen` (base `19764fc`)
-**Commits:** 8, um por fase
-**Suíte de testes:** **1364 passed / 0 failed / 7 skipped** (9,6 s)
+**Commits:** 8 fases + revisão do PR #33 (ver [`REVISAO_PR_33.md`](REVISAO_PR_33.md))
+**Suíte de testes:** **1372 passed / 0 failed / 7 skipped** (11,38 s, revisão PR #33)
 
 ---
 
@@ -11,14 +11,15 @@
 
 ```
 $ python -m pytest -q --no-header
-1364 passed, 7 skipped in 9.60s
+1372 passed, 7 skipped in 11.38s
 ```
 
 **Antes desta trilha:** 1393 passed + **2 falhando**.
 **Depois da Fase 0** (limpeza): 991 passed / 7 skipped / **0 falhando**.
-**Agora:** 1364 passed / 7 skipped / 0 falhando.
+**Agora:** 1372 passed / 7 skipped / 0 falhando (revisão PR #33).
 
-Os 373 testes novos vêm das fases 1–6. O salto 1393 → 991 é a Fase 0
+Os 373 testes originais vêm das fases 1–6; a revisão do PR #33 acrescentou
+8 testes de regressão (3 MCP, 3 Unreal, 2 pesquisa). O salto 1393 → 991 é a Fase 0
 removendo ~8.819 LOC de código morto **junto com os testes dele** — a
 diferença é exatamente o código arquivado, não cobertura perdida. As duas
 falhas que existiam antes eram do `tkinter` ausente e foram resolvidas com
@@ -50,7 +51,8 @@ No Windows (e em CI com `python3-tk`) eles rodam.
 | 4 | `tests/test_unreal_bridge.py` | 85 |
 | 6 | `tests/test_bootstrap_script.py` | 58 |
 | — | demais (ajustes de inventário, `create_directory`) | ~12 |
-| | **total novo** | **373** |
+| revisão PR #33 | MCP (3), Unreal (3), pesquisa (2) | 8 |
+| | **total desde a Fase 0** | **381** |
 
 ---
 
@@ -175,7 +177,7 @@ troubleshooting organizado por área.
 
 **Commit:** `ec96415` — [`bootstrap.ps1`](bootstrap.ps1) (684 linhas) + 58 testes
 
-As 11 etapas exigidas, sem nenhum caminho fixo, com `Read-Host` quando o
+As 11 etapas documentadas, sem nenhum caminho fixo, com `Read-Host` quando o
 parâmetro não vem. Falha na suíte é fatal; editor fora do ar **não** é (o
 resumo diz "Pronto para uso PARCIAL" e explica o que funcionou).
 
@@ -184,7 +186,9 @@ resumo diz "Pronto para uso PARCIAL" e explica o que funcionou).
 ## 3. O que precisa de validação manual no seu PC
 
 **Item por item. Nada desta lista foi executado** — não há Windows, Unreal
-ou chave de API real neste ambiente.
+ou chave de API real neste ambiente. `bootstrap.ps1` **não sobe um servidor
+stdio persistente**: gera o JSON para o cliente MCP iniciar o subprocesso.
+As camadas ainda não formam um único fluxo de chat autônomo integrado.
 
 ### 3.1 Sem Unreal (dá para validar hoje, só com o repo)
 
@@ -197,7 +201,7 @@ ou chave de API real neste ambiente.
 | 3.1.5 | `tools/list` no cliente real | deve listar as ferramentas de leitura |
 | 3.1.6 | Leitura de arquivo pelo cliente | pedir para ler um arquivo do workspace |
 | 3.1.7 | Escrita **sem** `--allow-write` recusada | pedir uma escrita e conferir a recusa |
-| 3.1.8 | Escrita **com** `--allow-write` pausa no checkpoint | conferir a resposta "⏸ aguardando aprovação" e que **nada** foi escrito |
+| 3.1.8 | Escrita **com** `--allow-write` pausa no checkpoint | conferir a resposta "⏸ aguardando aprovação" e que **nada** foi escrito; não há UI compartilhada no servidor MCP separado: para efetivar escrita, reiniciar com `--auto-approve` após revisar o risco |
 | 3.1.9 | Pesquisa web com chave real | `TAVILY_API_KEY` no `.env`, pedir uma busca |
 | 3.1.10 | Fluxo com LLM real | todo o desenvolvimento usou `FakeProvider`/`MockProvider`; o caminho com OpenAI/Gemini/Groq ainda não foi exercitado de ponta a ponta |
 | 3.1.11 | Testes de `tkinter` | rodar a suíte no Windows: os 7 skips devem virar passes |
@@ -206,7 +210,7 @@ ou chave de API real neste ambiente.
 
 | # | Item | Como validar |
 | --- | --- | --- |
-| 3.2.1 | Porta 30010 responde | `Invoke-RestMethod http://127.0.0.1:30010/remote/info` |
+| 3.2.1 | Porta 30010 responde | `Invoke-RestMethod http://127.0.0.1:30010/remote/info`; para ver `unreal_*` no MCP, configurar `--enable-unreal-bridge --allow-write` |
 | 3.2.2 | `unreal_get_info` | deve reportar `connected: true` e a contagem de rotas |
 | 3.2.3 | `unreal_describe_object` | num ator do nível; conferir propriedades e funções |
 | 3.2.4 | `unreal_search_assets` | buscar um asset que você sabe que existe |
@@ -326,14 +330,19 @@ Um cliente MCP não tem como clicar "aprovar" quando roda como subprocesso
 do Claude Desktop. `--auto-approve` resolve isso sendo o que de fato é: o
 consentimento **prévio, nomeado e auditado** do humano que inicia o
 processo. Sem ele, a resposta é "⏸ aguardando aprovação" com
-`isError: false` — não falhou, nada rodou.
+`isError: false` — não falhou, nada rodou. O servidor MCP separado **não
+compartilha o controlador da UI**, portanto não há como aprovar aquele
+checkpoint pela janela da LUMEN; repetir a chamada criaria outro checkpoint.
+`--auto-approve` cobre só o checkpoint de *operação*, não o
+`ApprovalGate` de *FeaturePlan*. **Não há orquestrador único de chat** que
+conecte automaticamente as fases 1–4.
 
 ### 5.3 Fail-closed em tudo que é novo
 
 | Recurso | Default | Para ligar |
 | --- | --- | --- |
-| `web_search` | ausente | `enable_web_search()` + chave |
-| ferramentas `unreal_*` | ausentes | `enable_unreal_bridge()` |
+| `web_search` | ausente | `enable_web_search()` + chave; no CLI MCP: `--enable-web-search` |
+| ferramentas `unreal_*` | ausentes | `enable_unreal_bridge()`; no CLI MCP: `--enable-unreal-bridge --allow-write` |
 | ferramentas destrutivas no MCP | não listadas | `--allow-write` |
 | escrita automática no MCP | não | `--auto-approve` (exige `--allow-write`) |
 | terminal | desabilitado | allowlist explícita + permissão `TERMINAL` |
@@ -385,7 +394,7 @@ suportada) e a lista de suportadas está isolada em
 ## 6. Estado do repositório
 
 ```
-1364 passed / 0 failed / 7 skipped (tkinter)
+1372 passed / 0 failed / 7 skipped (tkinter; revisão PR #33)
 
 a69c221  fase -1: pesquisa de projetos MCP-Unreal existentes
 4a47ea2  fase 0: limpeza de codigo morto e correcao de docs
@@ -417,8 +426,10 @@ mcp_server 1.328, unreal_bridge 1.786) + 4.019 LOC de testes.
 ## 7. Próximo passo concreto
 
 1. `git pull` e `.\bootstrap.ps1 -UnrealProjectPath "C:\...\SeuProjeto.uproject" -LaunchUnreal`
-2. Siga **`TESTE_LOCAL.md` §4** — quatro passos, começando por
-   `unreal_get_info` e terminando em `BP_TestConnection` no Content Browser.
+2. Siga **`TESTE_LOCAL.md` §1 e §4** — configure o cliente MCP com
+   `--enable-unreal-bridge --allow-write`; para testar escrita no processo
+   separado, revise o risco de `--auto-approve` em projeto descartável.
+   Comece por `unreal_get_info` e só depois tente `BP_TestConnection`.
 3. **Valide primeiro os itens de §3.2** (RC API pura): são os de maior
    confiança e os que mais valor entregam.
 4. Só depois teste §3.3 (criação de Blueprint). Se algo falhar ali, o

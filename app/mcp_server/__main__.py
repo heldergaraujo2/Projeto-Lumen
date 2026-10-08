@@ -87,6 +87,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Concede permissão TERMINAL (só faz sentido com --terminal).",
     )
     parser.add_argument(
+        "--enable-web-search", action="store_true",
+        help="Habilita web_search se TAVILY_API_KEY/BRAVE_API_KEY estiver configurada.",
+    )
+    parser.add_argument(
+        "--enable-unreal-bridge", action="store_true",
+        help="Habilita as tools unreal_* (exigem também --allow-write); não conecta até o uso.",
+    )
+    parser.add_argument(
         "--data-dir", default="", metavar="PASTA",
         help="Pasta de dados do LUMEN. Default: a mesma que a aplicação usa "
              "(LUMEN_DATA_DIR ou <repo>/data), para reaproveitar os workspaces "
@@ -103,8 +111,6 @@ def _data_dir(raw: str) -> Path:
     autorizou na UI passam a valer para o servidor MCP, em vez de existir
     uma segunda lista de autorizações que ninguém revisou.
     """
-    import os
-
     from app.config.settings import Settings
 
     if raw:
@@ -177,10 +183,31 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     allow_write = bool(args.allow_write) or _env_flag(WRITE_FLAG)
     auto_approve = bool(args.auto_approve) or _env_flag(AUTO_APPROVE_FLAG)
+    if auto_approve and not allow_write:
+        print("[lumen-mcp] auto_approve exige allow_write (--allow-write ou LUMEN_MCP_ALLOW_WRITE).", file=sys.stderr)
+        return 2
+    # A mesma decisão efetiva precisa reger a exposição, a concessão WRITE
+    # e a política writable dos workspaces (inclusive quando veio do env).
+    args.allow_write = allow_write
     if not args.terminal:
         args.terminal = os.environ.get(TERMINAL_ENV, "")
 
     controller = build_controller(args)
+    if args.enable_web_search:
+        result = controller.enable_web_search()
+        if not result["enabled"]:
+            logger.warning("Pesquisa web não habilitada: %s", result["reason"])
+    if args.enable_unreal_bridge:
+        from app.unreal_bridge.client import RemoteControlClient
+        from app.unreal_bridge.config import UnrealBridgeConfig
+
+        try:
+            client = RemoteControlClient(UnrealBridgeConfig.from_env())
+            result = controller.enable_unreal_bridge(client=client)
+            if not result["enabled"]:
+                logger.warning("Ponte Unreal não habilitada: %s", result["reason"])
+        except Exception as exc:
+            logger.warning("Ponte Unreal não habilitada: %s", exc)
     try:
         gateway = ControllerToolGateway(
             controller, allow_write=allow_write, auto_approve=auto_approve

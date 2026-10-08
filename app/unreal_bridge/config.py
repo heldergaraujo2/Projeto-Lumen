@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from app.config.settings import ENV_FILE, _parse_env_file
+
 #: Porta padrão do servidor HTTP da Remote Control API.
 DEFAULT_RC_PORT = 30010
 
@@ -95,9 +97,10 @@ class UnrealBridgeConfig:
     def from_env(cls, environ: dict | None = None) -> "UnrealBridgeConfig":
         """Lê ``LUMEN_UNREAL_*`` do ambiente, com defaults seguros."""
         env = os.environ if environ is None else environ
+        file_values = _parse_env_file(ENV_FILE) if environ is None else {}
 
         def raw(name: str, default: str) -> str:
-            value = env.get(name)
+            value = env.get(name) if name in env else file_values.get(name)
             return default if value is None or not str(value).strip() else str(value).strip()
 
         def number(name: str, default: float) -> float:

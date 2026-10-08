@@ -186,7 +186,7 @@ class TestElevenSteps:
         "Verificando os plugins do Unreal",
         "Iniciando o Unreal Editor",
         "Aguardando a Remote Control API",
-        "Iniciando o servidor MCP",
+        "Preparando a configuração do servidor MCP",
         "RESUMO",
     ])
     def test_step_is_present(self, source, step_name):

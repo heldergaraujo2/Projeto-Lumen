@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-    Bootstrap da LUMEN no Windows: prepara o ambiente, confere o Unreal e sobe
-    o servidor MCP.
+    Bootstrap da LUMEN no Windows: prepara o ambiente, confere o Unreal e
+    gera a configuração do cliente MCP (que inicia o subprocesso).
 
 .DESCRIPTION
     Executa, em ordem, os passos 1-11 descritos em TESTE_LOCAL.md:
@@ -15,7 +15,7 @@
       7. verifica se RemoteControlAPI e PythonScriptPlugin estão habilitados
       8. inicia o Unreal Editor (se -LaunchUnreal)
       9. aguarda e faz HTTP GET na porta da Remote Control API
-     10. inicia o servidor MCP
+     10. prepara a configuração do cliente MCP (o cliente inicia o subprocesso)
      11. imprime o resumo final
 
     Não assume caminho fixo nenhum: tudo é descoberto ou perguntado.
@@ -557,7 +557,7 @@ function Step-9-WaitForRemoteControl([int]$Port, [bool]$EditorStarted) {
 
 # ====================================================== 10. servidor MCP
 function Step-10-McpServer([string]$venvPython, [string]$uprojectPath) {
-    Start-Step 'Iniciando o servidor MCP'
+    Start-Step 'Preparando a configuração do servidor MCP'
 
     if ($NoMcpServer) {
         Write-Info 'Pulado (-NoMcpServer).'
@@ -582,10 +582,12 @@ function Step-10-McpServer([string]$venvPython, [string]$uprojectPath) {
         Write-Info "Workspace autorizado: $folder"
     }
     $serverArgs += '--allow-read'
+    if ($uprojectPath -and $AllowWrite) { $serverArgs += '--enable-unreal-bridge' }
     if ($AllowWrite) {
         $serverArgs += '--allow-write'
-        Write-Warn2 'ESCRITA HABILITADA (-AllowWrite): cada operacao ainda pede'
-        Write-Warn2 'aprovacao no checkpoint, a menos que voce use --auto-approve.'
+        Write-Warn2 'ESCRITA EXPOSTA (-AllowWrite), mas nao executada automaticamente.'
+        Write-Warn2 'SEM --auto-approve, o cliente MCP NAO consegue concluir escritas:'
+        Write-Warn2 'o servidor separado nao tem uma UI de aprovacao compartilhada.'
     } else {
         Write-Info 'Somente leitura (use -AllowWrite para permitir escrita).'
     }
@@ -604,7 +606,7 @@ function Step-10-McpServer([string]$venvPython, [string]$uprojectPath) {
       "args": [
         "-m", "app.mcp_server",
 $jsonFolders
-        "--allow-read"$(if ($AllowWrite) { ',' + "`n" + '        "--allow-write"' } else { '' })
+        "--allow-read"$(if ($AllowWrite) { ',' + "`n" + '        "--allow-write"' } else { '' })$(if ($uprojectPath -and $AllowWrite) { ',' + "`n" + '        "--enable-unreal-bridge"' } else { '' })
       ],
       "cwd": "$($Script:RepoRoot -replace '\\', '\\')",
       "env": { "LUMEN_MCP_LOG_LEVEL": "WARNING", "PYTHONIOENCODING": "utf-8" }
@@ -629,7 +631,7 @@ function Step-11-Summary([bool]$RemoteControlOk, [bool]$EditorStarted) {
     Write-Host ''
     if (-not $RemoteControlOk) {
         Write-Host '  ⚠  Pronto para uso PARCIAL.' -ForegroundColor Yellow
-        Write-Host '     Pesquisa, planejamento, escrita de arquivos e servidor MCP OK.' -ForegroundColor Yellow
+        Write-Host '     Ambiente preparado; o cliente MCP ainda precisa ser configurado.' -ForegroundColor Yellow
         Write-Host '     A ponte com o Unreal NAO foi validada (porta 30010 sem resposta).' -ForegroundColor Yellow
         Write-Host '     Siga TESTE_LOCAL.md secao 8.1 e rode o script novamente.' -ForegroundColor Yellow
         Write-Host ''
@@ -637,17 +639,18 @@ function Step-11-Summary([bool]$RemoteControlOk, [bool]$EditorStarted) {
     }
 
     if (-not $EditorStarted) {
-        Write-Host '  ✅ Pronto para uso.' -ForegroundColor Green
+        Write-Host '  ✅ Pronto para uso após configurar o cliente MCP (ele inicia o subprocesso).'  -ForegroundColor Green
         Write-Host '     O editor ja estava aberto e respondeu na porta 30010.' -ForegroundColor Green
     } else {
-        Write-Host '  ✅ Pronto para uso.' -ForegroundColor Green
+        Write-Host '  ✅ Pronto para uso após configurar o cliente MCP (ele inicia o subprocesso).'  -ForegroundColor Green
     }
     Write-Host ''
     Write-Host '  PROXIMOS PASSOS:' -ForegroundColor Cyan
     Write-Host '    1. Configure o cliente MCP com o JSON impresso na etapa 10' -ForegroundColor Cyan
     Write-Host '       (modelo pronto em mcp_config.json).' -ForegroundColor Cyan
     Write-Host '    2. Feche e reabra o Claude Desktop (ele so le a config no inicio).' -ForegroundColor Cyan
-    Write-Host '    3. Peça: "Use unreal_get_info e me diga se o editor esta conectado."' -ForegroundColor Cyan
+    Write-Host '    3. Para testar unreal_*, habilite -AllowWrite, REVISE --auto-approve' -ForegroundColor Cyan
+    Write-Host '       no JSON do cliente, e rode unreal_get_info (ver TESTE_LOCAL.md).' -ForegroundColor Cyan
     Write-Host '    4. Depois: "Crie um Actor Blueprint BP_TestConnection em' -ForegroundColor Cyan
     Write-Host '       /Game/Blueprints." e confira no Content Browser.' -ForegroundColor Cyan
     Write-Host ''
