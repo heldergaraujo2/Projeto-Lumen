@@ -19,7 +19,7 @@ As correções e seus testes estão na branch do PR; não houve mudança de depe
 
 ## 2. Conflitos
 
-`git fetch origin master` e `git merge-base HEAD origin/master` retornaram o mesmo commit-base `19764fce0be9ed1080a77df439eb699d9e54a42a`. O GitHub reportou `mergeable=MERGEABLE` para o PR #33 contra `master`: **nenhum conflito com a branch-base real**. `git ls-remote --heads origin main master` retornou **somente `master`**, e `gh repo view` confirmou `master` como branch padrão. Não há como verificar conflitos com `main` inexistente.
+`git fetch origin master` e `git merge-base HEAD origin/master` retornaram o mesmo commit-base `19764fce0be9ed1080a77df439eb699d9e54a42a`. O GitHub reportou `mergeable=MERGEABLE` para o PR #33 contra `master`: **nenhum conflito com a branch-base real**. Após o push da revisão, `gh pr checks 33` mostrou cinco jobs **pendentes** (`test`, `validate`, `validation` Linux/Windows e `windows`); ainda não há confirmação verde de CI. Antes de qualquer merge autorizado, é necessário confirmar que terminaram sem falhas. `git ls-remote --heads origin main master` retornou **somente `master`**, e `gh repo view` confirmou `master` como branch padrão. Não há como verificar conflitos com `main` inexistente.
 
 ## 3. Suíte completa pré-merge
 

@@ -25,8 +25,8 @@
     "--enable-unreal-bridge expõe unreal_* só com --allow-write;",
     "--enable-web-search expõe web_search apenas com chave configurada.",
     "",
-    "Este arquivo é um MODELO. As duas formas abaixo são as mesmas;",
-    "escolha a que combina com o seu cliente."
+    "Este arquivo é um MODELO com dois perfis DIFERENTES:",
+    "leitura restrita e escrita com ponte Unreal/terminal habilitados."
   ],
 
   "mcpServers": {
