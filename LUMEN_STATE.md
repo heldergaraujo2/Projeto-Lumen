@@ -57,7 +57,9 @@ escritos — e depois voltou a ser parcialmente verdade quando eles foram
     MCP, teste mínimo de validação no PC do usuário e troubleshooting.
   - ✅ **Fase 6** — `bootstrap.ps1`: prepara tudo em um comando, incluindo a
     checagem dos dois plugins no `.uproject` e o probe da porta 30010.
-  - ⏳ **Entrega final** — `RELATORIO_FINAL.md`. Ver abaixo.
+  - ✅ **Entrega final** — [`RELATORIO_FINAL.md`](RELATORIO_FINAL.md): o que
+    está implementado e testado, o que precisa de validação manual no PC do
+    usuário (item por item), bloqueios e decisões técnicas.
 - **Contagem de testes:** 1.364 passed / 7 skipped / 0 failed
   (era ~1.393 antes do arquivamento — a diferença é o código removido; as
   Fases 1 e 2 somam 102 testes novos).

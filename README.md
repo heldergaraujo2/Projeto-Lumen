@@ -574,6 +574,7 @@ Lumen/
 ├── .env.example
 ├── TESTE_LOCAL.md           # guia: pré-requisitos, como configurar o
 │                            # cliente MCP e validar a ponte no SEU PC
+├── RELATORIO_FINAL.md       # o que está pronto, o que falta validar, e por quê
 ├── mcp_config.json          # modelo de configuração (Claude Desktop/Cline)
 ├── .gitignore
 │
