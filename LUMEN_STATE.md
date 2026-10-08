@@ -26,17 +26,33 @@ escritos — e depois voltou a ser parcialmente verdade quando eles foram
 ### Situação real hoje (2026-10-08)
 
 - **Runtime vivo:** `main.py` → UI Tkinter → Agent/Bridge → Planner → Tools
-  (filesystem + terminal allowlistado). É isto que a suíte de **991 testes**
+  (filesystem + terminal allowlistado). É isto que a suíte de **1.150 testes**
   cobre.
 - **Arquivado:** ~8.819 LOC em `archive/` (ver [`archive/README.md`](archive/README.md)).
   Não é mais importado por nada. Inclui `app/evolution/`, `app/computer_control/`,
   `app/computer/`, `app/unreal/`, `app/workflows/`, `app/experience/`,
   `app/autonomy/` e `app/learning/`.
-- **Novo:** trilha MCP + ponte Unreal via Remote Control API
-  (`app/research/`, `app/planning/`, `app/mcp_server/`, `app/unreal_bridge/`).
-  Ver `RELATORIO_FINAL.md`.
-- **Contagem de testes:** 991 passed / 7 skipped / 0 failed
-  (era ~1.393 antes do arquivamento — a diferença é exatamente o código removido).
+- **Trilha MCP + ponte Unreal (em construção, um commit por fase):**
+  - ✅ **Fase -1** — pesquisa de projetos MCP-Unreal existentes
+    ([`PESQUISA_MCP_EXISTENTES.md`](PESQUISA_MCP_EXISTENTES.md)); decisão:
+    implementar do zero, adotando "Remote Control API + Python Editor Script
+    Plugin" como referência validada.
+  - ✅ **Fase 0** — limpeza do código morto (~8.819 LOC em `archive/`) e
+    correção de docs.
+  - ✅ **Fase 1** — `app/research/`: pesquisa web (Tavily/Brave) como tool do
+    protocolo do LUMEN, opt-in e fail-closed.
+  - ✅ **Fase 2** — `app/planning/`: `FeaturePlan` + `ApprovalGate`. O plano
+    **não executa sem aprovação explícita**; `to_planner_plan()` levanta
+    `PlanNotApprovedError` enquanto o gate não decidir.
+  - ⏳ **Fases 3–6** — `app/mcp_server/`, `app/unreal_bridge/`,
+    `TESTE_LOCAL.md`, `bootstrap.ps1`. Ver `RELATORIO_FINAL.md`.
+- **Contagem de testes:** 1.150 passed / 7 skipped / 0 failed
+  (era ~1.393 antes do arquivamento — a diferença é o código removido; as
+  Fases 1 e 2 somam 102 testes novos).
+- **Gate de segurança inalterado:** aprovar o PLANO (Fase 2) não aprova as
+  OPERAÇÕES. Cada escrita/comando destrutivo continua pausando no checkpoint
+  do `PlanExecutor` — dois portões independentes, cobertos por
+  `tests/test_planning_e2e.py`.
 
 ### Cabeçalhos duplicados corrigidos
 

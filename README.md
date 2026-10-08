@@ -601,6 +601,17 @@ Lumen/
 │   │   └── planner.py       #   Planner.create_plan(): prompt JSON strict →
 │   │                        #   validação (deps/ciclos) → plano READY/FAILED/
 │   │                        #   BLOCKED; memória 0.3 como leitura opcional
+│   ├── research/            # PESQUISA WEB (Fase 1)
+│   │   ├── client.py        #   Tavily/Brave por HTTP (urllib), chave só em
+│   │   │                    #   variável de ambiente, transporte injetável
+│   │   ├── models.py        #   SearchResult/WebSearchResponse + citação
+│   │   └── tool.py          #   WebSearchTool (ToolDefinition, READ)
+│   ├── planning/            # PLANEJAMENTO (Fase 2)
+│   │   ├── models.py        #   FeaturePlan imutável + digest anti-TOCTOU;
+│   │   │                    #   to_planner_plan() exige aprovação
+│   │   ├── planner.py       #   FeaturePlanner: objetivo+pesquisa → plano
+│   │   ├── approval.py      #   ApprovalGate: submit/approve/reject/expire
+│   │   └── render.py        #   render_markdown(): o plano legível p/ aprovar
 │   ├── executor/            # EXECUTOR (0.4.x)
 │   │   ├── handlers.py      #   TaskHandler (ABC) + SimulatedHandler
 │   │   │                    #   (in-memory; futura costura c/ ToolRegistry)
@@ -629,8 +640,9 @@ Lumen/
 │   │   ├── base.py          #   Tool (ABC) + ToolResult/StructuredTool +
 │   │   │                    #   ToolRegistry (porteiro de permissões)
 │   │   ├── filesystem.py    #   WorkspaceSandbox (política de raízes
-│   │   │                    #   autorizadas) + FilesystemAudit + 6 tools
-│   │   │                    #   (list/read/write/create/delete/exists)
+│   │   │                    #   autorizadas) + FilesystemAudit + 9 tools
+│   │   │                    #   (list/read/write/create/create_directory/
+│   │   │                    #   delete/exists/search/edit)
 │   │   ├── handler.py       #   ToolTaskHandler (Executor↔Tools) +
 │   │   │                    #   ToolCheckpoints (destrutivas p/ checkpoint)
 │   │   ├── workspaces.py    #   WorkspaceStore (autorizações persistidas)

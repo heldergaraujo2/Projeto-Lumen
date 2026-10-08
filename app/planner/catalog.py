@@ -88,6 +88,19 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
             ParameterSpec("content", "string", True, "Conteúdo completo do arquivo."),
         ),
     ),
+    ToolSpec(
+        name="create_directory",
+        description=(
+            "Cria um diretório no workspace (inclusive pais ausentes). "
+            "Use ANTES de criar arquivos em pastas que ainda não existem."
+        ),
+        parameters=(
+            ParameterSpec(
+                "path", "string", True,
+                "Caminho relativo do diretório (nunca absoluto, nunca '..').",
+            ),
+        ),
+    ),
     _fs("delete_file", "Apaga um arquivo do workspace (exige aprovação)."),
     _fs("file_exists", "Verifica se um arquivo existe no workspace."),
     ToolSpec(

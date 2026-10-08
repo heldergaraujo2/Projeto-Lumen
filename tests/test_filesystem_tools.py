@@ -54,13 +54,13 @@ def run_tool(registry: ToolRegistry, name: str, **kwargs):
 
 
 # ------------------------------------------------------------- registro
-def test_factory_registers_the_seven_filesystem_tools(workspace):
+def test_factory_registers_the_nine_filesystem_tools(workspace):
     registry = make_registry(workspace)
     listing = registry.list_tools()
     names = {item["name"] for item in listing}
     assert names == set(FILESYSTEM_TOOLS) == {
         "list_directory", "read_file", "write_file",
-        "create_file", "delete_file", "file_exists",
+        "create_file", "create_directory", "delete_file", "file_exists",
         "search_files", "edit_file",
     }
     permissions = {item["name"]: item["required_permission"] for item in listing}
@@ -70,6 +70,7 @@ def test_factory_registers_the_seven_filesystem_tools(workspace):
     assert permissions["search_files"] == "READ"
     assert permissions["write_file"] == "WRITE"
     assert permissions["create_file"] == "WRITE"
+    assert permissions["create_directory"] == "WRITE"
     assert permissions["delete_file"] == "WRITE"
     assert permissions["edit_file"] == "WRITE"
 
@@ -279,3 +280,132 @@ def test_audit_trails_success_and_blocks_with_metadata(workspace):
     assert "traversal" in blocked["error"]
     # Conteúdo do arquivo NUNCA é registrado na auditoria.
     assert "secreto-interno" not in json.dumps(records, ensure_ascii=False)
+
+
+# ------------------------------------------------------- create_directory
+class TestCreateDirectory:
+    """A ferramenta que torna planos com arquivos aninhados executáveis.
+
+    ``create_file``/``write_file`` exigem o diretório pai existente; sem
+    ``create_directory`` nenhum plano que crie ``Source/Jogo/Public/X.h``
+    (o caso normal em C++) conseguiria rodar.
+    """
+
+    def test_creates_missing_parent_chain(self, workspace):
+        registry = make_registry(workspace)
+
+        result = run_tool(
+            registry, "create_directory",
+            path="Source/MeuJogo/Public",
+        )
+
+        assert result["ok"] is True
+        assert (workspace / "Source" / "MeuJogo" / "Public").is_dir()
+        assert result["data"]["created"] is True
+
+    def test_is_idempotent_for_existing_directory(self, workspace):
+        """Reexecutar não pode falhar — planos podem ser repetidos."""
+        registry = make_registry(workspace)
+
+        first = run_tool(registry, "create_directory", path="docs")
+        second = run_tool(registry, "create_directory", path="docs")
+
+        assert first["ok"] is True and first["data"]["created"] is False
+        assert second["ok"] is True
+        assert second["data"]["created"] is False
+        assert second["data"]["already_existed"] is True
+
+    def test_requires_write_permission(self, workspace):
+        registry = make_registry(workspace, levels=("READ",))
+
+        with pytest.raises(PermissionDeniedError):
+            registry.execute("create_directory", path="novo")
+
+        assert not (workspace / "novo").exists()
+
+    def test_blocked_in_read_only_workspace(self, workspace):
+        registry = make_registry(workspace, writable=False)
+
+        result = run_tool(registry, "create_directory", path="novo")
+
+        assert result["ok"] is False
+        assert "somente leitura" in result["error"]
+        assert not (workspace / "novo").exists()
+
+    def test_rejects_traversal(self, workspace):
+        registry = make_registry(workspace)
+
+        result = run_tool(registry, "create_directory", path="../fora")
+
+        assert result["ok"] is False
+        assert not (workspace.parent / "fora").exists()
+
+    def test_allows_explicit_in_workspace_absolute_path(self, workspace):
+        registry = make_registry(workspace)
+        target = workspace / "abs" / "dir"
+
+        result = run_tool(registry, "create_directory", path=str(target))
+
+        assert result["ok"] is True
+        assert target.is_dir()
+
+    def test_rejects_when_a_file_occupies_the_name(self, workspace):
+        (workspace / "colisao").write_text("sou um arquivo", encoding="utf-8")
+        registry = make_registry(workspace)
+
+        result = run_tool(registry, "create_directory", path="colisao")
+
+        assert result["ok"] is False
+        assert "não é diretório" in result["error"]
+
+    def test_rejects_control_characters(self, workspace):
+        registry = make_registry(workspace)
+
+        result = run_tool(registry, "create_directory", path="a\x01b")
+
+        assert result["ok"] is False
+
+    def test_is_audited_as_destructive(self, workspace):
+        """Escrever no filesystem deixa rastro: a operação é 'write'."""
+        from app.tools.filesystem import FILESYSTEM_DESTRUCTIVE_TOOLS
+
+        assert "create_directory" in FILESYSTEM_DESTRUCTIVE_TOOLS
+
+        captured: list[dict] = []
+        audit = FilesystemAudit(captured.append)
+        registry = make_registry(workspace, audit=audit)
+
+        run_tool(registry, "create_directory", path="auditado/sub")
+
+        assert any(
+            r["tool"] == "create_directory" and r["operation"] == "write"
+            and r["success"] is True
+            for r in captured
+        ), captured
+
+    def test_blocked_call_is_also_audited(self, workspace):
+        """Bloqueios entram na trilha — auditoria não é só do sucesso."""
+        captured: list[dict] = []
+        registry = make_registry(workspace, writable=False,
+                                 audit=FilesystemAudit(captured.append))
+
+        run_tool(registry, "create_directory", path="negado")
+
+        assert any(
+            r["tool"] == "create_directory" and r["success"] is False
+            for r in captured
+        ), captured
+
+    def test_then_create_file_succeeds_in_the_new_directory(self, workspace):
+        """O caso de uso real: criar o pai e depois escrever o arquivo."""
+        registry = make_registry(workspace)
+
+        made = run_tool(registry, "create_directory", path="Source/Jogo/Public")
+        wrote = run_tool(
+            registry, "create_file",
+            path="Source/Jogo/Public/A.h", content="#pragma once\n",
+        )
+
+        assert made["ok"] is True
+        assert wrote["ok"] is True
+        assert (workspace / "Source" / "Jogo" / "Public" / "A.h").is_file()
