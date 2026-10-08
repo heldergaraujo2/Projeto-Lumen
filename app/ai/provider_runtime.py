@@ -14,7 +14,7 @@ from app.ai.provider import (
     AIProvider, ProviderAuthError, ProviderError, RETRYABLE_ERRORS,
 )
 from app.ai.types import AIResponse
-from app.evolution.intelligence_stack import StackLayer
+from app.ai.stack_layer import StackLayer
 
 
 @dataclass(frozen=True)

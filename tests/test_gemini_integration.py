@@ -12,6 +12,8 @@ import time
 
 import pytest
 
+pytest.importorskip("tkinter", reason="Tk nao disponivel neste ambiente (no Windows e no CI com python3-tk roda)")
+
 import app.ui.settings_dialog as settings_dialog_module
 from app.ai.gemini_provider import DEFAULT_MODEL, GeminiProvider
 from app.ai.mock import MockProvider

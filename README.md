@@ -2,6 +2,29 @@
 
 **Assistente de IA desktop para Windows** — versão **0.6.8 (Multi-tarefa via chat + Data-flow seguro + Persistência opt-in do Execution State)**.
 
+> ## ⚠️ Estado atual (2026-10-08)
+>
+> O README abaixo descreve as versões **0.1–0.6.8**, que é o núcleo vivo do
+> projeto. Duas mudanças recentes **não estão refletidas nas seções
+> históricas** deste documento:
+>
+> 1. **Limpeza da Fase 0** — ~8.819 LOC de código inalcançável foram movidos
+>    para [`archive/`](archive/README.md): os pacotes `app/evolution/`,
+>    `app/computer_control/`, `app/computer/`, `app/unreal/`,
+>    `app/workflows/`, `app/experience/`, `app/autonomy/` e `app/learning/`.
+>    Nenhum deles era importado por `main.py` ou pela UI. Onde as seções
+>    abaixo dizem "Unreal", "vision", "mouse" ou "computer control", leia-se:
+>    **arquivado, não parte do runtime**.
+> 2. **Trilha MCP + Unreal** — ver [`RELATORIO_FINAL.md`](RELATORIO_FINAL.md),
+>    [`TESTE_LOCAL.md`](TESTE_LOCAL.md) e
+>    [`PESQUISA_MCP_EXISTENTES.md`](PESQUISA_MCP_EXISTENTES.md).
+>
+> Suíte viva: **991 passed / 7 skipped / 0 failed**
+> (não mais 1000 testes — a diferença é o código arquivado).
+>
+> O roadmap canônico é [`docs/LUMEN_MASTER_ROADMAP.md`](docs/LUMEN_MASTER_ROADMAP.md);
+> o log de estado é [`LUMEN_STATE.md`](LUMEN_STATE.md).
+
 A Lumen é uma assistente pessoal que, ao final do projeto, será capaz de
 receber comandos em linguagem natural e, de forma progressivamente
 autônoma, executar tarefas no computador do usuário: manter memória de
@@ -497,8 +520,8 @@ Para voltar ao `mock`, basta escolher o provedor "mock" e salvar.
 python -m pytest -v
 ```
 
-1000 testes, todos offline — **995 passed / 5 skipped / 0 failed**.
-Os 5 skips são ambientais: introspecção dos SDKs
+**991 passed / 7 skipped / 0 failed** — todos offline.
+Os 7 skips são ambientais: introspecção dos SDKs
 `google-genai`/`groq`/`together` e do `keyring` quando ausentes, e o
 smoke test da UI Tk em ambientes sem display (no Windows ele roda). As chamadas aos provedores (OpenAI, Gemini, Groq,
 Together), o cofre de credenciais, a memória estruturada e as
@@ -509,9 +532,11 @@ nenhum teste toca API real nem arquivos fora de `tmp`.
 
 | Variável | Padrão | Descrição |
 | -------- | ------ | --------- |
-| `LUMEN_PROVIDER` | `mock` | `mock` (offline), `openai`, `gemini`, `groq` ou `together` (APIs reais). |
+| `LUMEN_PROVIDER` | `mock` | `mock` (offline), `ollama` (local), `openai`, `gemini`, `groq` ou `together` (APIs reais). |
 | `LUMEN_MODEL` | vazio | Modelo a usar (obrigatório com `openai`; nos demais, vazio usa o padrão do provedor — ver tabela abaixo). |
 | `LUMEN_API_KEY` | vazio | Chave de API (obrigatória com qualquer provider real). Nunca versione. |
+| `LUMEN_OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Endpoint do daemon Ollama local (não usa API key). |
+| `LUMEN_OLLAMA_KEEP_ALIVE` | `5m` | Tempo que o Ollama mantém o modelo carregado em memória. |
 | `LUMEN_DATA_DIR` | `data` | Diretório de dados (memória, tarefas, logs). |
 | `LUMEN_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
 | `LUMEN_MAX_CONTEXT_MESSAGES` | `50` | Máximo de mensagens de histórico enviadas ao modelo. |
@@ -524,6 +549,7 @@ de cada API em 2026-08; configuráveis pelo usuário):
 
 | Provedor | Padrão (modelo vazio) | Alternativas documentadas |
 | -------- | --------------------- | ------------------------- |
+| `ollama` | `qwen2.5-coder:7b-instruct-q8_0` | qualquer modelo instalado em `ollama list` |
 | `openai` | — (obrigatório) | `gpt-4o-mini`, `gpt-4o`, … |
 | `gemini` | `gemini-2.5-flash` | `gemini-2.5-pro`, … |
 | `groq` | `openai/gpt-oss-120b` | `openai/gpt-oss-20b`, `llama-3.3-70b-versatile`, `llama-3.1-8b-instant` |
@@ -547,7 +573,7 @@ Lumen/
 ├── .gitignore
 │
 ├── app/
-│   ├── __init__.py          # APP_NAME, __version__ = 0.4.0
+│   ├── __init__.py          # APP_NAME, __version__ = 0.6.8
 │   ├── ai/                  # AI PROVIDER
 │   │   ├── provider.py      #   AIProvider (ABC), chat()/generate(),
 │   │   │                    #   taxonomia de erros, fábrica create_provider()
@@ -634,7 +660,7 @@ Lumen/
 │   │                        #  issues, solutions .json — criados no 1º uso)
 │   └── logs/                # lumen.log (runtime)
 │
-├── tests/                   # 1000 testes pytest (995 passed + 5 skipped; todos offline)
+├── tests/                   # 991 testes pytest (991 passed + 7 skipped; todos offline)
 ├── tools_dev/               # verificação headless da UI (55 checks)
 └── docs/
     ├── ARCHITECTURE.md      # detalhes da arquitetura

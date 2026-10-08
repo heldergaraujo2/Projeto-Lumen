@@ -5,7 +5,7 @@ import pytest
 from app.ai.provider import AIProvider, ProviderAuthError, ProviderNetworkError, ProviderTimeoutError
 from app.ai.provider_runtime import ProviderRuntime, RuntimeProviderSpec, RuntimeRequest
 from app.ai.types import AIResponse
-from app.evolution.intelligence_stack import StackLayer
+from app.ai.stack_layer import StackLayer
 
 
 class FakeProvider(AIProvider):

@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("tkinter", reason="Tk nao disponivel neste ambiente (no Windows e no CI com python3-tk roda)")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import app.ui.main_window as main_window_module
