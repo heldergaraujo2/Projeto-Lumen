@@ -1,6 +1,11 @@
 # Revisão crítica do PR #33 — 2026-10-08
 
-**Estado: revisão e testes concluídos; merge NÃO realizado.** O repositório usa `master` como branch padrão; `main` não existe. O PR #33 tem base `master`. A solicitação exige merge e teste pós-merge **em `main`**. Não criei nem forcei uma branch diferente; preciso que o proprietário confirme explicitamente se aceita o merge em `master` (branch padrão existente). Até lá, o PR permanece aberto.
+**Estado final: PR #33 merged em `master` após cinco checks verdes.**
+Commit de merge: `7f7f58ddc79abd9f5096145e7fe8c26609aa2c16`.
+O repositório usa `master` como branch padrão; `main` não existe. O
+proprietário autorizou explicitamente o destino `master`. Os parágrafos
+sobre bloqueios anteriores abaixo documentam a investigação em ordem
+cronológica; o resultado pós-merge está em §4–6.
 
 ## 1. Revisão final do diff
 
@@ -27,19 +32,57 @@ Comando: `/tmp/venv/bin/python -m pytest -q --no-header` na raiz.
 
 **1375 passed / 7 skipped / 0 failed (11,99 s).** Os 7 skips continuam sendo apenas `tkinter` ausente no sandbox. Diferença em relação ao relatório original (**1364 / 7 / 0**): **+11 testes de regressão desta revisão** — 6 em `tests/test_mcp_server.py`, 3 em `tests/test_unreal_bridge.py`, 2 em `tests/test_research_client.py`. Nenhum teste antigo foi removido ou passou a falhar. `RELATORIO_FINAL.md`, `TESTE_LOCAL.md`, `README.md` e `LUMEN_STATE.md` registram agora a nova contagem; os números por fase no relatório permanecem marcados como históricos.
 
-## 4. Merge — BLOQUEADO
+## 4. Merge — CONCLUÍDO
 
-**Não executar `gh pr merge` antes de esclarecer o destino.** O pedido menciona `main` em todas as verificações pós-merge, mas o PR tem base `master` e não existe `main` no remoto. Fazer merge em `master` por conta própria não satisfaria a instrução literal de testar diretamente em `main`. Também não é aceitável inventar um hash de merge. O PR permanece aberto para revisão.
+Na revisão final do commit `a2991d9` do PR #33, os cinco checks estavam
+**passando**: `test`, `validate`, `validation (ubuntu-latest)`,
+`validation (windows-latest)` e `windows`. O GitHub reportou
+`mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`. Com a autorização do
+proprietário, `gh pr merge 33 --merge` incorporou o PR a `master` no commit
+**`7f7f58ddc79abd9f5096145e7fe8c26609aa2c16`** (pais:
+`19764fc` e `a2991d9`). Sem push direto para `master`.
 
-**Decisão necessária do proprietário:** autoriza merge do PR #33 na branch padrão **`master`** e teste pós-merge do conteúdo de `master`? Se a exigência for literalmente `main`, será necessário ajustar a estratégia de branch fora desta sessão antes do merge.
+## 5. Verificação pós-merge — CONCLUÍDA
 
-## 5. Verificação pós-merge — NÃO EXECUTADA
+A suíte foi executada **na árvore exata do commit de merge de
+`origin/master`**, extraída com `git archive` para diretório temporário
+(sem trocar a branch fixa desta sessão):
 
-Sem merge em `main` (inexistente), não é possível afirmar que `bootstrap.ps1`, `TESTE_LOCAL.md`, `mcp_config.json`, `RELATORIO_FINAL.md` e `PESQUISA_MCP_EXISTENTES.md` estejam em `main`, nem rodar `git log --oneline -10` ali. Esses cinco arquivos **existem na branch do PR**, mas isso não substitui a verificação pedida após o merge.
+```text
+PYTHONIOENCODING=cp1252 /tmp/venv/bin/python -m pytest -q --no-header
+1375 passed, 7 skipped in 13.97s
+```
 
-## 6. `PRONTO_PARA_TESTE.md` — NÃO CRIADO
+Os cinco arquivos estão presentes no tree de `master`:
+`bootstrap.ps1`, `TESTE_LOCAL.md`, `mcp_config.json` (JSON válido),
+`RELATORIO_FINAL.md` e `PESQUISA_MCP_EXISTENTES.md`.
 
-O arquivo solicitado exigiria **confirmação e hash de um merge bem-sucedido**, que ainda não ocorreu. Criá-lo agora com essa afirmação seria falso. Depois da autorização para usar a branch de destino real e do teste pós-merge, ele poderá incluir o comando `./bootstrap.ps1` do Windows (com caminho `.uproject` preenchido pelo usuário), o link direto a [`TESTE_LOCAL.md` §1 — Pré-requisitos](TESTE_LOCAL.md#1-pré-requisitos) e os 24 itens de validação manual de `RELATORIO_FINAL.md` §3 reordenados por risco/precedência (sem Unreal → conexão/RC API pura → Python no editor, componente por último).
+`git log --oneline -10 origin/master` (a referência remota local da branch
+`master`, sem checkout):
+
+```text
+7f7f58d Merge pull request #33 from heldergaraujo2/arena/59a23416-projeto-lumen
+a2991d9 ci: remove gate F27 de modulo arquivado no Windows
+36f024e corrige encoding UTF-8 no cliente subprocesso de testes MCP
+4ae593d corrige MCP stdio UTF-8 sob codepage Windows e testa subprocesso
+ae43590 revisao: registra checks pendentes e perfis MCP distintos
+0ab781c revisao final: corrige gates MCP/Unreal e alinha documentacao
+69c24ee entrega final: relatorio
+ec96415 fase 6: bootstrap automatizado para Windows
+05f205b fase 5: documentação e guia de teste local
+70c1a63 fase 4: ponte com Unreal via Remote Control API
+```
+
+As fases mais antigas não cabem nas dez linhas por causa dos commits de
+revisão; os oito commits das fases (`a69c221`, `4a47ea2`, `5817b69`,
+`b7f37f0`, `53aced1`, `70c1a63`, `05f205b`, `ec96415`) foram confirmados
+como **ancestrais** de `origin/master` com `git merge-base --is-ancestor`.
+
+## 6. Resumo para teste local
+
+[`PRONTO_PARA_TESTE.md`](PRONTO_PARA_TESTE.md) traz hash real do merge,
+comando PowerShell para um clone de `master`, link a `TESTE_LOCAL.md` §1 e
+os 24 itens de validação manual ordenados por precedência e risco.
 
 ## Adendo — falha do check Windows em `Tests`
 
