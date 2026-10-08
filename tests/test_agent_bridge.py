@@ -158,7 +158,26 @@ def test_invalid_plan_does_not_run_controller(env, ws):
     use(agent, ScriptedProvider(plan_json("ghost_tool", {})))
     outcome = agent.process_message("rode algo")
     assert outcome.state is RequestState.PLAN_INVALID
+    assert "ghost_tool" in outcome.text
+    assert "Nada foi executado" in outcome.text
+    assert not controller.has_pending
     assert getattr(controller, "_plan", None) is None  # nunca chamado
+
+
+def test_malformed_json_from_provider_is_controlled_and_never_executes(env, ws):
+    agent, controller, _ = env
+    armed(controller, ws)
+    use(agent, ScriptedProvider(
+        '{"type":"plan","objective":"x","tasks":[}'
+    ))
+
+    outcome = agent.process_message("pesquise e faça algo")
+
+    assert outcome.state is RequestState.PLAN_INVALID
+    assert "JSON devolvido é inválido" in outcome.text
+    assert "Nada foi executado" in outcome.text
+    assert not controller.has_pending
+    assert getattr(controller, "_plan", None) is None  # run_plan nunca foi chamado
 
 
 def test_out_of_protocol_llm_output_is_controlled(env, ws):

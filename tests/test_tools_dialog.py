@@ -435,3 +435,62 @@ def test_dialog_shows_search_configuration_error_without_enabling(tmp_path, monk
     assert not controller.web_search_enabled
     assert "TAVILY_API_KEY" in dialog.status_label.cget("text")
     assert dialog.web_search_toggle.cget("text") == "Pesquisa web: OFF"
+
+
+@pytest.mark.parametrize(
+    "provider_content,visible_reason",
+    [
+        (
+            '{"type":"plan","objective":"x","tasks":[}',
+            "JSON devolvido é inválido",
+        ),
+        (
+            json.dumps({
+                "type": "plan", "objective": "x", "analysis": [],
+                "tasks": [{
+                    "id": 1, "description": "tool não cadastrada",
+                    "dependencies": [], "tool": "ghost_tool", "parameters": {},
+                }],
+            }),
+            "ghost_tool",
+        ),
+    ],
+)
+def test_invalid_provider_plan_is_visible_in_chat_and_releases_busy_state(
+    tmp_path, provider_content, visible_reason
+):
+    from app.ai.types import AIResponse
+
+    class FixedProvider:
+        name = "fixed-provider"
+        model_name = "fixed-provider-v1"
+
+        def chat(self, message, context=None, *, system_prompt=None, **kwargs):
+            return AIResponse(content=provider_content, model=self.model_name)
+
+    permissions = PermissionManager()
+    controller = make_controller(tmp_path, permissions)
+    run_calls = []
+    controller.run_plan = lambda plan: run_calls.append(plan)
+    agent = Agent(
+        provider=FixedProvider(),
+        memory=MemoryStore(tmp_path / "conversation.json"),
+        permissions=permissions,
+    )
+    agent.set_tools_controller(controller)
+    window = main_window_module.LumenWindow(
+        FakeRoot(), agent, tools_controller=controller
+    )
+
+    window._set_busy(True)
+    window._set_status("busy")
+    window._worker("Pesquise e execute o objetivo", lambda _chunk: None)
+    window._poll_queue()
+
+    visible_chat = window.conversation.get("1.0", "end")
+    assert visible_reason in visible_chat
+    assert "Nada foi executado" in visible_chat
+    assert run_calls == []
+    assert controller._plan is None
+    assert window._busy is False
+    assert window._status == "ready"
