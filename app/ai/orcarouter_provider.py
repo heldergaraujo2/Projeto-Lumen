@@ -6,6 +6,7 @@ credential in a regular settings file.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from app.ai.openai_provider import OpenAIProvider
@@ -36,6 +37,6 @@ class OrcaRouterProvider(OpenAIProvider):
         )
 
     def __init__(self, settings=None, client_factory=None, retry_backoff: float = 0.5) -> None:
+        if settings is not None and not str(getattr(settings, "model", "") or "").strip():
+            settings = replace(settings, model=DEFAULT_MODEL)
         super().__init__(settings, client_factory=client_factory, retry_backoff=retry_backoff)
-        if not self._model:
-            self._model = DEFAULT_MODEL
