@@ -225,8 +225,11 @@ class MultiWorkspaceSandbox:
     (``resolve``/``check_operation``/``assert_operation_allowed``).
     """
 
-    def __init__(self, entries: Iterable[WorkspaceEntry]) -> None:
+    def __init__(
+        self, entries: Iterable[WorkspaceEntry], *, unrestricted: bool = False
+    ) -> None:
         self._entries: tuple[WorkspaceEntry, ...] = tuple(entries)
+        self._unrestricted = bool(unrestricted)
         self._sandboxes: tuple[WorkspaceSandbox, ...] = tuple(
             WorkspaceSandbox(
                 [entry.root], writable=entry.writable, allow_delete=entry.allow_delete
@@ -263,10 +266,22 @@ class MultiWorkspaceSandbox:
         return None
 
     def resolve(self, path) -> Path:
+        if self._unrestricted:
+            if not isinstance(path, (str, os.PathLike)) or not str(path).strip():
+                raise PathOutsideWorkspaceError("Informe um caminho válido.")
+            try:
+                candidate = Path(path).expanduser()
+                if not candidate.is_absolute():
+                    candidate = Path.cwd() / candidate
+                return candidate.resolve()
+            except (OSError, RuntimeError, ValueError) as exc:
+                raise PathOutsideWorkspaceError(
+                    f"Não foi possível resolver o caminho {path!r}: {exc}"
+                ) from exc
         if not self._sandboxes:
             raise PathOutsideWorkspaceError(
-                "Nenhum workspace autorizado — autorize um diretório para "
-                "que as ferramentas de arquivo possam trabalhar."
+                "Nenhum workspace autorizado — autorize um diretório ou ative "
+                "o Modo Autônomo para conceder acesso global aos arquivos."
             )
         outside: FilesystemError | None = None
         for sandbox in self._sandboxes:
@@ -280,6 +295,10 @@ class MultiWorkspaceSandbox:
 
     def check_operation(self, operation: str, resolved: Path) -> None:
         """Política do workspace que contém o caminho resolvido."""
+        if self._unrestricted:
+            if operation not in {"read", "write", "delete"}:
+                raise FilesystemError(f"Operação desconhecida: {operation!r}.")
+            return
         for entry, sandbox in zip(self._entries, self._sandboxes):
             try:
                 resolved.relative_to(entry.root)
