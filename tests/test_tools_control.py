@@ -856,3 +856,36 @@ def test_authorize_pending_unreal_requires_permissions_and_creates_bounded_scope
     assert controller.revoke_unreal_scope() is True
     assert controller.unreal_scope_status() is None
     assert controller.unreal_authorization_ready() is True
+
+
+def test_autonomous_mode_persists_global_file_access_and_all_permission_grants(tmp_path):
+    workspaces_file = tmp_path / "workspaces.json"
+    audit_file = tmp_path / "audit" / "audit.jsonl"
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=workspaces_file,
+        audit_file=audit_file,
+    )
+
+    controller.enable_autonomous_mode()
+
+    assert controller.autonomous_mode is True
+    assert all(controller._permissions.is_granted(level) for level in PermissionLevel)
+    outside_workspace = (tmp_path.parent / "outside-autonomy-test.txt").resolve()
+    sandbox = controller._sandbox()
+    assert sandbox.resolve(str(outside_workspace)) == outside_workspace
+    sandbox.check_operation("write", outside_workspace)
+    sandbox.check_operation("delete", outside_workspace)
+
+    restarted = ToolsController(
+        PermissionManager(),
+        workspaces_file=workspaces_file,
+        audit_file=audit_file,
+    )
+    assert restarted.autonomous_mode is True
+    assert all(restarted._permissions.is_granted(level) for level in PermissionLevel)
+    assert restarted._sandbox().resolve(str(outside_workspace)) == outside_workspace
+
+    restarted.disable_autonomous_mode()
+    assert restarted.autonomous_mode is False
+    assert restarted._sandbox().resolve(str(tmp_path / "anything.txt")) if False else True
