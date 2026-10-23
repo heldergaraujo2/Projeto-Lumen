@@ -47,6 +47,7 @@ class ToolSpec:
     terminal: bool = False
     web: bool = False    # ferramenta Web: exige WEB_ACCESS
     unreal: bool = False  # inspeção Unreal via MCP
+    mcp: bool = False  # ferramenta externa allow-listada
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -164,6 +165,16 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         unreal=True,
     ),
     ToolSpec(
+        name="mcp_call",
+        description="Invoca uma ferramenta MCP local previamente configurada e explicitamente autorizada.",
+        parameters=(
+            ParameterSpec("server_name", "string", True, "Nome do servidor configurado."),
+            ParameterSpec("tool_name", "string", True, "Nome exato da ferramenta autorizada."),
+            ParameterSpec("arguments_json", "string", True, "Argumentos como objeto JSON serializado."),
+        ),
+        mcp=True,
+    ),
+    ToolSpec(
         name="web_search",
         description="Pesquisa na Internet e retorna fontes estruturadas. Exige WEB_ACCESS.",
         parameters=(
@@ -254,7 +265,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
 )
 
 
-def build_catalog(*, include_terminal: bool, include_unreal: bool = False) -> dict[str, dict]:
+def build_catalog(*, include_terminal: bool, include_unreal: bool = False, include_mcp: bool = False) -> dict[str, dict]:
     """Allowlist de planejamento como dict serializável (para o prompt).
 
     ``include_terminal=False`` (default quando o terminal não está
@@ -266,6 +277,8 @@ def build_catalog(*, include_terminal: bool, include_unreal: bool = False) -> di
         if spec.terminal and not include_terminal:
             continue
         if spec.unreal and not include_unreal:
+            continue
+        if spec.mcp and not include_mcp:
             continue
         catalog[spec.name] = {
             "description": spec.description,
