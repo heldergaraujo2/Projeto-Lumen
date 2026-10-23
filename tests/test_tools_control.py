@@ -888,4 +888,7 @@ def test_autonomous_mode_persists_global_file_access_and_all_permission_grants(t
 
     restarted.disable_autonomous_mode()
     assert restarted.autonomous_mode is False
-    assert restarted._sandbox().resolve(str(tmp_path / "anything.txt")) if False else True
+    assert restarted._sandbox()._unrestricted is False
+    assert restarted._permissions.is_granted(PermissionLevel.CHAT) is True
+    assert restarted._permissions.is_granted(PermissionLevel.WEB_ACCESS) is True
+    assert restarted._permissions.is_granted(PermissionLevel.READ) is False
