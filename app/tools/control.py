@@ -1011,7 +1011,7 @@ class ToolsController:
         }
         self._autonomy_file.parent.mkdir(parents=True, exist_ok=True)
         temporary = self._autonomy_file.with_suffix(self._autonomy_file.suffix + ".tmp")
-        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         temporary.replace(self._autonomy_file)
 
     def enable_autonomous_mode(self) -> None:
