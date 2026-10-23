@@ -60,7 +60,7 @@ class FakePlanProvider(AIProvider):
         return self._content
 
     def chat(self, message, context=None, *, system_prompt=None,
-             on_delta=None, max_tokens=None):
+             on_delta=None, max_tokens=None, json_format=False):
         return AIResponse(content=self._content, model="fake",
                           response_type=ResponseType.FINAL_RESPONSE)
 
