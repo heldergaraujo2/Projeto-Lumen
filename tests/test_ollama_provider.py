@@ -113,7 +113,7 @@ def test_chat_requests_json_format_only_when_enabled():
             "message": {"role": "assistant", "content": json.dumps({"type": "conversation"})},
             "done": True,
         }
-        yield (json.dumps(event) + "\\n").encode("utf-8")
+        yield (json.dumps(event) + "\n").encode("utf-8")
 
     provider = OllamaProvider(make_settings(), transport=transport)
     response = provider.chat("Planeje", json_format=True)
