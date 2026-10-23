@@ -83,7 +83,8 @@ from app.unreal.models import UnrealPlan, UnrealProject
 from app.computer_control.service import ComputerControlService
 from app.computer_control.session import CCGrantRequest, CCSessionManager
 from app.computer_control.api import CCActionType
-from app.mcp_runtime.adapter import MCPCallTool, MCPRuntimeConfig
+from app.mcp_runtime.adapter import MCPRuntimeConfig
+from app.tools.mcp import MCPCallTool
 
 logger = logging.getLogger("lumen.tools.control")
 
