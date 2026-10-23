@@ -247,13 +247,13 @@ class MultiWorkspaceSandbox:
 
     @property
     def writable(self) -> bool:
-        """Resumo p/ UI: algum workspace permite escrita."""
-        return any(entry.writable for entry in self._entries)
+        """Resumo p/ UI: escrita disponível em algum escopo ou no modo global."""
+        return self._unrestricted or any(entry.writable for entry in self._entries)
 
     @property
     def allow_delete(self) -> bool:
-        """Resumo p/ UI: algum workspace permite exclusão."""
-        return any(entry.allow_delete for entry in self._entries)
+        """Resumo p/ UI: exclusão disponível em algum escopo ou no modo global."""
+        return self._unrestricted or any(entry.allow_delete for entry in self._entries)
 
     def entry_for(self, resolved: Path) -> WorkspaceEntry | None:
         """Workspace que contém ``resolved`` (ou ``None``)."""
@@ -314,6 +314,8 @@ class MultiWorkspaceSandbox:
         """Resumo independente de caminho (leitura livre; escrita/exclusão
         se **algum** workspace permitir). As ferramentas usam
         ``check_operation`` (por caminho) — este método é para UI/diagnóstico."""
+        if self._unrestricted and operation in {"read", "write", "delete"}:
+            return
         if operation == "read":
             return
         if operation in ("write", "delete"):
