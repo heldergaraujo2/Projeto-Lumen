@@ -37,6 +37,7 @@ def test_chat_normalizes_stream_and_usage():
         assert payload["model"] == DEFAULT_MODEL
         assert payload["stream"] is True
         assert payload["think"] is False
+        assert "format" not in payload
         assert payload["messages"][-1]["content"] == "Olá"
         yield from events
 
@@ -101,3 +102,14 @@ def test_invalid_max_tokens_is_rejected():
     provider = OllamaProvider(make_settings(), transport=lambda *args: iter([]))
     with pytest.raises(ValueError):
         provider.chat("Olá", max_tokens=0)
+
+
+def test_chat_requests_json_format_only_when_enabled():
+    def transport(method, url, body, timeout):
+        payload = json.loads(body.decode())
+        assert payload.get("format") == "json"
+        yield b'{"model":"qwen2.5-coder:7b-instruct-q8_0","message":{"role":"assistant","content":"{\"type\": \"conversation\"}"},"done":true}\n'
+
+    provider = OllamaProvider(make_settings(), transport=transport)
+    response = provider.chat("Planeje", json_format=True)
+    assert json.loads(response.content) == {"type": "conversation"}
