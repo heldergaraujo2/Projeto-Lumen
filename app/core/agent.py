@@ -118,6 +118,8 @@ class Agent:
             provider = self._provider
         history = self._memory.recent(self._context_window)
         self._memory.add_message("user", cleaned)
+        # Registra apenas metadados; nunca registra o texto da conversa.
+        logger.info("Mensagem recebida (%d caracteres).", len(cleaned))
         try:
             response = provider.chat(
                 cleaned,
@@ -126,8 +128,21 @@ class Agent:
                 on_delta=on_delta,
             )
         except ProviderError as exc:
+            # Não registrar str(exc): mensagens de provedores podem conter dados
+            # sensíveis. O tipo do erro e o nome do provider bastam para diagnóstico.
+            logger.error(
+                "Provedor '%s' falhou (%s).",
+                provider.name,
+                type(exc).__name__,
+            )
             raise AgentError(user_message_for(exc)) from exc
         except Exception as exc:
+            # Mantém o diagnóstico sem despejar a mensagem arbitrária da exceção.
+            logger.error(
+                "Provedor '%s' falhou com erro inesperado (%s).",
+                provider.name,
+                type(exc).__name__,
+            )
             raise AgentError(f"Erro inesperado ao contatar o provedor: {exc}") from exc
         if not isinstance(response, AIResponse):
             raise AgentError(
