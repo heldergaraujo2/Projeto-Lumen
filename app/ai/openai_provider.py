@@ -117,6 +117,7 @@ class OpenAIProvider(AIProvider):
         system_prompt: str | None = None,
         on_delta: DeltaCallback | None = None,
         max_tokens: int | None = None,
+        json_format: bool = False,
     ) -> AIResponse:
         """Chama a API com timeout, retry limitado e streaming opcional.
 

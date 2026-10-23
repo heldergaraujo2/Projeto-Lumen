@@ -44,7 +44,7 @@ class FakePlanProvider(AIProvider):
         return self._content
 
     def chat(self, message, context=None, *, system_prompt=None,
-             on_delta=None, max_tokens=None):
+             on_delta=None, max_tokens=None, json_format=False):
         self.calls.append({
             "message": message,
             "context": [dict(item) for item in (context or [])],

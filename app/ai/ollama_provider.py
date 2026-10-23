@@ -62,6 +62,7 @@ class OllamaProvider(AIProvider):
         self, message: str, context: Sequence[ContextMessage] | None = None,
         *, system_prompt: str | None = None, on_delta: DeltaCallback | None = None,
         max_tokens: int | None = None,
+        json_format: bool = False,
     ) -> AIResponse:
         if not isinstance(message, str) or not message.strip():
             raise ValueError("A mensagem não pode ser vazia.")
@@ -91,6 +92,8 @@ class OllamaProvider(AIProvider):
         }
         if options:
             payload["options"] = options
+        if json_format:
+            payload["format"] = "json"
 
         text_parts: list[str] = []
         final_model = self._model

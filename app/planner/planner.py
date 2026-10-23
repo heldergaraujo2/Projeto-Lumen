@@ -267,6 +267,7 @@ class Planner:
                 cleaned,
                 [dict(item) for item in (context or [])],
                 system_prompt=system_prompt,
+                json_format=True,
             )
         except _BLOCKING_ERRORS as exc:
             return self._finalize(
