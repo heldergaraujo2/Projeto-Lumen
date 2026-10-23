@@ -362,10 +362,14 @@ class Planner:
 
         system_prompt = self._build_tool_system_prompt(cleaned)
         try:
+            chat_options = {"json_format": True} if self._provider.name in {
+                "openai", "groq", "together", "orcarouter", "ollama"
+            } else {}
             response = self._provider.chat(
                 cleaned,
                 [dict(item) for item in (context or [])],
                 system_prompt=system_prompt,
+                **chat_options,
             )
         except _BLOCKING_ERRORS as exc:
             return ToolPlanResult(
