@@ -80,9 +80,8 @@ class SettingsDialog:
         # ------------------------------------------------------------ Modelo
         tk.Label(
             self.top,
-            text="Modelo (obrigatório p/ openai; ex.: gpt-4o-mini · gemini-2.5-flash · "
-                 "openai/gpt-oss-120b (groq) · meta-llama/Llama-4-Scout-17B-16E-Instruct "
-                 "(together) — vazio usa o padrão do provedor)",
+            text="Modelo (ex.: deepseek/deepseek-v4.1-flash-free (OrcaRouter) · gpt-4o-mini · "
+                 "gemini-2.5-flash · openai/gpt-oss-120b (groq) — vazio usa o padrão do provedor)",
             fg=_MUTED, bg=_PANEL, font=("Segoe UI", 9),
         ).pack(anchor=tk.W, padx=18)
         self.model_entry = tk.Entry(self.top)
