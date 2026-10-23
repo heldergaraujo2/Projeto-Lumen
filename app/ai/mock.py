@@ -74,6 +74,7 @@ class MockProvider(AIProvider):
         system_prompt: str | None = None,
         on_delta=None,
         max_tokens: int | None = None,
+        json_format: bool = False,
     ) -> AIResponse:
         """Sobrescreve o padrão para reconhecer o modo de planejamento.
 
