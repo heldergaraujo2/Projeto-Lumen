@@ -4,9 +4,11 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 from app.mcp_runtime.adapter import MCPCallTool, MCPRuntimeConfig
 from app.mcp_runtime.stdio import MCPServerConfig
-from app.security.permissions import PermissionLevel, PermissionManager
+from app.security.permissions import PermissionDeniedError, PermissionLevel, PermissionManager
 from app.tools.base import ToolRegistry
 
 FAKE_SERVER = r'''import json, sys
@@ -47,8 +49,8 @@ def test_mcp_tool_uses_existing_permission_gate_and_executes_allowlisted_call(tm
     permissions = PermissionManager()
     registry = ToolRegistry(permissions)
     registry.register(MCPCallTool(config))
-    blocked = json.loads(registry.execute("mcp_call", server_name="fake", tool_name="echo", arguments_json='{"x":1}'))
-    assert blocked["ok"] is False
+    with pytest.raises(PermissionDeniedError):
+        registry.execute("mcp_call", server_name="fake", tool_name="echo", arguments_json='{"x":1}')
     permissions.grant(PermissionLevel.COMPUTER_CONTROL)
     result = json.loads(registry.execute("mcp_call", server_name="fake", tool_name="echo", arguments_json='{"x":1}'))
     assert result["ok"] is True
