@@ -46,6 +46,29 @@ class MCPTool:
     input_schema: Mapping[str, Any] = field(default_factory=dict)
 
 
+_SAFE_PARENT_ENV_KEYS = frozenset({
+    "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "SYSTEMDRIVE", "HOMEDRIVE",
+    "HOMEPATH", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA",
+    "PROGRAMFILES", "PROGRAMFILES(X86)", "COMMONPROGRAMFILES",
+    "COMMONPROGRAMFILES(X86)", "COMSPEC", "TEMP", "TMP", "HOME",
+    "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "TERM",
+})
+
+
+def _child_environment(parent: Mapping[str, str], overrides: Mapping[str, str]) -> dict[str, str]:
+    """Inherit only runtime essentials; pass other values only by explicit config.
+
+    External MCP processes must not receive unrelated application/API secrets
+    from the parent environment by default.
+    """
+    env = {
+        key: value for key, value in parent.items()
+        if key.upper() in _SAFE_PARENT_ENV_KEYS
+    }
+    env.update({str(key): str(value) for key, value in overrides.items()})
+    return env
+
+
 class MCPStdioClient:
     """Async MCP stdio client supporting initialize, tools/list and tools/call."""
 
@@ -68,9 +91,9 @@ class MCPStdioClient:
     async def start(self, *, client_name: str = "Lumen", client_version: str = "0.7.0") -> None:
         if self._started and self.is_running:
             return
-        env = os.environ.copy()
-        # Explicit overrides only; no secrets are logged or echoed.
-        env.update({str(k): str(v) for k, v in self.config.env.items()})
+        # Avoid leaking unrelated API keys/secrets into third-party MCP
+        # subprocesses; additional variables must be explicitly configured.
+        env = _child_environment(os.environ, self.config.env)
         try:
             self._process = await asyncio.create_subprocess_exec(
                 self.config.command,
