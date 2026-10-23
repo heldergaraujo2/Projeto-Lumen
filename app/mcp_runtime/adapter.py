@@ -115,7 +115,7 @@ class MCPCallTool(StructuredTool):
             result = asyncio.run(self._execute(server, tool_name, arguments))
         except (MCPError, ValueError, OSError, RuntimeError) as exc:
             if self._audit is not None:
-                self._audit.record(tool=self.name, operation="mcp_call", success=False,
+                self._audit.record(tool=self.name, operation="mcp_call", requested_path=None, success=False,
                                    error=f"{type(exc).__name__}: {str(exc)[:240]}",
                                    mcp_server=server_name, mcp_tool=tool_name)
             return ToolResult(False, error=f"MCP call failed: {type(exc).__name__}: {str(exc)[:240]}")
@@ -123,7 +123,7 @@ class MCPCallTool(StructuredTool):
         if len(encoded.encode("utf-8")) > 64_000:
             return ToolResult(False, error="MCP response exceeded the 64 KB output limit")
         if self._audit is not None:
-            self._audit.record(tool=self.name, operation="mcp_call", success=True,
+            self._audit.record(tool=self.name, operation="mcp_call", requested_path=None, success=True,
                                mcp_server=server_name, mcp_tool=tool_name)
         return ToolResult(True, data={"server": server_name, "tool": tool_name, "result": result})
 
