@@ -15,7 +15,7 @@ from typing import Any, Mapping
 from app.mcp_runtime.stdio import MCPError, MCPServerConfig, MCPStdioClient
 from app.security.permissions import PermissionLevel
 from app.tools.base import StructuredTool, ToolResult
-from app.tools.audit_log import FilesystemAudit
+from app.tools.filesystem import FilesystemAudit
 
 
 @dataclass(frozen=True)
