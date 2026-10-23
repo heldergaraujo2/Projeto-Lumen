@@ -120,6 +120,7 @@ def main() -> int:
             reports_dir=settings.data_dir / "reports",
             unreal=unreal,
             computer_control_service=computer_control,
+            mcp_config_file=settings.data_dir / "mcp_servers.json",
         )
         agent.set_tools_controller(tools_controller)
 
