@@ -45,10 +45,11 @@ def test_orcarouter_provider_sends_chat_completions_payload():
         settings,
         client_factory=lambda api_key, timeout: _FakeClient(calls),
     )
-    response = provider.chat("oi", system_prompt="Responda em JSON")
+    response = provider.chat("oi", system_prompt="Responda em JSON", json_format=True)
     assert response.content.startswith("{")
     assert calls[0]["model"] == DEFAULT_MODEL
     assert calls[0]["messages"][0] == {"role": "system", "content": "Responda em JSON"}
+    assert calls[0]["response_format"] == {"type": "json_object"}
 
 
 def test_orcarouter_client_factory_uses_fixed_gateway(monkeypatch):
