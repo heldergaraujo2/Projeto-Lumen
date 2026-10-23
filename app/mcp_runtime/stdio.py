@@ -174,7 +174,7 @@ class MCPStdioClient:
         process = self._process
         if process is None or process.stdin is None or process.returncode is not None:
             raise MCPError(f"MCP server '{self.config.name}' is not running")
-        wire = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\\n"
+        wire = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
         async with self._write_lock:
             process.stdin.write(wire)
             await process.stdin.drain()
