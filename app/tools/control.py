@@ -22,6 +22,7 @@ Garantias:
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 from uuid import uuid4
@@ -396,8 +397,10 @@ class ToolsController:
         self._autonomous_previous_grants: frozenset[PermissionLevel] | None = None
         self._pending_unreal_plan: UnrealPlan | None = None
         self._store = WorkspaceStore(workspaces_file)
+        self._autonomy_file = Path(workspaces_file).with_name("autonomy_mode.json")
         self._audit_file = Path(audit_file)
         self._audit = FilesystemAudit(sink=JsonlAuditSink(self._audit_file))
+        self._load_autonomous_mode()
         self._executor: PlanExecutor | None = None
         self._plan: Plan | None = None
         self._registry: ToolRegistry | None = None
@@ -981,10 +984,44 @@ class ToolsController:
     def autonomous_mode(self) -> bool:
         return self._autonomous_mode
 
+    def _load_autonomous_mode(self) -> None:
+        """Restaura o modo global explicitamente salvo pelo usuário."""
+        try:
+            if not self._autonomy_file.exists():
+                return
+            data = json.loads(self._autonomy_file.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or data.get("enabled") is not True:
+                return
+            names = data.get("previous_grants", [])
+            previous = frozenset(
+                PermissionLevel[name] for name in names
+                if isinstance(name, str) and name in PermissionLevel.__members__
+            )
+            self._autonomous_previous_grants = previous
+            for level in PermissionLevel:
+                self._permissions.grant(level)
+            self._autonomous_mode = True
+        except (OSError, ValueError, TypeError) as exc:
+            logger.error("Modo autônomo não restaurado (configuração inválida): %s", exc)
+
+    def _save_autonomous_mode(self, enabled: bool, previous: frozenset[PermissionLevel] = frozenset()) -> None:
+        payload = {
+            "enabled": bool(enabled),
+            "previous_grants": sorted(level.name for level in previous),
+        }
+        self._autonomy_file.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self._autonomy_file.with_suffix(self._autonomy_file.suffix + ".tmp")
+        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        temporary.replace(self._autonomy_file)
+
     def enable_autonomous_mode(self) -> None:
         if self._autonomous_mode:
             return
-        self._autonomous_previous_grants = self._permissions.granted_levels()
+        previous = self._permissions.granted_levels()
+        # Persiste primeiro: se a gravação falhar, não anuncia uma autorização
+        # que desaparecerá silenciosamente ao reiniciar.
+        self._save_autonomous_mode(True, previous)
+        self._autonomous_previous_grants = previous
         for level in PermissionLevel:
             self._permissions.grant(level)
         self._autonomous_mode = True
@@ -994,6 +1031,7 @@ class ToolsController:
         if not self._autonomous_mode:
             return
         previous = self._autonomous_previous_grants or frozenset()
+        self._save_autonomous_mode(False, previous)
         for level in PermissionLevel:
             if level in previous:
                 self._permissions.grant(level)
@@ -1117,7 +1155,9 @@ class ToolsController:
 
     # ------------------------------------------------------------- sandbox/tool
     def _sandbox(self) -> MultiWorkspaceSandbox:
-        return MultiWorkspaceSandbox(self._store.load())
+        return MultiWorkspaceSandbox(
+            self._store.load(), unrestricted=self._autonomous_mode
+        )
 
     def planning_catalog(self) -> dict:
         """Allowlist de ferramentas que o chat pode planejar (0.6.3).
@@ -1285,21 +1325,21 @@ class ToolsController:
                 return self._final(_auto_pytest_limit_report(plan))
             plan = _attach_run_pytest(plan)
             self._plan = plan  # 9B: bundle persiste o plano ajustado
-        policies: list[ToolCheckpoints] = [
-            PrevalidatedCheckpoints(
+        policies: list[ToolCheckpoints] = []
+        if not self._autonomous_mode:
+            policies.append(PrevalidatedCheckpoints(
                 self._permissions, registry, sandbox,
                 # 11K: pré-validação de restore_snapshot (viável ou não).
                 snapshots_dir=self._snapshots_dir,
-            )
-        ]
-        if self._terminal_policy is not None:
+            ))
+        if self._terminal_policy is not None and not self._autonomous_mode:
             policies.append(
                 PrevalidatedTerminalCheckpoints(
                     self._permissions, registry, self._terminal_policy, sandbox
                 )
             )
-        if self._mcp_config.has_allowlisted_tools:
-            # External desktop/system actions always pause for explicit approval.
+        if self._mcp_config.has_allowlisted_tools and not self._autonomous_mode:
+            # Fora do modo autônomo, ações MCP externas aguardam aprovação.
             policies.append(ToolCheckpoints({"mcp_call"}))
         if self._corrections is not None:
             # 0.6.2: ciclo controlado EXECUTAR→VERIFICAR→(ANALISAR→PROPOR→
