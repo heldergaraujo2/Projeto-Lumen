@@ -15,6 +15,8 @@ from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
 from app.security.permissions import PermissionLevel, PermissionManager
 from app.computer_control.service import ComputerControlService
 from app.tools.control import ToolsControlError, ToolsController
+from app.mcp_runtime.adapter import MCPRuntimeConfig
+from app.mcp_runtime.stdio import MCPServerConfig
 from app.unreal.integration import UnrealIntegration
 
 
@@ -856,6 +858,35 @@ def test_authorize_pending_unreal_requires_permissions_and_creates_bounded_scope
     assert controller.revoke_unreal_scope() is True
     assert controller.unreal_scope_status() is None
     assert controller.unreal_authorization_ready() is True
+
+
+def test_autonomous_mode_does_not_autoapprove_external_mcp_calls(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+    )
+    controller._mcp_config = MCPRuntimeConfig(servers=(
+        MCPServerConfig(
+            name="fake",
+            command="fake-mcp-server",
+            allowed_tools=frozenset({"echo"}),
+        ),
+    ))
+    controller.enable_autonomous_mode()
+
+    report = controller.run_plan(ready(
+        "Call an external MCP tool",
+        armed("T1", "mcp_call", {
+            "server_name": "fake",
+            "tool_name": "echo",
+            "arguments_json": "{}",
+        }),
+    ))
+
+    assert report.pending_checkpoint is not None
+    assert report.pending_checkpoint.task_id == "T1"
+    assert controller._plan.task_by_id(report.pending_checkpoint.task_id).tool == "mcp_call"
 
 
 def test_autonomous_mode_persists_global_file_access_and_all_permission_grants(tmp_path):
