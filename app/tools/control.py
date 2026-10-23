@@ -83,6 +83,7 @@ from app.unreal.models import UnrealPlan, UnrealProject
 from app.computer_control.service import ComputerControlService
 from app.computer_control.session import CCGrantRequest, CCSessionManager
 from app.computer_control.api import CCActionType
+from app.mcp_runtime.adapter import MCPCallTool, MCPRuntimeConfig
 
 logger = logging.getLogger("lumen.tools.control")
 
@@ -368,6 +369,7 @@ class ToolsController:
         snapshot_max_bytes: int = 1_000_000,
         unreal: UnrealIntegration | None = None,
         computer_control_service: ComputerControlService | None = None,
+        mcp_config_file: Path | None = None,
     ) -> None:
         if not isinstance(permissions, PermissionManager):
             raise ToolsControlError(
@@ -379,6 +381,14 @@ class ToolsController:
         # Serviço de Computer Control injetado pela composição; não concede
         # permissão, não cria scope e não arma o driver no startup.
         self._computer_control_service = computer_control_service
+        # MCP servers stay inert unless a local config enables a server and
+        # explicitly allow-lists at least one tool. Invalid config fails closed.
+        self._mcp_config = MCPRuntimeConfig()
+        if mcp_config_file is not None:
+            try:
+                self._mcp_config = MCPRuntimeConfig.load(mcp_config_file)
+            except (ValueError, OSError) as exc:
+                logger.error("MCP externo desabilitado por configuração inválida: %s", type(exc).__name__)
         self._cc_sessions = CCSessionManager()
         self._unreal_scope_id: str | None = None
         self._autonomous_mode = False
@@ -1124,6 +1134,7 @@ class ToolsController:
         return build_catalog(
             include_terminal=self._terminal_policy is not None,
             include_unreal=self._unreal is not None,
+            include_mcp=self._mcp_config.has_allowlisted_tools,
         )
 
     def build_registry(self) -> ToolRegistry:
@@ -1159,6 +1170,8 @@ class ToolsController:
         registry.register(WebSearchTool(audit=self._audit))
         registry.register(WebFetchTool(audit=self._audit))
         registry.register(WebResearchTool(audit=self._audit))
+        if self._mcp_config.has_allowlisted_tools:
+            registry.register(MCPCallTool(self._mcp_config, audit=self._audit))
         if self._unreal is not None:
             registry.register(UnrealSnapshotTool(self._unreal))
             registry.register(UnrealPlanTool())
@@ -1184,7 +1197,7 @@ class ToolsController:
                 name=name,
                 description=str(info.get("description") or ""),
                 parameters=params,
-                destructive=name in FILESYSTEM_DESTRUCTIVE_TOOLS,
+                destructive=(name in FILESYSTEM_DESTRUCTIVE_TOOLS or name == "mcp_call"),
             )
         available = {item["name"] for item in registry.list_tools()}
         definitions = {name: definition for name, definition in definitions.items()
@@ -1284,6 +1297,9 @@ class ToolsController:
                     self._permissions, registry, self._terminal_policy, sandbox
                 )
             )
+        if self._mcp_config.has_allowlisted_tools:
+            # External desktop/system actions always pause for explicit approval.
+            policies.append(ToolCheckpoints({"mcp_call"}))
         if self._corrections is not None:
             # 0.6.2: ciclo controlado EXECUTAR→VERIFICAR→(ANALISAR→PROPOR→
             # VALIDAR→APROVAR→APLICAR→RETRY→VERIFICAR)* com limites rígidos.
