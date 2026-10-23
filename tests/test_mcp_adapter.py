@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from app.mcp_runtime.adapter import MCPCallTool, MCPRuntimeConfig
+from app.mcp_runtime.adapter import MCPRuntimeConfig
+from app.tools.mcp import MCPCallTool
 from app.mcp_runtime.stdio import MCPServerConfig
 from app.security.permissions import PermissionDeniedError, PermissionLevel, PermissionManager
 from app.tools.base import ToolRegistry
