@@ -108,7 +108,12 @@ def test_chat_requests_json_format_only_when_enabled():
     def transport(method, url, body, timeout):
         payload = json.loads(body.decode())
         assert payload.get("format") == "json"
-        yield b'{"model":"qwen2.5-coder:7b-instruct-q8_0","message":{"role":"assistant","content":"{\"type\": \"conversation\"}"},"done":true}\n'
+        event = {
+            "model": "qwen2.5-coder:7b-instruct-q8_0",
+            "message": {"role": "assistant", "content": json.dumps({"type": "conversation"})},
+            "done": True,
+        }
+        yield (json.dumps(event) + "\\n").encode("utf-8")
 
     provider = OllamaProvider(make_settings(), transport=transport)
     response = provider.chat("Planeje", json_format=True)
