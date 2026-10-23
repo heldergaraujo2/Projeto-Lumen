@@ -153,7 +153,7 @@ class OperationsDialog:
     def _build_tools(self):
         f = self._frames["Ferramentas / Aprovações"]
         self._card(f, "Ferramentas e Aprovações",
-                   "O Modo Autônomo concede permissões globais, acesso irrestrito ao filesystem e dispensa checkpoints de aprovação. Políticas específicas de terminal e controle físico continuam dependentes dos seus próprios mecanismos de habilitação.")
+                   "O Modo Autônomo concede permissões globais e acesso irrestrito ao filesystem, dispensando checkpoints locais repetitivos. Chamadas a servidores MCP externos continuam exigindo aprovação explícita por chamada; políticas específicas de terminal e controle físico mantêm seus próprios mecanismos de habilitação.")
         self.tools_summary = tk.Label(f, text="", font=("Segoe UI", 10),
                                       fg=_TEXT, bg=_PANEL, justify=tk.LEFT)
         self.tools_summary.pack(anchor=tk.W, padx=20, pady=12)
