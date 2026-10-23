@@ -1338,8 +1338,10 @@ class ToolsController:
                     self._permissions, registry, self._terminal_policy, sandbox
                 )
             )
-        if self._mcp_config.has_allowlisted_tools and not self._autonomous_mode:
-            # Fora do modo autônomo, ações MCP externas aguardam aprovação.
+        if self._mcp_config.has_allowlisted_tools:
+            # MCP externo sempre exige aprovação explícita, inclusive no modo
+            # autônomo: conceder permissões globais não autoriza efeitos externos
+            # sem confirmação por chamada.
             policies.append(ToolCheckpoints({"mcp_call"}))
         if self._corrections is not None:
             # 0.6.2: ciclo controlado EXECUTAR→VERIFICAR→(ANALISAR→PROPOR→
@@ -1413,6 +1415,13 @@ class ToolsController:
             report = self._executor.report()
             if not self._executor.paused:
                 return self._final(report)
+            checkpoint = self._executor.pending_checkpoint
+            if checkpoint is not None:
+                task = self._plan.task_by_id(checkpoint.task_id)
+                if task.tool == "mcp_call":
+                    # Modo autônomo remove confirmações repetitivas locais,
+                    # mas nunca autoaprova chamadas para processos externos.
+                    return self._final(report)
             self._executor.approve_checkpoint("autonomous-mode")
 
     def _drive_autonomous_engine(self) -> ExecutionReport:
@@ -1423,6 +1432,12 @@ class ToolsController:
                 self._engine.approve_correction("autonomous-mode")
                 continue
             if self._engine.executor.paused:
+                checkpoint = self._engine.executor.pending_checkpoint
+                if checkpoint is not None:
+                    task = self._engine.current_plan.task_by_id(checkpoint.task_id)
+                    if task.tool == "mcp_call":
+                        # Mesmo no modo autônomo, MCP externo aguarda aprovação humana.
+                        return self._final(report)
                 self._engine.executor.approve_checkpoint("autonomous-mode")
                 continue
             return self._final(report)
