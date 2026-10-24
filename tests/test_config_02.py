@@ -139,3 +139,68 @@ def test_persist_execution_state_env_file_and_environment_precedence(tmp_path):
 
     assert from_file.persist_execution_state is False
     assert from_environment.persist_execution_state is True
+
+
+
+def test_main_passes_loaded_execution_persistence_settings_to_controller(
+    tmp_path, monkeypatch
+):
+    import sys
+    import types
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    import main as main_module
+    from app.security.permissions import PermissionManager
+
+    settings = replace(
+        Settings(), data_dir=tmp_path, persist_execution_state=True
+    )
+    monkeypatch.setattr(
+        main_module, "Settings", SimpleNamespace(load=lambda: settings)
+    )
+    monkeypatch.setattr(main_module, "setup_logging", lambda _settings: None)
+
+    class FakeAgent:
+        def __init__(self):
+            self.permissions = PermissionManager()
+            self.provider = SimpleNamespace(name="test-provider", model_name="test-model")
+            self.controller = None
+
+        def set_tools_controller(self, controller):
+            self.controller = controller
+
+    agent = FakeAgent()
+    config_service = SimpleNamespace(
+        current_config=lambda: {"key_source": "test"}
+    )
+    monkeypatch.setattr(
+        main_module, "build_app", lambda _settings: (agent, config_service)
+    )
+    monkeypatch.setattr(main_module, "tk_root", lambda: object())
+
+    captured = {}
+
+    class FakeToolsController:
+        def __init__(self, permissions, **kwargs):
+            captured["permissions"] = permissions
+            captured.update(kwargs)
+
+    monkeypatch.setattr(main_module, "ToolsController", FakeToolsController)
+
+    fake_ui = types.ModuleType("app.ui.main_window")
+
+    class FakeLumenWindow:
+        def __init__(self, _root, _agent, *, config_service, tools_controller):
+            captured["window_controller"] = tools_controller
+
+        def run(self):
+            return None
+
+    fake_ui.LumenWindow = FakeLumenWindow
+    monkeypatch.setitem(sys.modules, "app.ui.main_window", fake_ui)
+
+    assert main_module.main() == 0
+    assert captured["persist_execution_state"] is True
+    assert captured["execution_state_dir"] == settings.execution_dir
+    assert captured["window_controller"] is agent.controller
