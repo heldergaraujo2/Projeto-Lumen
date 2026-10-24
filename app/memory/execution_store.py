@@ -154,6 +154,7 @@ class ExecutionBundleStore:
         report: Any,
         correction: Any | None = None,
         lumen_version: str = "",
+        conversation_id: str | None = None,
     ) -> Path:
         """Sanitiza e grava o bundle; devolve o caminho gravado.
 
@@ -173,6 +174,12 @@ class ExecutionBundleStore:
             "lumen_version": sanitize_any(str(lumen_version), self._limit),
             "saved_at": datetime.now(timezone.utc).isoformat(),
             "plan_id": sanitize_any(str(getattr(report, "plan_id", "")), self._limit),
+            # Identity is metadata only; never infer it from user text or plan IDs.
+            "conversation_id": (
+                sanitize_any(conversation_id.strip(), self._limit)
+                if isinstance(conversation_id, str) and conversation_id.strip()
+                else None
+            ),
             "plan": sanitize_any(_serialize(plan), self._limit),
             "execution_report": sanitize_any(report_dict, self._limit),
             "correction": (
@@ -199,3 +206,44 @@ class ExecutionBundleStore:
             ) from exc
         logger.info("Bundle de execução salvo em %s.", path)
         return path
+
+    def load_bundle(
+        self, plan_id: str, *, conversation_id: str,
+    ) -> dict[str, Any]:
+        """Carrega um bundle apenas para a conversa explicitamente indicada.
+
+        Ausência, corrupção, versão desconhecida ou identidade divergente
+        falham fechadas. Este método não executa nem autoriza tarefas.
+        """
+        if not isinstance(plan_id, str) or not plan_id.strip():
+            raise ExecutionStoreError("plan_id obrigatório.")
+        if not isinstance(conversation_id, str) or not conversation_id.strip():
+            raise ExecutionStoreError("conversation_id obrigatório.")
+        safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", plan_id) or "plano"
+        path = self._base_dir / f"{safe_name}.json"
+        try:
+            bundle = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError as exc:
+            raise ExecutionStoreError("Execução persistida não encontrada.") from exc
+        except (OSError, ValueError) as exc:
+            raise ExecutionStoreError("Bundle de execução inválido ou ilegível.") from exc
+        if not isinstance(bundle, dict):
+            raise ExecutionStoreError("Bundle de execução inválido.")
+        if bundle.get("version") != BUNDLE_VERSION:
+            raise ExecutionStoreError("Versão do bundle não suportada.")
+        if bundle.get("plan_id") != plan_id:
+            raise ExecutionStoreError("Identidade do plano divergente.")
+        stored_conversation = bundle.get("conversation_id")
+        if not isinstance(stored_conversation, str) or not stored_conversation:
+            raise ExecutionStoreError(
+                "Bundle legado sem identidade de conversa; retomada bloqueada."
+            )
+        if stored_conversation != conversation_id:
+            raise ExecutionStoreError(
+                "A execução pertence a outra conversa; acesso bloqueado."
+            )
+        if not isinstance(bundle.get("plan"), dict) or not isinstance(
+            bundle.get("execution_report"), dict
+        ):
+            raise ExecutionStoreError("Bundle sem plano ou relatório válido.")
+        return bundle
