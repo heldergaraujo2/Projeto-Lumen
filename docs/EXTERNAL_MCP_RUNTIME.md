@@ -11,6 +11,8 @@ Use maintained external MCP servers for desktop automation where they are better
 - Calls fail closed unless the exact tool name is in `allowed_tools` and was advertised by the server.
 - MCPCallTool is registered through the existing ToolsController and ToolRegistry when data/mcp_servers.json enables a server and allow-lists at least one tool. The planner exposes only the generic mcp_call entry, not arbitrary discovered tools.
 - mcp_call requires the existing COMPUTER_CONTROL permission and a mandatory explicit checkpoint before dispatch. Calls verify that the server is enabled and the exact tool is allow-listed and advertised by the server.
+- The explicit checkpoint remains mandatory even when global autonomous mode is enabled; autonomous mode does not silently approve calls into external processes.
+- Child processes inherit only a small allow-list of operating-system environment variables. Application/API secrets are not inherited unless the operator explicitly places a value in that server's `env` configuration.
 - The production path is wired in code, but no server is enabled by default and no real UI action has yet been proven on the user's PC.
 - `config/mcp_servers.example.json` is an example only. It is deliberately disabled with an empty allow-list. Review the current upstream README/package command before enabling it; package names and launch arguments can change.
 
