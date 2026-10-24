@@ -11,8 +11,8 @@ para as ferramentas de filesystem, com política própria:
 Garantias preservadas:
 
 - **Nada é autorizado por padrão** — o store começa vazio (arquivo nem
-  existe até a primeira autorização) e **raiz de disco/Windows inteiro é
-  rejeitada** (ex.: ``/`` ou ``C:\\``);
+  existe até a primeira autorização); raízes de disco podem ser autorizadas
+  somente para leitura, nunca para escrita ou exclusão;
 - caminhos são **validados e normalizados** (absoluto, existente,
   diretório, resolvido — symlinks normalizados) antes de armazenados;
 - :class:`MultiWorkspaceSandbox` aplica a política **por raiz**: um
@@ -120,6 +120,13 @@ class WorkspaceStore:
                     f"{self._path.name} inválido: esperada uma lista de workspaces."
                 )
             entries = [WorkspaceEntry.from_dict(item) for item in raw]
+            # Raízes de disco abrangem o sistema inteiro: leitura apenas.
+            # Rejeita configurações persistidas que tentem habilitar escrita.
+            for entry in entries:
+                if _now_anchor(entry.root) and (entry.writable or entry.allow_delete):
+                    raise WorkspaceStoreError(
+                        f"Workspace raiz {entry.root} deve ser somente leitura."
+                    )
             # invariantes de unicidade preservados ao carregar
             seen: set[Path] = set()
             for entry in entries:
@@ -158,10 +165,11 @@ class WorkspaceStore:
         if not candidate.is_dir():
             raise ValueError(f"O caminho não é um diretório: {path}")
         resolved = candidate.resolve()
-        if _now_anchor(resolved):
+        if _now_anchor(resolved) and (writable or allow_delete):
             raise ValueError(
-                "Autorizar a raiz do disco equivale a dar acesso a todo o "
-                "sistema — escolha um diretório específico."
+                "A raiz do disco abrange o sistema inteiro e só pode ser "
+                "autorizada como somente leitura; escolha um diretório "
+                "específico para habilitar escrita ou exclusão."
             )
         if allow_delete and not writable:
             raise ValueError("Permitir exclusão exige permitir escrita (writable).")
@@ -197,6 +205,11 @@ class WorkspaceStore:
         if allow_delete and not writable:
             raise ValueError("Permitir exclusão exige permitir escrita (writable).")
         candidate = Path(path.strip()) if isinstance(path, str) else Path("")
+        if _now_anchor(candidate) and (writable or allow_delete):
+            raise ValueError(
+                "A raiz do disco deve permanecer somente leitura; habilite "
+                "escrita/exclusão apenas em um diretório específico."
+            )
         entries = self.load()
         for index, entry in enumerate(entries):
             if entry.root == candidate.resolve() or entry.root == candidate:
