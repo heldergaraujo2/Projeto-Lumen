@@ -8,7 +8,7 @@
 - Os resultados semânticos são tratados apenas como referências: a Lúmen relê
   o registro no armazenamento JSON e descarta IDs inexistentes ou obsoletos.
 - O código usa Mem0 OSS com Ollama e Qdrant em modo local. Não requer chave
-  Mem0 Platform nem API paga.
+  Mem0 Platform nem API paga; a telemetria do SDK é desativada antes da importação.
 - Os dados do Qdrant e o histórico interno do Mem0 ficam em
   `data/memory/mem0/`, dentro dos dados da Lúmen.
 - Se Mem0, Ollama ou o modelo falhar, a busca lexical/JSON continua disponível.
