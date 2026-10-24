@@ -108,7 +108,10 @@ def test_b_approve_shows_completion_in_chat_and_creates_file(env):
 
     # B) mensagem final no chat
     chat = env["window"].conversation.text
-    assert "concluído" in chat and "PLN-" in chat
+    assert "execução técnica concluída" in chat and "PLN-" in chat
+    assert "O sucesso funcional não foi confirmado" in chat
+    assert "T1 create_file: execução=DONE" in chat
+    assert "resultado_sha256=" in chat
     # E) arquivo criado após aprovação
     created = env["ws"] / "teste_lumen.txt"
     assert created.exists()
@@ -118,7 +121,7 @@ def test_b_approve_shows_completion_in_chat_and_creates_file(env):
     assert "COMPLETED" in dialog.status_label.cget("text")
     # memória linear registrou o desfecho (caminho do bridge)
     recent = " ".join(m.content for m in env["agent"].memory.recent(10))
-    assert "concluído" in recent
+    assert "execução técnica concluída" in recent
 
 
 def test_g_audit_still_recorded_after_approval(env):

@@ -157,6 +157,53 @@ Allowlist de ferramentas disponiveis:
 {catalog}
 """
 
+# Ollama accepts a JSON Schema in /api/chat's `format` field. `format="json"`
+# constrains only syntax; this schema also constrains the top-level protocol
+# discriminator so an unrelated JSON object cannot masquerade as a result.
+_TOOL_PLANNING_JSON_SCHEMA = {
+    "type": "object",
+    "oneOf": [
+        {
+            "type": "object",
+            "properties": {"type": {"const": "conversation"}},
+            "required": ["type"],
+            "additionalProperties": False,
+        },
+        {
+            "type": "object",
+            "properties": {
+                "type": {"const": "plan"},
+                "objective": {"type": "string"},
+                "analysis": {"type": "array", "items": {"type": "string"}},
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": ["integer", "string"]},
+                            "description": {"type": "string"},
+                            "dependencies": {
+                                "type": "array",
+                                "items": {"type": ["integer", "string"]},
+                            },
+                            "tool": {"type": "string"},
+                            "parameters": {"type": "object"},
+                            "success_criteria": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                        },
+                        "required": ["description", "tool", "parameters"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["type", "objective", "analysis", "tasks"],
+            "additionalProperties": False,
+        },
+    ],
+}
+
 
 @dataclass(frozen=True)
 class PlannerLimits:
@@ -362,9 +409,12 @@ class Planner:
 
         system_prompt = self._build_tool_system_prompt(cleaned)
         try:
-            chat_options = {"json_format": True} if self._provider.name in {
-                "openai", "groq", "together", "orcarouter", "ollama"
-            } else {}
+            if self._provider.name == "ollama":
+                chat_options = {"json_schema": _TOOL_PLANNING_JSON_SCHEMA}
+            elif self._provider.name in {"openai", "groq", "together", "orcarouter"}:
+                chat_options = {"json_format": True}
+            else:
+                chat_options = {}
             response = self._provider.chat(
                 cleaned,
                 [dict(item) for item in (context or [])],
@@ -412,16 +462,40 @@ class Planner:
             return self._tool_invalid(draft, f"A IA devolveu um plano inválido: {exc}")
         kind = head.get("type")
         if kind == "conversation":
+            if set(head) != {"type"}:
+                return self._tool_invalid(
+                    draft,
+                    'resposta de conversa deve conter somente o campo "type"',
+                )
             logger.info(
                 "Pedido conversacional (sem ferramenta) para '%s'.", cleaned[:80],
             )
             return ToolPlanResult("conversation", draft, None)
         if kind != "plan":
+            # Diagnóstico sem registrar conteúdo arbitrário devolvido pelo modelo.
+            logger.warning(
+                "DIAG_PLANNER_INVALID_TYPE response_len=%d",
+                len(content),
+            )
             return self._tool_invalid(
                 draft,
                 'resposta fora do protocolo ("type" deve ser "conversation" '
                 'ou "plan")',
             )
+
+        required_plan_fields = {"type", "objective", "analysis", "tasks"}
+        if not required_plan_fields.issubset(head):
+            return self._tool_invalid(
+                draft,
+                "plano incompleto; são obrigatórios type, objective, analysis e tasks",
+            )
+        if set(head) - required_plan_fields:
+            return self._tool_invalid(
+                draft,
+                "plano contém campos de nível superior fora do protocolo",
+            )
+        if not isinstance(head.get("objective"), str) or not head["objective"].strip():
+            return self._tool_invalid(draft, '"objective" deve ser um texto não vazio')
 
         try:
             analysis, tasks = self._parse_plan(

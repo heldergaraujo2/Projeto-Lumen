@@ -118,3 +118,46 @@ def test_chat_requests_json_format_only_when_enabled():
     provider = OllamaProvider(make_settings(), transport=transport)
     response = provider.chat("Planeje", json_format=True)
     assert json.loads(response.content) == {"type": "conversation"}
+
+
+def test_chat_sends_structured_json_schema_without_rebuilding_messages():
+    schema = {
+        "type": "object",
+        "required": ["type"],
+        "properties": {"type": {"const": "conversation"}},
+    }
+    previous = [
+        {"role": "user", "content": "mensagem anterior"},
+        {"role": "assistant", "content": "resposta anterior"},
+    ]
+
+    def transport(method, url, body, timeout):
+        payload = json.loads(body.decode("utf-8"))
+        assert payload["format"] == schema
+        assert payload["messages"] == [
+            {"role": "system", "content": "PROMPT COMPLETO"},
+            *previous,
+            {"role": "user", "content": "mensagem atual"},
+        ]
+        event = {
+            "model": "qwen2.5-coder:7b",
+            "message": {
+                "role": "assistant",
+                "content": '{"type":"conversation"}',
+            },
+            "done": True,
+        }
+        yield (json.dumps(event) + "\n").encode("utf-8")
+
+    provider = OllamaProvider(make_settings(model="qwen2.5-coder:7b"), transport=transport)
+    response = provider.chat(
+        "mensagem atual", previous, system_prompt="PROMPT COMPLETO",
+        json_schema=schema,
+    )
+    assert response.content == '{"type":"conversation"}'
+
+
+def test_json_schema_must_be_an_object():
+    provider = OllamaProvider(make_settings(), transport=lambda *args: iter([]))
+    with pytest.raises(ValueError, match="json_schema"):
+        provider.chat("Oi", json_schema=["not", "an", "object"])

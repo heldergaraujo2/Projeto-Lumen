@@ -82,5 +82,7 @@ def test_bridge_accepts_structured_tool_call(tmp_path):
         {"tool": "read_file", "parameters": {"path": "hello.txt"}, "call_id": "bridge-1"}
     )
 
-    assert outcome.state is RequestState.COMPLETED
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
+    assert outcome.execution_evidence
+    assert outcome.execution_evidence[0].result_sha256
     assert outcome.plan_id

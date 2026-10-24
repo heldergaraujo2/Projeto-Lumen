@@ -63,6 +63,7 @@ class OllamaProvider(AIProvider):
         *, system_prompt: str | None = None, on_delta: DeltaCallback | None = None,
         max_tokens: int | None = None,
         json_format: bool = False,
+        json_schema: Mapping[str, Any] | None = None,
     ) -> AIResponse:
         if not isinstance(message, str) or not message.strip():
             raise ValueError("A mensagem não pode ser vazia.")
@@ -92,7 +93,11 @@ class OllamaProvider(AIProvider):
         }
         if options:
             payload["options"] = options
-        if json_format:
+        if json_schema is not None:
+            if not isinstance(json_schema, Mapping):
+                raise ValueError("json_schema deve ser um objeto JSON Schema.")
+            payload["format"] = dict(json_schema)
+        elif json_format:
             payload["format"] = "json"
 
         text_parts: list[str] = []

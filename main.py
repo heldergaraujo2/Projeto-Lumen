@@ -82,6 +82,13 @@ def main() -> int:
         LOGGER.error("Falha ao inicializar os componentes da Lumen: %s", exc)
         LOGGER.exception("Detalhes técnicos:")
         return 1
+    provider_endpoint = getattr(agent.provider, "base_url", None)
+    LOGGER.info(
+        "Provider inicial carregado: nome=%s modelo=%s endpoint=%s.",
+        agent.provider.name,
+        agent.provider.model_name or "-",
+        provider_endpoint or "-",
+    )
 
     plugin_manager = PluginManager()
     plugin_reports = plugin_manager.discover()

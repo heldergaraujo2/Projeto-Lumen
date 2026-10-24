@@ -120,11 +120,15 @@ class TaskRun:
     description: str
     order: int
     dependencies: tuple[str, ...]
+    tool: str | None = None
     status: PlannedTaskStatus = PlannedTaskStatus.PENDING
     result: str | None = None
     error: str | None = None
     attempts: int = 0
     verified: bool | None = None
+    verification_name: str | None = None
+    verification_detail: str | None = None
+    verification_authority: str | None = None
     attempt_log: tuple[AttemptRecord, ...] = ()
 
     def to_dict(self) -> dict:
@@ -133,11 +137,15 @@ class TaskRun:
             "description": self.description,
             "order": self.order,
             "dependencies": list(self.dependencies),
+            "tool": self.tool,
             "status": self.status.value,
             "result": self.result,
             "error": self.error,
             "attempts": self.attempts,
             "verified": self.verified,
+            "verification_name": self.verification_name,
+            "verification_detail": self.verification_detail,
+            "verification_authority": self.verification_authority,
             "attempt_log": [attempt.to_dict() for attempt in self.attempt_log],
         }
 
@@ -253,6 +261,7 @@ class PlanExecutor:
                 description=task.description,
                 order=task.order,
                 dependencies=tuple(task.dependencies),
+                tool=task.tool,
             )
             for task in sorted(plan.tasks, key=lambda t: t.order)
         }
@@ -678,13 +687,19 @@ class PlanExecutor:
                     return replace(
                         run, status=PlannedTaskStatus.REJECTED,
                         result=result, verified=False,
+                        verification_name=self._verifier.name,
+                        verification_detail=outcome.detail,
+                        verification_authority=outcome.authority,
                         error=f"Verificação falhou: {outcome.detail}",
                         attempts=attempt, attempt_log=tuple(attempt_log),
                     )
                 if outcome.applied:
                     return replace(
                         run, status=PlannedTaskStatus.DONE, result=result,
-                        verified=True, attempts=attempt,
+                        verified=True, verification_name=self._verifier.name,
+                        verification_detail=outcome.detail,
+                        verification_authority=outcome.authority,
+                        attempts=attempt,
                         attempt_log=tuple(attempt_log),
                     )
             # 11E: ``applied=False`` ("não aplicável") chega aqui —
@@ -692,6 +707,9 @@ class PlanExecutor:
             # (mesmo fluxo de "sem verifier").
             return replace(
                 run, status=PlannedTaskStatus.DONE, result=result,
+                verification_name=(self._verifier.name if self._verifier is not None else None),
+                verification_detail=(outcome.detail if self._verifier is not None else None),
+                verification_authority=(outcome.authority if self._verifier is not None else None),
                 attempts=attempt, attempt_log=tuple(attempt_log),
             )
         raise ExecutorError("Loop de tentativas encerrado sem resultado.")  # pragma: no cover

@@ -140,8 +140,11 @@ def test_tarefas_chegam_ao_executor_em_ordem(tmp_path):
     outcome = agent.process_message(
         "Leia o arquivo a.txt e depois leia o arquivo b.txt"
     )
-    assert outcome.state is RequestState.COMPLETED
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
     assert "2/2 tarefa(s)" in outcome.text
+    assert len(outcome.execution_evidence) == 2
+    assert all(item.result_sha256 for item in outcome.execution_evidence)
+    assert all(item.verification_status == "not_run" for item in outcome.execution_evidence)
     # A dependência T2←T1 só libera T2 quando T1 está DONE: o executor
     # preservou a ordem e o relatório agregado chega ao chat.
     assert (ws / "a.txt").read_text(encoding="utf-8") == "CONTEUDO A"
@@ -153,7 +156,7 @@ def test_read_seguido_de_read_executa_sem_aprovacao(tmp_path):
     outcome = agent.process_message(
         "Leia o arquivo a.txt e depois leia o arquivo b.txt"
     )
-    assert outcome.state is RequestState.COMPLETED
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
     assert not controller.has_pending
 
 
@@ -241,8 +244,8 @@ def test_bridge_informa_total_pausa_e_falha(tmp_path):
     outcome = agent.process_message(
         "Leia o arquivo a.txt e depois leia o arquivo b.txt"
     )
-    assert outcome.state is RequestState.COMPLETED
-    assert "2/2 tarefa(s)" in outcome.text and "concluído" in outcome.text
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
+    assert "2/2 tarefa(s)" in outcome.text and "concluída" in outcome.text
 
     # pausado: informa a operação corrente (T2 = write_file)
     outcome = agent.process_message(

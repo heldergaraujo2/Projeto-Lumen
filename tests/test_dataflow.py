@@ -312,7 +312,7 @@ def test_regressao_multitask_via_chat(tmp_path):
     outcome = agent.process_message(
         "Leia o arquivo a.txt e depois leia o arquivo b.txt"
     )
-    assert outcome.state is RequestState.COMPLETED
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
     assert "2/2 tarefa(s)" in outcome.text
 
 

@@ -7,9 +7,11 @@ controlada (plano FAILED com motivo) — nunca execução parcial.
 from __future__ import annotations
 
 import dataclasses
+import json
 
 import pytest
 
+from app.ai.provider import ProviderError
 from app.ai.types import AIResponse, ResponseType
 from app.planner.catalog import (
     build_catalog,
@@ -43,9 +45,16 @@ class FixedProvider:
     def __init__(self, content: str) -> None:
         self._content = content
         self.calls: list[str] = []
+        self.requests: list[dict] = []
 
     def chat(self, message, context=None, *, system_prompt=None, **kwargs):
         self.calls.append(system_prompt or "")
+        self.requests.append({
+            "message": message,
+            "context": [dict(item) for item in context or []],
+            "system_prompt": system_prompt,
+            "options": dict(kwargs),
+        })
         return AIResponse(
             content=self._content, model="fixed", usage=None,
             finish_reason="stop", response_type=ResponseType.FINAL_RESPONSE,
@@ -176,13 +185,64 @@ def test_planner_produces_tool_and_parameters():
 
 
 def test_planner_conversation_type_does_not_create_plan():
-    import json
-
     result = make_planner(
         json.dumps({"type": "conversation"})
     ).create_tool_plan("olá")
     assert result.kind == "conversation"
     assert result.plan.tasks == ()  # nenhum plano, nenhuma tarefa
+
+
+@pytest.mark.parametrize("content", [
+    '{"status":"Operação realizada com sucesso.","message":"Estou funcionando."}',
+    '{"type":"other","status":"ok"}',
+])
+def test_planner_rejects_valid_json_outside_protocol(content):
+    result = make_planner(content).create_tool_plan("oi")
+    assert result.kind == "invalid"
+    assert result.plan.status is PlanStatus.FAILED
+    assert result.plan.tasks == ()
+
+
+def test_planner_rejects_extra_fields_on_conversation_result():
+    result = make_planner(
+        '{"type":"conversation","message":"resposta arbitrária"}'
+    ).create_tool_plan("oi")
+    assert result.kind == "invalid"
+    assert result.plan.tasks == ()
+
+
+def test_ollama_planner_requests_protocol_json_schema():
+    class OllamaFixedProvider(FixedProvider):
+        name = "ollama"
+
+    provider = OllamaFixedProvider('{"type":"conversation"}')
+    result = Planner(
+        provider, catalog=build_catalog(include_terminal=False),
+    ).create_tool_plan("oi")
+
+    assert result.kind == "conversation"
+    options = provider.requests[0]["options"]
+    schema = options["json_schema"]
+    assert "json_format" not in options
+    assert len(schema["oneOf"]) == 2
+    conversation, plan = schema["oneOf"]
+    assert conversation["properties"]["type"]["const"] == "conversation"
+    assert plan["properties"]["type"]["const"] == "plan"
+    assert plan["required"] == ["type", "objective", "analysis", "tasks"]
+
+
+def test_planner_provider_failure_is_invalid_and_has_no_tasks():
+    class FailingProvider(FixedProvider):
+        def chat(self, *args, **kwargs):
+            raise ProviderError("falha simulada")
+
+    result = Planner(
+        FailingProvider(""), catalog=build_catalog(include_terminal=False),
+    ).create_tool_plan("oi")
+    assert result.kind == "invalid"
+    assert result.plan.status is PlanStatus.FAILED
+    assert result.plan.tasks == ()
+    assert "falhou" in (result.reason or "")
 
 
 def test_planner_rejects_invented_tool_with_clear_reason():

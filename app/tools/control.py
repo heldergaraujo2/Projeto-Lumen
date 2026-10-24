@@ -190,6 +190,7 @@ def _auto_pytest_limit_report(plan: Plan) -> ExecutionReport:
             description=task.description,
             order=task.order,
             dependencies=task.dependencies,
+            tool=task.tool,
             status=PlannedTaskStatus.SKIPPED,
             error="Pulada: guardrail 11F (plano no limite de tasks).",
         )
