@@ -688,10 +688,16 @@ class ToolsController:
     def execution_store(self) -> ExecutionBundleStore:
         return self._execution_store
 
-    def get_interrupted_tasks(self) -> list[dict[str, Any]]:
-        """Retorna tarefas pendentes ou interrompidas salvas no histórico de execuções."""
+    def get_interrupted_tasks(self, *, conversation_id: str) -> list[dict[str, Any]]:
+        """Retorna tarefas interrompidas somente da conversa explicitamente solicitada."""
+        if not isinstance(conversation_id, str) or not conversation_id.strip():
+            raise ToolsControlError(
+                "Consultar tarefas interrompidas exige conversation_id explícito."
+            )
         interrupted = []
-        execs = self._execution_store.query_executions(limit=50)
+        execs = self._execution_store.query_executions(
+            conversation_id=conversation_id, limit=50
+        )
         for rec in execs:
             if rec.get("status") in ("PENDING", "RUNNING", "FAILED", "UNKNOWN"):
                 interrupted.append(rec)
