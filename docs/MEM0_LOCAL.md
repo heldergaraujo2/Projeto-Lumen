@@ -30,37 +30,40 @@ O modelo de conversa do Mem0 deve ser um modelo **já instalado** no Ollama.
 Use o nome exato mostrado por `ollama list`:
 
 ```powershell
-$env:LUMEN_MEM0_ENABLED = "1"
 $env:LUMEN_MEM0_LLM_MODEL = "NOME_EXATO_DO_MODELO_INSTALADO"
 $env:LUMEN_MEM0_EMBED_MODEL = "nomic-embed-text:latest"
 $env:LUMEN_MEM0_EMBEDDING_DIMS = "768"
 ```
 
-Essas variáveis valem para o terminal atual. Não alteram `data/settings.json`,
-não mudam o provider principal da Lúmen e não ativam Mem0 em outros terminais.
-Se quiser testar o modo sem Mem0, abra um terminal novo ou remova
-`LUMEN_MEM0_ENABLED`.
+Essas variáveis valem para o terminal atual. Não alteram `data/settings.json`
+nem mudam o provider principal da Lúmen. Mem0 só será ativado no processo que
+também receber `LUMEN_MEM0_ENABLED=1`.
 
 ## Testes
 
-Primeiro rode os testes offline, sem chamar o Ollama:
+Primeiro garanta que o modo real esteja desligado e rode os testes offline:
 
 ```powershell
+Remove-Item Env:LUMEN_MEM0_ENABLED -ErrorAction SilentlyContinue
+Remove-Item Env:LUMEN_MEM0_INTEGRATION_TESTS -ErrorAction SilentlyContinue
 python -m pytest -q tests/test_mem0_index.py tests/test_mem0_memory_system.py tests/test_mem0_local_integration.py tests/test_memory.py tests/test_memory_system.py
 ```
 
-O teste real de integração fica ignorado por padrão. Para executá-lo depois que
-Ollama estiver ativo, os modelos estiverem disponíveis e as variáveis acima
-estiverem definidas:
+O teste real de integração fica ignorado por padrão. Depois que Ollama estiver
+ativo, os modelos estiverem disponíveis e as variáveis acima estiverem definidas:
 
 ```powershell
+$env:LUMEN_MEM0_ENABLED = "1"
 $env:LUMEN_MEM0_INTEGRATION_TESTS = "1"
 python -m pytest -q tests/test_mem0_local_integration.py -s
 ```
 
-Depois, rode a suíte completa:
+Antes da suíte completa, desligue o modo Mem0 para impedir que testes unitários
+iniciem chamadas reais ao Ollama:
 
 ```powershell
+Remove-Item Env:LUMEN_MEM0_ENABLED -ErrorAction SilentlyContinue
+Remove-Item Env:LUMEN_MEM0_INTEGRATION_TESTS -ErrorAction SilentlyContinue
 python -m pytest -q
 ```
 
