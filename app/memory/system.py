@@ -42,6 +42,7 @@ from app.memory.records import (
     MemoryRecord,
 )
 from app.memory.store import MemoryStore
+from app.memory.mem0_index import Mem0SemanticIndex
 
 logger = logging.getLogger("lumen.memory.system")
 
@@ -82,12 +83,16 @@ class MemorySystem:
             ``build_context`` (alinha-se a ``LUMEN_MAX_MEMORY_RECORDS``).
     """
 
-    def __init__(self, data_dir: Path | str, max_context_records: int = 12) -> None:
+    def __init__(
+        self, data_dir: Path | str, max_context_records: int = 12, *,
+        semantic_index: Mem0SemanticIndex | None = None,
+    ) -> None:
         if max_context_records < 1:
             raise ValueError("max_context_records deve ser >= 1.")
         memory_dir = Path(data_dir) / "memory"
         self._memory_dir = memory_dir
         self._max_context_records = max_context_records
+        self._semantic_index = semantic_index or Mem0SemanticIndex(memory_dir / "mem0")
         self.conversation = MemoryStore(memory_dir / "conversation.json")
         self._stores: dict[MemoryKind, RecordStore] = {
             kind: RecordStore(memory_dir / filename, kind)
@@ -123,14 +128,19 @@ class MemorySystem:
         related_ids: tuple[str, ...] | list[str] = (),
     ) -> MemoryRecord:
         """Grava um registro no domínio indicado (dedup + redação de segredos)."""
-        return self._stores[kind].add(
+        record = self._stores[kind].add(
             title, content, origin=origin, tags=tags,
             project_id=project_id, related_ids=related_ids,
         )
+        # Mem0 is an optional index only; JSON stores remain authoritative.
+        self._semantic_index.add_record(record)
+        return record
 
     def update(self, kind: MemoryKind, record_id: str, **kwargs) -> MemoryRecord:
         """Atualiza um registro do domínio (ver ``RecordStore.update``)."""
-        return self._stores[kind].update(record_id, **kwargs)
+        record = self._stores[kind].update(record_id, **kwargs)
+        self._semantic_index.add_record(record)
+        return record
 
     def mark_obsolete(self, kind: MemoryKind, record_id: str, *, reason: str = "") -> MemoryRecord:
         """Marca um registro como obsoleto (histórico preservado)."""
@@ -138,7 +148,9 @@ class MemorySystem:
 
     def supersede(self, kind: MemoryKind, record_id: str, title: str, content: str, **kwargs) -> MemoryRecord:
         """Substitui um registro por uma nova versão (trilha supersedes)."""
-        return self._stores[kind].supersede(record_id, title, content, **kwargs)
+        record = self._stores[kind].supersede(record_id, title, content, **kwargs)
+        self._semantic_index.add_record(record)
+        return record
 
     def get(self, kind: MemoryKind, record_id: str) -> MemoryRecord:
         return self._stores[kind].get(record_id)
@@ -179,6 +191,31 @@ class MemorySystem:
         hits: list[SearchHit] = []
         for _kind, store in selected:
             hits.extend(store.search(query, limit=limit, include_obsolete=include_obsolete))
+        # Mem0 returns only references; each reference is resolved back through
+        # the authoritative JSON store so stale, missing, or obsolete memories
+        # can never enter the prompt just because they remain in the vector DB.
+        selected_kinds = None if kinds is None else set(kinds)
+        seen_ids = {hit.record.id for hit in hits}
+        for record_id, kind_name, semantic_score in self._semantic_index.search(query, limit=limit):
+            try:
+                kind = MemoryKind(kind_name)
+            except ValueError:
+                continue
+            if selected_kinds is not None and kind not in selected_kinds:
+                continue
+            try:
+                record = self._stores[kind].get(record_id)
+            except RecordNotFoundError:
+                continue
+            if not include_obsolete and getattr(record.status, "value", record.status) != "ACTIVE":
+                continue
+            if record.id in seen_ids:
+                continue
+            seen_ids.add(record.id)
+            # Keep exact title matches ahead of semantic hits, while allowing
+            # semantic similarity to outrank weak keyword/content-only matches.
+            normalized_score = min(1.0, max(0.0, semantic_score))
+            hits.append(SearchHit(record=record, score=1.01 + 1.9 * normalized_score))
         hits.sort(key=lambda hit: (-hit.score, hit.record.id))
         return hits[:limit]
 
