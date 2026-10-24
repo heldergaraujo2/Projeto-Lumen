@@ -697,11 +697,34 @@ class ToolsController:
                 interrupted.append(rec)
         return interrupted
 
-    def resume_execution(self, plan_id: str) -> ExecutionReport:
-        """Retoma a execução de um plano salvo preservando tarefas concluídas."""
+    def resume_execution(
+        self, plan_id: str, *, conversation_id: str
+    ) -> ExecutionReport:
+        """Retoma um plano somente com identidade de conversa explícita e estado seguro.
+
+        O identificador da conversa é obrigatório para impedir que uma chamada
+        de outra sessão retome um plano alheio. Estados ambíguos falham fechados:
+        somente PENDING pode ser executada; tarefas concluídas precisam conter
+        um resultado íntegro e tarefas ausentes/em andamento/falhas não são
+        reexecutadas automaticamente.
+        """
+        if not isinstance(conversation_id, str) or not conversation_id.strip():
+            raise ToolsControlError(
+                "Retomada exige conversation_id explícito; nenhuma tarefa foi executada."
+            )
         bundle = self._execution_store.load_bundle(plan_id)
         if not bundle:
             raise ToolsControlError(f"Plano {plan_id} não encontrado para retomada.")
+
+        bundle_conversation_id = bundle.get("conversation_id")
+        if (
+            not isinstance(bundle_conversation_id, str)
+            or not bundle_conversation_id
+            or bundle_conversation_id != conversation_id
+        ):
+            raise ToolsControlError(
+                f"O plano {plan_id} não pertence à conversa informada; retomada bloqueada."
+            )
 
         plan_dict = bundle.get("plan")
         if not isinstance(plan_dict, dict) or "tasks" not in plan_dict:
@@ -744,36 +767,73 @@ class ToolsController:
         )
 
         initial_runs: dict[str, TaskRun] = {}
+        task_ids = {task.id for task in tasks}
+        if len(task_ids) != len(tasks):
+            raise ToolsControlError(
+                f"O plano {plan_id} contém IDs de tarefa duplicados; retomada bloqueada."
+            )
+        extra_saved = set(saved_tasks) - task_ids
+        if extra_saved:
+            raise ToolsControlError(
+                f"O histórico do plano {plan_id} contém tarefas desconhecidas "
+                f"({', '.join(sorted(extra_saved))}); retomada bloqueada."
+            )
+
         for task in tasks:
             saved = saved_tasks.get(task.id)
-            if saved:
-                st = str(saved.get("status", "")).upper()
-                if st in ("UNKNOWN", "UNKNOWN_STATE"):
+            if not isinstance(saved, dict):
+                raise ToolsControlError(
+                    f"A tarefa {task.id} do plano {plan_id} não possui registro "
+                    "de estado; retomada bloqueada para evitar reexecução duplicada."
+                )
+            st = str(saved.get("status", "")).upper()
+            if st in ("DONE", "SUCCEEDED", "COMPLETED"):
+                raw_res = saved.get("result")
+                if isinstance(raw_res, dict):
+                    parsed_res = raw_res
+                    raw_res = json.dumps(raw_res)
+                elif isinstance(raw_res, str) and raw_res.strip():
+                    try:
+                        parsed_res = json.loads(raw_res)
+                    except (TypeError, ValueError):
+                        parsed_res = None
+                else:
+                    parsed_res = None
+                if not isinstance(parsed_res, dict) or parsed_res.get("ok") is not True:
                     raise ToolsControlError(
-                        f"A tarefa {task.id} do plano {plan_id} possui estado 'UNKNOWN'. "
-                        "Retomada interrompida por segurança."
+                        f"A tarefa concluída {task.id} do plano {plan_id} não possui "
+                        "resultado íntegro; retomada bloqueada."
                     )
-                if st in ("DONE", "SUCCEEDED", "COMPLETED"):
-                    raw_res = saved.get("result")
-                    if isinstance(raw_res, dict):
-                        raw_res = json.dumps(raw_res)
-                    initial_runs[task.id] = TaskRun(
-                        id=task.id,
-                        description=task.description,
-                        order=task.order,
-                        dependencies=task.dependencies,
-                        status=PlannedTaskStatus.DONE,
-                        result=raw_res,
-                        verified=saved.get("verified"),
-                        conversation_id=bundle.get("conversation_id"),
-                    )
+                initial_runs[task.id] = TaskRun(
+                    id=task.id,
+                    description=task.description,
+                    order=task.order,
+                    dependencies=task.dependencies,
+                    status=PlannedTaskStatus.DONE,
+                    result=raw_res,
+                    verified=saved.get("verified"),
+                    conversation_id=bundle_conversation_id,
+                )
+            elif st == "PENDING":
+                # Único estado retomável: não há indicação de que a ferramenta
+                # tenha começado a executar.
+                continue
+            else:
+                # RUNNING/IN_PROGRESS/FAILED/UNKNOWN/ausente/etc. podem ter
+                # produzido efeitos antes da interrupção. Nunca repetir às cegas.
+                label = st or "AUSENTE"
+                raise ToolsControlError(
+                    f"A tarefa {task.id} do plano {plan_id} possui estado "
+                    f"'{label}' não seguro para retomada automática. "
+                    "Retomada bloqueada; nenhuma tarefa foi executada."
+                )
 
         plan = Plan(
             id=str(plan_dict.get("id", plan_id)),
             objective=str(plan_dict.get("objective", "Retomada de plano")),
             status=PlanStatus.READY,
             tasks=tasks,
-            conversation_id=bundle.get("conversation_id"),
+            conversation_id=bundle_conversation_id,
         )
 
         sandbox = self._sandbox()
