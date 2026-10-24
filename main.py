@@ -122,6 +122,8 @@ def main() -> int:
             workspaces_file=settings.data_dir / "workspaces.json",
             audit_file=settings.data_dir / "audit" / "audit.jsonl",
             terminal_file=settings.data_dir / "terminal.json",
+            persist_execution_state=settings.persist_execution_state,
+            execution_state_dir=settings.execution_dir,
             toggles_file=settings.data_dir / "agent_toggles.json",
             export_execution_reports=settings.export_execution_reports,
             reports_dir=settings.data_dir / "reports",
