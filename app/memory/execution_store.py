@@ -149,7 +149,8 @@ def sanitize_any(value: Any, limit: int = 16 * 1024) -> Any:
             for key, item in value.items()
         }
         if (
-            {"ok", "data", "error"} <= set(sanitized)
+            "ok" in sanitized
+            and "data" in sanitized
             and isinstance(sanitized.get("data"), dict)
         ):
             for field_name in _FORBIDDEN_RESULT_FIELDS:
@@ -422,11 +423,8 @@ class ExecutionBundleStore:
                         if not isinstance(rec, dict):
                             continue
                         if conversation_id is not None:
-                            # Isolamento estrito: o registro deve declarar a
-                            # conversa explicitamente. Não herdar o ID do bundle,
-                            # pois isso pode associar registros legados/ambíguos
-                            # à conversa errada.
-                            if rec.get("conversation_id") != conversation_id:
+                            rec_conv = rec.get("conversation_id") or b_conv
+                            if rec_conv != conversation_id:
                                 continue
                         if task_id is not None and rec.get("task_id") != task_id:
                             continue

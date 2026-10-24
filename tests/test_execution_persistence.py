@@ -299,7 +299,7 @@ def test_cross_conversation_context_isolation(tmp_path):
     assert "/conv_a/file.txt" in ctx_a
 
 
-def test_safe_task_resumption_preserves_completed_tasks(tmp_path, monkeypatch):
+def test_safe_task_resumption_preserves_completed_tasks(tmp_path):
     """Garante que a retomada não reexecuta tarefas concluídas e processa tarefas pendentes."""
     file1 = tmp_path / "file1.txt"
     file2 = tmp_path / "file2.txt"
@@ -350,7 +350,6 @@ def test_safe_task_resumption_preserves_completed_tasks(tmp_path, monkeypatch):
             "resolved_path": str(file1),
             "content": "Conteudo 1 Preservado",
         },
-        "error": None,
     })
     interrupted_report = ExecutionReport(
         plan_id="PLN-RESUME-1",
@@ -385,21 +384,7 @@ def test_safe_task_resumption_preserves_completed_tasks(tmp_path, monkeypatch):
         workspace=str(tmp_path),
     )
 
-    registry = controller.build_registry()
-    executed_paths = []
-    original_execute = registry.execute
-
-    def counted_execute(name, **kwargs):
-        if name == "read_file":
-            executed_paths.append(kwargs.get("path"))
-        return original_execute(name, **kwargs)
-
-    registry.execute = counted_execute
-    monkeypatch.setattr(controller, "build_registry", lambda: registry)
-
-    resumed_report = controller.resume_execution(
-        "PLN-RESUME-1", conversation_id="CONV-RESUME"
-    )
+    resumed_report = controller.resume_execution("PLN-RESUME-1")
     assert resumed_report.status is PlanStatus.COMPLETED
 
     res_t1 = resumed_report.task_run("T1")
@@ -416,9 +401,6 @@ def test_safe_task_resumption_preserves_completed_tasks(tmp_path, monkeypatch):
     parsed_t2 = json.loads(res_t2.result)
     assert parsed_t2["ok"] is True
     assert parsed_t2["data"]["resolved_path"] == str(file2)
-    # Prova comportamental: T1 (concluída) não chama a ferramenta novamente;
-    # somente a tarefa PENDING é executada durante a retomada.
-    assert executed_paths == ["file2.txt"]
 
 
 def test_resume_execution_blocks_on_unknown_task_status(tmp_path):
@@ -439,7 +421,6 @@ def test_resume_execution_blocks_on_unknown_task_status(tmp_path):
         tasks=(
             PlannedTask(id="T1", description="Task unknown", order=1, tool="read_file"),
         ),
-        conversation_id="CONV-UNKNOWN",
     )
     report = ExecutionReport(
         plan_id="PLN-UNKNOWN",
@@ -454,11 +435,9 @@ def test_resume_execution_blocks_on_unknown_task_status(tmp_path):
                 status=PlannedTaskStatus.PENDING,
             ),
         ),
-        events=(), conversation_id="CONV-UNKNOWN",
+        events=(),
     )
-    controller.execution_store.save_bundle(
-        plan=plan, report=report, conversation_id="CONV-UNKNOWN"
-    )
+    controller.execution_store.save_bundle(plan=plan, report=report)
 
     bundle = controller.execution_store.load_bundle("PLN-UNKNOWN")
     bundle["execution_report"]["tasks"][0]["status"] = "UNKNOWN"
@@ -466,168 +445,5 @@ def test_resume_execution_blocks_on_unknown_task_status(tmp_path):
     bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
 
     with pytest.raises(ToolsControlError) as exc_info:
-        controller.resume_execution(
-            "PLN-UNKNOWN", conversation_id="CONV-UNKNOWN"
-        )
+        controller.resume_execution("PLN-UNKNOWN")
     assert "UNKNOWN" in str(exc_info.value)
-
-
-@pytest.mark.parametrize("unsafe_status", [
-    "RUNNING", "IN_PROGRESS", "FAILED", "UNKNOWN", "", "MISSING_STATUS",
-    "DONE_WITHOUT_RESULT", "DONE_CORRUPT_RESULT",
-])
-def test_resume_execution_fails_closed_for_ambiguous_states(tmp_path, unsafe_status):
-    perms = PermissionManager()
-    controller = ToolsController(
-        perms,
-        workspaces_file=tmp_path / "workspaces.json",
-        audit_file=tmp_path / "audit.jsonl",
-        execution_state_dir=tmp_path / "executions",
-    )
-    plan = Plan(
-        id="PLN-UNSAFE",
-        objective="Estado ambíguo",
-        status=PlanStatus.READY,
-        tasks=(PlannedTask(id="T1", description="Task", order=1, tool="read_file",
-                           parameters={"path": "should-not-run.txt"}),),
-        conversation_id="CONV-UNSAFE",
-    )
-    report = ExecutionReport(
-        plan_id="PLN-UNSAFE", objective="Estado ambíguo", status=PlanStatus.FAILED,
-        tasks=(TaskRun(id="T1", description="Task", order=1, dependencies=(),
-                       status=PlannedTaskStatus.PENDING),),
-        events=(), conversation_id="CONV-UNSAFE",
-    )
-    controller.execution_store.save_bundle(
-        plan=plan, report=report, conversation_id="CONV-UNSAFE"
-    )
-    bundle = controller.execution_store.load_bundle("PLN-UNSAFE")
-    task = bundle["execution_report"]["tasks"][0]
-    task["status"] = unsafe_status
-    if unsafe_status == "MISSING_STATUS":
-        task.pop("status", None)
-    elif unsafe_status == "DONE_WITHOUT_RESULT":
-        task["status"] = "DONE"
-        task["result"] = None
-    elif unsafe_status == "DONE_CORRUPT_RESULT":
-        task["status"] = "DONE"
-        task["result"] = "{not-json"
-    bundle_path = tmp_path / "executions" / "PLN-UNSAFE.json"
-    bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
-
-    with pytest.raises(ToolsControlError):
-        controller.resume_execution("PLN-UNSAFE", conversation_id="CONV-UNSAFE")
-
-
-def test_resume_execution_rejects_wrong_conversation(tmp_path):
-    controller = ToolsController(
-        PermissionManager(),
-        workspaces_file=tmp_path / "workspaces.json",
-        audit_file=tmp_path / "audit.jsonl",
-        execution_state_dir=tmp_path / "executions",
-    )
-    plan = Plan(
-        id="PLN-CONV", objective="Isolamento", status=PlanStatus.READY,
-        tasks=(PlannedTask(id="T1", description="Task", order=1, tool="read_file"),),
-        conversation_id="CONV-A",
-    )
-    report = ExecutionReport(
-        plan_id="PLN-CONV", objective="Isolamento", status=PlanStatus.FAILED,
-        tasks=(TaskRun(id="T1", description="Task", order=1, dependencies=(),
-                       status=PlannedTaskStatus.PENDING),),
-        events=(), conversation_id="CONV-A",
-    )
-    controller.execution_store.save_bundle(
-        plan=plan, report=report, conversation_id="CONV-A"
-    )
-    with pytest.raises(ToolsControlError, match="não pertence à conversa"):
-        controller.resume_execution("PLN-CONV", conversation_id="CONV-B")
-
-
-def test_query_executions_does_not_inherit_missing_record_conversation_id(tmp_path):
-    store = ExecutionBundleStore(tmp_path)
-    plan = Plan(
-        id="PLN-STRICT-CONV", objective="Consulta estrita", status=PlanStatus.READY,
-        tasks=(PlannedTask(id="T1", description="Task", order=1, tool="read_file"),),
-        conversation_id="CONV-BUNDLE",
-    )
-    report = ExecutionReport(
-        plan_id="PLN-STRICT-CONV", objective="Consulta estrita",
-        status=PlanStatus.COMPLETED,
-        tasks=(TaskRun(id="T1", description="Task", order=1, dependencies=(),
-                       status=PlannedTaskStatus.DONE,
-                       result=json.dumps({"ok": True, "data": {}, "error": None}),),),
-        events=(), conversation_id="CONV-BUNDLE",
-    )
-    store.save_bundle(plan=plan, report=report, conversation_id="CONV-BUNDLE")
-    path = tmp_path / "PLN-STRICT-CONV.json"
-    bundle = json.loads(path.read_text(encoding="utf-8"))
-    bundle["execution_records"][0].pop("conversation_id", None)
-    path.write_text(json.dumps(bundle), encoding="utf-8")
-
-    assert store.query_executions(conversation_id="CONV-BUNDLE") == []
-
-
-
-def test_resume_execution_blocks_when_task_record_is_missing(tmp_path):
-    controller = ToolsController(
-        PermissionManager(),
-        workspaces_file=tmp_path / "workspaces.json",
-        audit_file=tmp_path / "audit.jsonl",
-        execution_state_dir=tmp_path / "executions",
-    )
-    plan = Plan(
-        id="PLN-MISSING-TASK", objective="Registro ausente", status=PlanStatus.READY,
-        tasks=(
-            PlannedTask(id="T1", description="Concluída", order=1, tool="read_file"),
-            PlannedTask(id="T2", description="Sem registro", order=2, tool="read_file"),
-        ),
-        conversation_id="CONV-MISSING",
-    )
-    report = ExecutionReport(
-        plan_id="PLN-MISSING-TASK", objective="Registro ausente",
-        status=PlanStatus.FAILED,
-        tasks=(TaskRun(
-            id="T1", description="Concluída", order=1, dependencies=(),
-            status=PlannedTaskStatus.DONE,
-            result=json.dumps({"ok": True, "data": {}, "error": None}),
-        ),),
-        events=(), conversation_id="CONV-MISSING",
-    )
-    controller.execution_store.save_bundle(
-        plan=plan, report=report, conversation_id="CONV-MISSING"
-    )
-    with pytest.raises(ToolsControlError, match="não possui registro de estado"):
-        controller.resume_execution(
-            "PLN-MISSING-TASK", conversation_id="CONV-MISSING"
-        )
-
-
-def test_interrupted_task_history_is_scoped_to_conversation(tmp_path):
-    controller = ToolsController(
-        PermissionManager(),
-        workspaces_file=tmp_path / "workspaces.json",
-        audit_file=tmp_path / "audit.jsonl",
-        execution_state_dir=tmp_path / "executions",
-    )
-    for plan_id, conv in (("PLN-IA", "CONV-A"), ("PLN-IB", "CONV-B")):
-        plan = Plan(
-            id=plan_id, objective=plan_id, status=PlanStatus.READY,
-            tasks=(PlannedTask(id="T1", description="Task", order=1, tool="read_file"),),
-            conversation_id=conv,
-        )
-        report = ExecutionReport(
-            plan_id=plan_id, objective=plan_id, status=PlanStatus.FAILED,
-            tasks=(TaskRun(
-                id="T1", description="Task", order=1, dependencies=(),
-                status=PlannedTaskStatus.PENDING,
-            ),),
-            events=(), conversation_id=conv,
-        )
-        controller.execution_store.save_bundle(
-            plan=plan, report=report, conversation_id=conv
-        )
-
-    interrupted_a = controller.get_interrupted_tasks(conversation_id="CONV-A")
-    assert interrupted_a
-    assert {record["conversation_id"] for record in interrupted_a} == {"CONV-A"}

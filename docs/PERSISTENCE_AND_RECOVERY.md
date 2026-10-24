@@ -71,10 +71,8 @@ Ao receber uma pergunta conversacional sobre execuções anteriores:
 ## 4. Retomada de Tarefas Interrompidas (Fase F)
 
 O `ToolsController` expõe os métodos:
-- `get_interrupted_tasks(conversation_id=...)`: exige o ID não vazio da conversa e consulta somente registros cujo próprio `conversation_id` corresponda exatamente ao informado.
-- `resume_execution(plan_id, conversation_id=...)`: exige a identidade da conversa e valida que bundle, plano e relatório pertencem à mesma conversa antes de montar o executor.
-
-A retomada é **fail-closed**: somente tarefas em estado `PENDING` podem ser executadas. Tarefas `DONE`/`SUCCEEDED`/`COMPLETED` são reutilizadas apenas quando têm resultado JSON íntegro com `ok: true`; seus resultados não são executados de novo. Estado `RUNNING`, `IN_PROGRESS`, `FAILED`, `UNKNOWN`, estado ausente, tarefa sem registro, ID duplicado/desconhecido ou resultado ausente/corrompido bloqueiam toda a retomada. O histórico de uma tarefa sem `conversation_id` explícito não herda a identidade do bundle e não aparece em consultas filtradas por conversa.
+- `get_interrupted_tasks()`: Consulta registros em estado `PENDING`, `RUNNING`, `FAILED` ou `UNKNOWN`.
+- `resume_execution(plan_id)`: Carrega o bundle salvo do plano e reinstancia o `PlanExecutor` para dar continuidade à execução a partir das tarefas pendentes.
 
 ---
 
