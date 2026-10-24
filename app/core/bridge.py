@@ -196,12 +196,12 @@ class ToolCallingBridge:
             # remain conversational and do not trigger tool execution.
             if _is_explicit_action_request(cleaned):
                 retry_request = (
-                    f"{cleaned}\\n\\n"
-                    "ROTEAMENTO OBRIGATÓRIO: o pedido acima solicita uma ação concreta. "
-                    "Reavalie a allowlist fornecida e retorne \\"type\\": \\"plan\\" "
-                    "com ferramentas existentes se houver ferramenta adequada. "
-                    "Não responda em linguagem natural. Se não houver ferramenta adequada, "
-                    "retorne \\"type\\": \\"conversation\\" sem inventar capacidades."
+                    f"{cleaned}\n\n"
+                    'ROTEAMENTO OBRIGATÓRIO: o pedido acima solicita uma ação concreta. '
+                    'Reavalie a allowlist fornecida e retorne "type": "plan" '
+                    'com ferramentas existentes se houver ferramenta adequada. '
+                    'Não responda em linguagem natural. Se não houver ferramenta adequada, '
+                    'retorne "type": "conversation" sem inventar capacidades.'
                 )
                 result = self._agent.request_tool_plan(retry_request, catalog)
                 if result.kind == "conversation":
