@@ -1411,6 +1411,11 @@ class ToolsController:
         self._executor = PlanExecutor(
             plan, handler, checkpoints=_CombinedCheckpoints(policies),
             verifier=self._verifier,  # 11E: None (default) ou opt-in
+            state_callback=(
+                (lambda snapshot: self._persist_execution_snapshot(plan, snapshot))
+                if self._persist_execution_state and self._conversation_id
+                else None
+            ),
         )
         if self._autonomous_mode:
             return self._drive_autonomous()
@@ -1456,6 +1461,29 @@ class ToolsController:
         while self._executor.step() is not None:
             pass
         return self._executor.report()
+
+    def _persist_execution_snapshot(self, plan: Plan, report: ExecutionReport) -> None:
+        """Persiste progresso por tarefa para recuperação explícita.
+
+        O callback só existe com persistência opt-in e identidade de conversa.
+        O store sanitiza o resultado; IN_PROGRESS é deliberadamente gravado
+        antes do handler para impedir repetição automática após queda ambígua.
+        """
+        if not self._persist_execution_state or not self._conversation_id:
+            return
+        from app import __version__
+
+        base_dir = self._execution_state_dir
+        if base_dir is None:
+            from app.config.settings import Settings
+            base_dir = Settings().execution_dir
+        ExecutionBundleStore(base_dir).save_bundle(
+            plan=plan,
+            report=report,
+            correction=self.correction_history() or None,
+            lumen_version=__version__,
+            conversation_id=self._conversation_id,
+        )
 
     def _final(self, report: ExecutionReport) -> ExecutionReport:
         """9B: persiste o bundle em estado TERMINAL (best-effort, opt-in).
