@@ -6,6 +6,7 @@ import sys
 import pytest
 
 from app.mcp_runtime import MCPError, MCPServerConfig, MCPStdioClient
+from app.mcp_runtime.stdio import _child_environment
 
 
 FAKE_SERVER = r'''import json, sys
@@ -75,3 +76,23 @@ def test_mcp_stdio_rejects_unadvertised_tool() -> None:
         finally:
             await client.close()
     asyncio.run(run())
+
+
+def test_mcp_child_environment_does_not_inherit_unrelated_secrets() -> None:
+    env = _child_environment(
+        {
+            "PATH": "/safe/bin",
+            "HOME": "/home/test",
+            "LUMEN_API_KEY": "must-not-leak",
+            "OPENAI_API_KEY": "must-not-leak-either",
+            "CUSTOM_PARENT_SECRET": "must-not-leak",
+        },
+        {"MCP_TOKEN": "explicitly-configured"},
+    )
+
+    assert env["PATH"] == "/safe/bin"
+    assert env["HOME"] == "/home/test"
+    assert env["MCP_TOKEN"] == "explicitly-configured"
+    assert "LUMEN_API_KEY" not in env
+    assert "OPENAI_API_KEY" not in env
+    assert "CUSTOM_PARENT_SECRET" not in env
