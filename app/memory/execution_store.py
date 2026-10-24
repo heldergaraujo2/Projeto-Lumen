@@ -422,8 +422,11 @@ class ExecutionBundleStore:
                         if not isinstance(rec, dict):
                             continue
                         if conversation_id is not None:
-                            rec_conv = rec.get("conversation_id") or b_conv
-                            if rec_conv != conversation_id:
+                            # Isolamento estrito: o registro deve declarar a
+                            # conversa explicitamente. Não herdar o ID do bundle,
+                            # pois isso pode associar registros legados/ambíguos
+                            # à conversa errada.
+                            if rec.get("conversation_id") != conversation_id:
                                 continue
                         if task_id is not None and rec.get("task_id") != task_id:
                             continue
