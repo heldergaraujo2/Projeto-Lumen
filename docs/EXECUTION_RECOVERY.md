@@ -2,7 +2,7 @@
 
 ## Ativação
 
-A recuperação é opt-in. Configure `LUMEN_PERSIST_EXECUTION_STATE=true` no ambiente da Lúmen. O padrão permanece desligado. A identidade opaca da conversa é mantida localmente em `data/conversation_id.txt`; não é derivada do texto enviado ao modelo.
+A recuperação é opt-in. Configure `LUMEN_PERSIST_EXECUTION_STATE=true` no ambiente da Lúmen. O padrão permanece desligado. A identidade opaca do histórico local é mantida em `data/conversation_id.txt`; não é derivada do texto enviado ao modelo. Nesta etapa, ela identifica o histórico local desta instalação, não múltiplas conversas independentes dentro da mesma instalação. Não sincronize essa identidade entre usuários/instalações. Para isolamento por conversa de UI, a interface deverá futuramente emitir e persistir um ID distinto por conversa.
 
 ## Como retomar
 
@@ -24,7 +24,7 @@ Substitua o exemplo pelo ID do plano interrompido. O comando é tratado antes do
 - Checkpoints e aprovações não são restaurados. A tarefa pendente passa novamente pela política de aprovação vigente.
 - Parâmetros são persistidos a partir do plano original, não dos valores de data-flow resolvidos. Se a sanitização alterou parâmetros, a retomada é bloqueada.
 - Segredos, saídas de terminal e conteúdo integral de arquivos continuam sujeitos à sanitização existente.
-- O modo autônomo é bloqueado para retomada. O ciclo de correção não emite snapshots intermediários: se uma execução desse modo for interrompida, ela não será retomável. Um snapshot recuperável do executor direto continua usando o executor direto ao retomar; a Lúmen não injeta um ciclo de correção novo no meio da execução.
+- O modo autônomo e os ciclos de correção são bloqueados para retomada. O ciclo de correção não emite snapshots intermediários: se uma execução desse modo for interrompida, ela não será retomável. Um snapshot recuperável do executor direto continua usando o executor direto ao retomar; a Lúmen não injeta um ciclo de correção novo no meio da execução.
 
 ## Limitações operacionais
 
