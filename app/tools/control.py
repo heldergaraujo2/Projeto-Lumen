@@ -22,6 +22,7 @@ Garantias:
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 from uuid import uuid4
@@ -697,34 +698,117 @@ class ToolsController:
         return interrupted
 
     def resume_execution(self, plan_id: str) -> ExecutionReport:
-        """Retoma a execução de um plano salvo ou pausado."""
+        """Retoma a execução de um plano salvo preservando tarefas concluídas."""
         bundle = self._execution_store.load_bundle(plan_id)
         if not bundle:
             raise ToolsControlError(f"Plano {plan_id} não encontrado para retomada.")
 
         plan_dict = bundle.get("plan")
-        if not isinstance(plan_dict, dict):
-            raise ToolsControlError(f"Plano {plan_id} em formato inválido.")
+        if not isinstance(plan_dict, dict) or "tasks" not in plan_dict:
+            raise ToolsControlError(
+                f"O plano {plan_id} possui formato inválido e não pode ser retomado."
+            )
+
+        report_dict = bundle.get("execution_report")
+        records_list = bundle.get("execution_records")
+        if not report_dict and not records_list:
+            raise ToolsControlError(
+                f"O plano {plan_id} não possui histórico de execução suficiente para uma retomada segura."
+            )
+
+        saved_tasks: dict[str, dict[str, Any]] = {}
+        if isinstance(report_dict, dict) and isinstance(report_dict.get("tasks"), list):
+            for t in report_dict["tasks"]:
+                if isinstance(t, dict) and "id" in t:
+                    saved_tasks[str(t["id"])] = t
+        elif isinstance(records_list, list):
+            for rec in records_list:
+                if isinstance(rec, dict) and "task_id" in rec:
+                    saved_tasks[str(rec["task_id"])] = {
+                        "id": rec["task_id"],
+                        "status": rec.get("status"),
+                        "result": json.dumps(rec["result"]) if isinstance(rec.get("result"), dict) else rec.get("result"),
+                        "error": rec.get("error"),
+                    }
 
         tasks = tuple(
             PlannedTask(
-                id=t["id"],
-                description=t.get("description", ""),
-                order=t.get("order", idx + 1),
+                id=str(t["id"]),
+                description=str(t.get("description", "")),
+                order=int(t.get("order", idx + 1)),
                 tool=t.get("tool"),
-                parameters=t.get("parameters", {}),
+                parameters=t.get("parameters", {}) if isinstance(t.get("parameters"), dict) else {},
                 dependencies=tuple(t.get("dependencies", ())),
             )
             for idx, t in enumerate(plan_dict.get("tasks", []))
         )
+
+        initial_runs: dict[str, TaskRun] = {}
+        for task in tasks:
+            saved = saved_tasks.get(task.id)
+            if saved:
+                st = str(saved.get("status", "")).upper()
+                if st in ("UNKNOWN", "UNKNOWN_STATE"):
+                    raise ToolsControlError(
+                        f"A tarefa {task.id} do plano {plan_id} possui estado 'UNKNOWN'. "
+                        "Retomada interrompida por segurança."
+                    )
+                if st in ("DONE", "SUCCEEDED", "COMPLETED"):
+                    raw_res = saved.get("result")
+                    if isinstance(raw_res, dict):
+                        raw_res = json.dumps(raw_res)
+                    initial_runs[task.id] = TaskRun(
+                        id=task.id,
+                        description=task.description,
+                        order=task.order,
+                        dependencies=task.dependencies,
+                        status=PlannedTaskStatus.DONE,
+                        result=raw_res,
+                        verified=saved.get("verified"),
+                        conversation_id=bundle.get("conversation_id"),
+                    )
+
         plan = Plan(
-            id=plan_dict.get("id", plan_id),
-            objective=plan_dict.get("objective", "Retomada de plano"),
+            id=str(plan_dict.get("id", plan_id)),
+            objective=str(plan_dict.get("objective", "Retomada de plano")),
             status=PlanStatus.READY,
             tasks=tasks,
             conversation_id=bundle.get("conversation_id"),
         )
-        return self.run_plan(plan)
+
+        sandbox = self._sandbox()
+        registry = self.build_registry()
+        self._plan = plan
+        self._registry = registry
+
+        policies: list[ToolCheckpoints] = [
+            PrevalidatedCheckpoints(
+                self._permissions, registry, sandbox,
+                snapshots_dir=self._snapshots_dir,
+            )
+        ]
+        if self._unreal_client is not None:
+            policies.append(_UnrealCheckpoints(self._permissions))
+        if self._terminal_policy is not None:
+            policies.append(
+                PrevalidatedTerminalCheckpoints(
+                    self._permissions, registry, self._terminal_policy, sandbox
+                )
+            )
+
+        handler = ToolTaskHandler(
+            registry, audit=self._audit, plan_id=plan.id,
+            sandbox=sandbox,
+            snapshot_store=self._snapshot_store,
+            enable_snapshots=self._enable_snapshots,
+        )
+        self._executor = PlanExecutor(
+            plan, handler, checkpoints=_CombinedCheckpoints(policies),
+            verifier=self._verifier,
+            conversation_id=bundle.get("conversation_id"),
+            initial_runs=initial_runs,
+        )
+        return self._final(self._drive())
 
     @property
     def terminal_policy(self) -> TerminalPolicy | None:
@@ -1325,6 +1409,7 @@ class ToolsController:
         self._executor = PlanExecutor(
             plan, handler, checkpoints=_CombinedCheckpoints(policies),
             verifier=self._verifier,  # 11E: None (default) ou opt-in
+            conversation_id=getattr(plan, "conversation_id", None),
         )
         return self._final(self._drive())
 
@@ -1346,6 +1431,24 @@ class ToolsController:
         """
         if self._export_execution_reports:
             self._maybe_export_report(report)
+
+        if report.status in (PlanStatus.COMPLETED, PlanStatus.FAILED) and self._plan is not None:
+            try:
+                from app import __version__
+
+                self._execution_store.save_bundle(
+                    plan=self._plan,
+                    report=report,
+                    correction=self.correction_history() or None,
+                    lumen_version=__version__,
+                    conversation_id=getattr(report, "conversation_id", getattr(self._plan, "conversation_id", None)),
+                )
+            except Exception:
+                logger.exception(
+                    "Falha (não fatal) ao persistir o estado de execução do plano %s.",
+                    getattr(report, "plan_id", "?"),
+                )
+
         if not self._persist_execution_state:
             return report
         if report.status not in (PlanStatus.COMPLETED, PlanStatus.FAILED):

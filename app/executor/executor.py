@@ -11,6 +11,7 @@ import logging
 import re
 import time
 from collections import deque
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Callable
@@ -164,6 +165,7 @@ class PlanExecutor:
         checkpoints: CheckpointPolicy | None = None,
         sleeper: Sleeper = time.sleep,
         conversation_id: str | None = None,
+        initial_runs: Mapping[str, TaskRun] | None = None,
     ) -> None:
         self._validate_plan(plan)
         self._plan = plan
@@ -178,16 +180,18 @@ class PlanExecutor:
         self._conversation_id = conversation_id or getattr(
             plan, "conversation_id", None
         )
-        self._runs: dict[str, TaskRun] = {
-            task.id: TaskRun(
-                id=task.id,
-                description=task.description,
-                order=task.order,
-                dependencies=tuple(task.dependencies),
-                conversation_id=self._conversation_id,
-            )
-            for task in sorted(plan.tasks, key=lambda t: t.order)
-        }
+        self._runs: dict[str, TaskRun] = {}
+        for task in sorted(plan.tasks, key=lambda t: t.order):
+            if initial_runs and task.id in initial_runs:
+                self._runs[task.id] = initial_runs[task.id]
+            else:
+                self._runs[task.id] = TaskRun(
+                    id=task.id,
+                    description=task.description,
+                    order=task.order,
+                    dependencies=tuple(task.dependencies),
+                    conversation_id=self._conversation_id,
+                )
         self._events: list[ExecutionEvent] = []
         self._status = PlanStatus.RUNNING
         self._started_at = _now_iso()

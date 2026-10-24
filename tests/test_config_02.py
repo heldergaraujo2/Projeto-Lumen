@@ -29,6 +29,7 @@ def test_defaults_for_new_settings():
     assert settings.request_timeout == 60.0
     assert settings.max_retries == 2
     assert settings.provider == "mock"
+    assert settings.persist_execution_state is False
 
 
 def test_new_settings_from_environment(tmp_path):
@@ -105,3 +106,22 @@ def test_ollama_settings_are_loaded(tmp_path):
     assert settings.provider == "ollama"
     assert settings.ollama_base_url == "http://localhost:11434/"
     assert settings.ollama_keep_alive == "10m"
+
+
+@pytest.mark.parametrize("val,expected", [
+    ("1", True),
+    ("true", True),
+    ("yes", True),
+    ("sim", True),
+    ("on", True),
+    ("0", False),
+    ("false", False),
+    ("no", False),
+    ("", False),
+])
+def test_persist_execution_state_loading(tmp_path, val, expected):
+    settings = Settings.load(
+        env_file=tmp_path / ".env-inexistente",
+        environ={"LUMEN_PERSIST_EXECUTION_STATE": val},
+    )
+    assert settings.persist_execution_state is expected
