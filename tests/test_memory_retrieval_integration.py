@@ -81,3 +81,27 @@ def test_agent_includes_relevant_structured_knowledge(tmp_path):
     assert len(recalled) == 1
     assert "[KNOWLEDGE] Decisão de arquitetura da Lumen" in recalled[0]["content"]
     assert "GitHub como fonte única da verdade" in recalled[0]["content"]
+
+
+def test_completed_research_evidence_is_saved_as_reusable_knowledge(tmp_path):
+    from types import SimpleNamespace
+
+    from app.core.bridge import ToolCallingBridge
+
+    memory_system = MemorySystem(tmp_path)
+    agent = SimpleNamespace(memory_system=memory_system)
+    bridge = ToolCallingBridge(agent=agent, controller=object())
+
+    bridge._remember_research_evidence(
+        "Como funciona a memória persistente?",
+        [{
+            "title": "Documentação de memória",
+            "url": "https://example.test/memory",
+            "text": "A memória armazena fatos com referência à fonte.",
+        }],
+    )
+
+    hits = memory_system.recall("memória persistente", limit=5)
+    assert hits
+    assert any("Documentação de memória" in hit.record.title for hit in hits)
+    assert any("https://example.test/memory" in hit.record.content for hit in hits)
