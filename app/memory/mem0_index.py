@@ -39,6 +39,9 @@ class Mem0SemanticIndex:
     def _make_client(self):
         if self._client_factory is not None:
             return self._client_factory(self._config())
+        # Mem0 OSS enables anonymous telemetry by default in some releases.
+        # Set this before importing Mem0 so the local integration stays local.
+        os.environ["MEM0_TELEMETRY"] = "false"
         from mem0 import Memory
 
         return Memory.from_config(self._config())
@@ -136,8 +139,8 @@ class Mem0SemanticIndex:
         try:
             response = client.search(
                 query,
-                user_id=os.getenv("LUMEN_MEM0_USER_ID", "lumen-local"),
-                limit=limit,
+                filters={"user_id": os.getenv("LUMEN_MEM0_USER_ID", "lumen-local")},
+                top_k=limit,
             )
             if isinstance(response, dict):
                 results = response.get("results", [])
