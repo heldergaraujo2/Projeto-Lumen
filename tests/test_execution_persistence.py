@@ -472,7 +472,8 @@ def test_resume_execution_blocks_on_unknown_task_status(tmp_path):
 
 
 @pytest.mark.parametrize("unsafe_status", [
-    "RUNNING", "IN_PROGRESS", "FAILED", "UNKNOWN", "", "DONE_WITHOUT_RESULT",
+    "RUNNING", "IN_PROGRESS", "FAILED", "UNKNOWN", "", "MISSING_STATUS",
+    "DONE_WITHOUT_RESULT", "DONE_CORRUPT_RESULT",
 ])
 def test_resume_execution_fails_closed_for_ambiguous_states(tmp_path, unsafe_status):
     perms = PermissionManager()
@@ -502,9 +503,14 @@ def test_resume_execution_fails_closed_for_ambiguous_states(tmp_path, unsafe_sta
     bundle = controller.execution_store.load_bundle("PLN-UNSAFE")
     task = bundle["execution_report"]["tasks"][0]
     task["status"] = unsafe_status
-    if unsafe_status == "DONE_WITHOUT_RESULT":
+    if unsafe_status == "MISSING_STATUS":
+        task.pop("status", None)
+    elif unsafe_status == "DONE_WITHOUT_RESULT":
         task["status"] = "DONE"
         task["result"] = None
+    elif unsafe_status == "DONE_CORRUPT_RESULT":
+        task["status"] = "DONE"
+        task["result"] = "{not-json"
     bundle_path = tmp_path / "executions" / "PLN-UNSAFE.json"
     bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
 
