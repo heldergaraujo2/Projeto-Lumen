@@ -1468,7 +1468,10 @@ class ToolsController:
             # autônomo: conceder permissões globais não autoriza efeitos externos
             # sem confirmação por chamada.
             policies.append(ToolCheckpoints({"mcp_call"}))
-        if self._corrections is not None:
+        # Um snapshot recuperável só é produzido no executor direto. Ao
+        # retomar esse snapshot, não se injeta retroativamente um ciclo de
+        # correção que não participou da execução original.
+        if self._corrections is not None and _resume_report is None:
             # 0.6.2: ciclo controlado EXECUTAR→VERIFICAR→(ANALISAR→PROPOR→
             # VALIDAR→APROVAR→APLICAR→RETRY→VERIFICAR)* com limites rígidos.
             # 11G etapa 1: sucessores #C recebem o mesmo auto-anexo de
@@ -1592,9 +1595,9 @@ class ToolsController:
             raise ToolsControlError("Persistência de execução está desativada.")
         if not self._conversation_id or conversation_id != self._conversation_id:
             raise ToolsControlError("Identidade de conversa inválida; retomada bloqueada.")
-        if self._autonomous_mode or self._corrections is not None:
+        if self._autonomous_mode:
             raise ToolsControlError(
-                "Retomada indisponível para execução autônoma ou ciclo de correção."
+                "Retomada indisponível para execução autônoma."
             )
         base_dir = self._execution_state_dir
         if base_dir is None:
