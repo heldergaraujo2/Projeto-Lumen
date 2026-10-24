@@ -145,6 +145,8 @@ def main() -> int:
             # sanitizado; nunca concede permissão (spec 11I).
             export_execution_reports=settings.export_execution_reports,
             reports_dir=settings.data_dir / "reports",
+            persist_execution_state=settings.persist_execution_state,
+            execution_state_dir=settings.execution_dir,
         )
         # 0.6.3: liga o chat à fachada de ferramentas (tool calling via
         # Planner com allowlist). Sem concessões: a autoridade segue no
