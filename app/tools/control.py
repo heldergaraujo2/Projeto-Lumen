@@ -1300,7 +1300,9 @@ class ToolsController:
         )
 
     # ---------------------------------------------------------------- execução
-    def run_plan(self, plan: Plan) -> ExecutionReport:
+    def run_plan(
+        self, plan: Plan, *, _resume_report: ExecutionReport | None = None,
+    ) -> ExecutionReport:
         """Executa um plano com as ferramentas reais + checkpoints.
 
         Executa até pausar por checkpoint (operação destrutiva **viável**
@@ -1325,7 +1327,7 @@ class ToolsController:
         self._engine = None
         # 11F: auto-anexo de run_pytest após WRITE — guardrails **antes**
         # de qualquer task executar (sem chamadas de tool, sem checkpoint).
-        if _needs_auto_pytest(
+        if _resume_report is None and _needs_auto_pytest(
             plan,
             terminal_enabled=self._terminal_policy is not None,
             verification_enabled=self.verification_enabled,
@@ -1416,6 +1418,7 @@ class ToolsController:
                 if self._persist_execution_state and self._conversation_id
                 else None
             ),
+            initial_report=_resume_report,
         )
         if self._autonomous_mode:
             return self._drive_autonomous()
@@ -1461,6 +1464,41 @@ class ToolsController:
         while self._executor.step() is not None:
             pass
         return self._executor.report()
+
+    def resume_execution(self, plan_id: str, *, conversation_id: str) -> ExecutionReport:
+        """Retoma explicitamente apenas progresso inequívoco da mesma conversa."""
+        if not self._persist_execution_state:
+            raise ToolsControlError("Persistência de execução está desativada.")
+        if not self._conversation_id or conversation_id != self._conversation_id:
+            raise ToolsControlError("Identidade de conversa inválida; retomada bloqueada.")
+        if self._autonomous_mode or self._corrections is not None:
+            raise ToolsControlError(
+                "Retomada indisponível para execução autônoma ou ciclo de correção."
+            )
+        base_dir = self._execution_state_dir
+        if base_dir is None:
+            from app.config.settings import Settings
+            base_dir = Settings().execution_dir
+        try:
+            bundle = ExecutionBundleStore(base_dir).load_bundle(
+                plan_id, conversation_id=conversation_id,
+            )
+            plan_data = bundle["plan"]
+            report_data = bundle["execution_report"]
+            plan = _plan_from_bundle(plan_data)
+            report = _report_from_bundle(report_data)
+            # Evita executar parâmetros potencialmente alterados pela sanitização.
+            if _contains_sanitization_marker(plan_data):
+                raise ToolsControlError(
+                    "Parâmetros do plano foram sanitizados/truncados; retomada bloqueada."
+                )
+            if report.plan_id != plan_id or report.status is not PlanStatus.RUNNING:
+                raise ToolsControlError("O bundle não contém uma execução interrompida retomável.")
+            return self.run_plan(plan, _resume_report=report)
+        except ToolsControlError:
+            raise
+        except Exception as exc:
+            raise ToolsControlError(f"Retomada bloqueada: {exc}") from exc
 
     def _persist_execution_snapshot(self, plan: Plan, report: ExecutionReport) -> None:
         """Persiste progresso por tarefa para recuperação explícita.
