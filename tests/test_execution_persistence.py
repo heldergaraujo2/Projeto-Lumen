@@ -559,3 +559,68 @@ def test_query_executions_does_not_inherit_missing_record_conversation_id(tmp_pa
     path.write_text(json.dumps(bundle), encoding="utf-8")
 
     assert store.query_executions(conversation_id="CONV-BUNDLE") == []
+
+
+
+def test_resume_execution_blocks_when_task_record_is_missing(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit.jsonl",
+        execution_state_dir=tmp_path / "executions",
+    )
+    plan = Plan(
+        id="PLN-MISSING-TASK", objective="Registro ausente", status=PlanStatus.READY,
+        tasks=(
+            PlannedTask(id="T1", description="Concluída", order=1, tool="read_file"),
+            PlannedTask(id="T2", description="Sem registro", order=2, tool="read_file"),
+        ),
+        conversation_id="CONV-MISSING",
+    )
+    report = ExecutionReport(
+        plan_id="PLN-MISSING-TASK", objective="Registro ausente",
+        status=PlanStatus.FAILED,
+        tasks=(TaskRun(
+            id="T1", description="Concluída", order=1, dependencies=(),
+            status=PlannedTaskStatus.DONE,
+            result=json.dumps({"ok": True, "data": {}, "error": None}),
+        ),),
+        events=(), conversation_id="CONV-MISSING",
+    )
+    controller.execution_store.save_bundle(
+        plan=plan, report=report, conversation_id="CONV-MISSING"
+    )
+    with pytest.raises(ToolsControlError, match="não possui registro de estado"):
+        controller.resume_execution(
+            "PLN-MISSING-TASK", conversation_id="CONV-MISSING"
+        )
+
+
+def test_interrupted_task_history_is_scoped_to_conversation(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit.jsonl",
+        execution_state_dir=tmp_path / "executions",
+    )
+    for plan_id, conv in (("PLN-IA", "CONV-A"), ("PLN-IB", "CONV-B")):
+        plan = Plan(
+            id=plan_id, objective=plan_id, status=PlanStatus.READY,
+            tasks=(PlannedTask(id="T1", description="Task", order=1, tool="read_file"),),
+            conversation_id=conv,
+        )
+        report = ExecutionReport(
+            plan_id=plan_id, objective=plan_id, status=PlanStatus.FAILED,
+            tasks=(TaskRun(
+                id="T1", description="Task", order=1, dependencies=(),
+                status=PlannedTaskStatus.PENDING,
+            ),),
+            events=(), conversation_id=conv,
+        )
+        controller.execution_store.save_bundle(
+            plan=plan, report=report, conversation_id=conv
+        )
+
+    interrupted_a = controller.get_interrupted_tasks(conversation_id="CONV-A")
+    assert interrupted_a
+    assert {record["conversation_id"] for record in interrupted_a} == {"CONV-A"}
