@@ -61,6 +61,7 @@ class Mem0SemanticIndex:
                     "collection_name": "lumen_semantic_memories",
                     "path": str(qdrant_dir),
                     "embedding_model_dims": embedding_dims,
+                    "on_disk": True,
                 },
             },
             "llm": {
@@ -75,6 +76,7 @@ class Mem0SemanticIndex:
                 "provider": "ollama",
                 "config": {
                     "model": embed_model,
+                    "embedding_dims": embedding_dims,
                     "ollama_base_url": ollama_url,
                 },
             },
