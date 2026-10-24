@@ -1005,7 +1005,7 @@ def test_resume_restores_done_task_and_executes_pending_only(tmp_path):
     assert [task.status for task in report.tasks] == [
         PlannedTaskStatus.DONE, PlannedTaskStatus.DONE,
     ]
-    assert report.tasks[0].result == previous_result
+    assert json.loads(report.tasks[0].result) == json.loads(previous_result)
     assert "read on resume" in (report.tasks[1].result or "")
 
 
