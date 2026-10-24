@@ -171,11 +171,20 @@ def test_workspace_validation_errors_surface(controller, ws, tmp_path):
         controller.add_workspace("caminho/relativo")
     with pytest.raises(ValueError):
         controller.add_workspace(str(tmp_path / "sumiu"))
-    with pytest.raises(ValueError):
-        controller.add_workspace(str(Path(ws.resolve().anchor)))  # disco todo
+
+    # Raiz do disco é permitida apenas como workspace de leitura.
+    root = Path(ws.resolve().anchor)
+    root_info = controller.add_workspace(str(root))
+    assert root_info["mode"] == "somente leitura"
+    with pytest.raises(ValueError, match="somente leitura"):
+        controller.add_workspace(str(root), writable=True)
+
     with pytest.raises(ValueError):
         controller.add_workspace(str(ws), allow_delete=True)  # delete sem write
-    assert controller.list_workspaces() == []  # nada persistiu
+    assert controller.list_workspaces() == [
+        {"root": str(root.resolve()), "writable": False, "allow_delete": False,
+         "mode": "somente leitura"},
+    ]
 
 
 def test_delete_reflects_workspace_opt_in(controller, ws):
