@@ -1581,6 +1581,11 @@ class ToolsController:
             pass
         return self._executor.report()
 
+    @property
+    def conversation_id(self) -> str | None:
+        """ID opaco do histórico local, usado pelo bridge ao retomar explicitamente."""
+        return self._conversation_id
+
     def resume_execution(self, plan_id: str, *, conversation_id: str) -> ExecutionReport:
         """Retoma explicitamente apenas progresso inequívoco da mesma conversa."""
         if not self._persist_execution_state:
