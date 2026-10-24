@@ -39,8 +39,9 @@ class Mem0SemanticIndex:
     def _make_client(self):
         if self._client_factory is not None:
             return self._client_factory(self._config())
-        # Mem0 OSS enables anonymous telemetry by default in some releases.
-        # Set this before importing Mem0 so the local integration stays local.
+        # Keep Mem0 runtime metadata under the project data directory and
+        # disable telemetry before import (the SDK reads both at import time).
+        os.environ["MEM0_DIR"] = str(self._data_dir / "runtime")
         os.environ["MEM0_TELEMETRY"] = "false"
         from mem0 import Memory
 
