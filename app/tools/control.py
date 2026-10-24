@@ -22,6 +22,7 @@ Garantias:
 """
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
@@ -552,6 +553,7 @@ class ToolsController:
             if isinstance(conversation_id, str) and conversation_id.strip()
             else None
         )
+        self._execution_plan_snapshot: Plan | None = None
         # 11K: snapshot "before" de operações destrutivas (opt-in,
         # default OFF — bit-a-bit; best-effort; somente metadados no
         # audit; ver docs/SPEC-11K-SNAPSHOT_ROLLBACK.md). O store não
@@ -1445,6 +1447,9 @@ class ToolsController:
                 return self._final(_auto_pytest_limit_report(plan))
             plan = _attach_run_pytest(plan)
             self._plan = plan  # 9B: bundle persiste o plano ajustado
+        # O Executor pode resolver data-flow in-place; snapshots persistidos
+        # mantêm parâmetros originais, nunca conteúdo resolvido de arquivos.
+        self._execution_plan_snapshot = copy.deepcopy(plan)
         policies: list[ToolCheckpoints] = []
         if not self._autonomous_mode:
             policies.append(PrevalidatedCheckpoints(
@@ -1523,7 +1528,9 @@ class ToolsController:
             plan, handler, checkpoints=_CombinedCheckpoints(policies),
             verifier=self._verifier,  # 11E: None (default) ou opt-in
             state_callback=(
-                (lambda snapshot: self._persist_execution_snapshot(plan, snapshot))
+                (lambda snapshot: self._persist_execution_snapshot(
+                    self._execution_plan_snapshot or plan, snapshot
+                ))
                 if self._persist_execution_state and self._conversation_id
                 else None
             ),
@@ -1657,7 +1664,7 @@ class ToolsController:
             execution_dir=self._execution_state_dir,  # None ⇒ Settings()
         )
         _maybe_persist_execution_state(
-            config, self._plan, report,
+            config, self._execution_plan_snapshot or self._plan, report,
             correction=self.correction_history() or None,
             conversation_id=self._conversation_id,
         )
