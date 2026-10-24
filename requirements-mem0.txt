@@ -1,0 +1,4 @@
+# Opcional: instalar somente para ativar a memória semântica local Mem0.
+# Não é incluído em requirements.txt para preservar o ambiente existente.
+mem0ai>=2.2.1,<3.0
+ollama>=0.5,<1.0
