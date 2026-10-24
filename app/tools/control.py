@@ -421,6 +421,9 @@ class ToolsController:
         self._execution_state_dir = (
             Path(execution_state_dir) if execution_state_dir is not None else None
         )
+        self._execution_store = ExecutionBundleStore(
+            self._execution_state_dir if self._execution_state_dir is not None else Path("data") / "executions"
+        )
         # 11K: snapshot "before" de operações destrutivas (opt-in,
         # default OFF — bit-a-bit; best-effort; somente metadados no
         # audit; ver docs/SPEC-11K-SNAPSHOT_ROLLBACK.md). O store não
@@ -679,6 +682,49 @@ class ToolsController:
         self._terminal_policy = None
         logger.info("Terminal desabilitado.")
         self._audit_admin("terminal_disable")
+
+    @property
+    def execution_store(self) -> ExecutionBundleStore:
+        return self._execution_store
+
+    def get_interrupted_tasks(self) -> list[dict[str, Any]]:
+        """Retorna tarefas pendentes ou interrompidas salvas no histórico de execuções."""
+        interrupted = []
+        execs = self._execution_store.query_executions(limit=50)
+        for rec in execs:
+            if rec.get("status") in ("PENDING", "RUNNING", "FAILED", "UNKNOWN"):
+                interrupted.append(rec)
+        return interrupted
+
+    def resume_execution(self, plan_id: str) -> ExecutionReport:
+        """Retoma a execução de um plano salvo ou pausado."""
+        bundle = self._execution_store.load_bundle(plan_id)
+        if not bundle:
+            raise ToolsControlError(f"Plano {plan_id} não encontrado para retomada.")
+
+        plan_dict = bundle.get("plan")
+        if not isinstance(plan_dict, dict):
+            raise ToolsControlError(f"Plano {plan_id} em formato inválido.")
+
+        tasks = tuple(
+            PlannedTask(
+                id=t["id"],
+                description=t.get("description", ""),
+                order=t.get("order", idx + 1),
+                tool=t.get("tool"),
+                parameters=t.get("parameters", {}),
+                dependencies=tuple(t.get("dependencies", ())),
+            )
+            for idx, t in enumerate(plan_dict.get("tasks", []))
+        )
+        plan = Plan(
+            id=plan_dict.get("id", plan_id),
+            objective=plan_dict.get("objective", "Retomada de plano"),
+            status=PlanStatus.READY,
+            tasks=tasks,
+            conversation_id=bundle.get("conversation_id"),
+        )
+        return self.run_plan(plan)
 
     @property
     def terminal_policy(self) -> TerminalPolicy | None:

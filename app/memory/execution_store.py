@@ -1,9 +1,8 @@
 """ExecutionBundleStore — persistência sanitizada do Execution State (9B).
 
-Observabilidade/rastreabilidade apenas: quando um plano atinge estado
+Observabilidade/rastreabilidade e recuperação estruturada: quando um plano atinge estado
 terminal, um "bundle" JSON (metadados + plano + relatório de execução +
-correções) é sanitizado e gravado com escrita atômica. NÃO existe resume
-nem recuperação automática — o arquivo é um registro histórico.
+correções + registros individuais de execução) é sanitizado e gravado com escrita atômica.
 
 Vive em :mod:`app.memory` (a camada de persistência da Lumen) para
 manter o pacote ``app/executor`` livre de I/O real (contrato de
@@ -29,8 +28,9 @@ import json
 import logging
 import os
 import re
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +50,73 @@ _FORBIDDEN_RESULT_FIELDS: tuple[str, ...] = ("stdout", "stderr", "content")
 
 #: Marcador para ``TaskRun.result`` que não é JSON válido (fallback seguro).
 _UNPARSEABLE_MARKER = " <unparseable ToolResult>"
+
+
+class ExecutionState(str, Enum):
+    """Estados estruturados de execução (Fase B)."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    TIMED_OUT = "TIMED_OUT"
+    VERIFICATION_FAILED = "VERIFICATION_FAILED"
+    UNKNOWN = "UNKNOWN"
+
+
+@dataclass
+class ExecutionRecordEntry:
+    """Modelo de registro individual de execução de ferramenta/tarefa."""
+
+    execution_id: str
+    conversation_id: str | None = None
+    task_id: str | None = None
+    parent_execution_id: str | None = None
+    tool_name: str | None = None
+    tool_version: str | None = None
+    requested_action: str | None = None
+    arguments: dict[str, Any] | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    status: ExecutionState = ExecutionState.UNKNOWN
+    result: Any = None
+    error: str | None = None
+    verification: dict[str, Any] | None = None
+    workspace: str | None = None
+    evidence: list[str] = field(default_factory=list)
+    created_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    updated_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "execution_id": self.execution_id,
+            "conversation_id": self.conversation_id,
+            "task_id": self.task_id,
+            "parent_execution_id": self.parent_execution_id,
+            "tool_name": self.tool_name,
+            "tool_version": self.tool_version,
+            "requested_action": self.requested_action,
+            "arguments": self.arguments,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "status": (
+                self.status.value
+                if isinstance(self.status, ExecutionState)
+                else str(self.status)
+            ),
+            "result": self.result,
+            "error": self.error,
+            "verification": self.verification,
+            "workspace": self.workspace,
+            "evidence": self.evidence,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
 
 
 class ExecutionStoreError(RuntimeError):
@@ -85,8 +152,8 @@ def sanitize_any(value: Any, limit: int = 16 * 1024) -> Any:
             {"ok", "data", "error"} <= set(sanitized)
             and isinstance(sanitized.get("data"), dict)
         ):
-            for field in _FORBIDDEN_RESULT_FIELDS:
-                sanitized["data"].pop(field, None)
+            for field_name in _FORBIDDEN_RESULT_FIELDS:
+                sanitized["data"].pop(field_name, None)
         return sanitized
     if isinstance(value, (list, tuple)):
         return [sanitize_any(item, limit) for item in value]
@@ -129,9 +196,29 @@ def _serialize(obj: Any) -> Any:
     return repr(obj)
 
 
+def _map_task_status_to_execution_state(
+    status_val: str, verified: bool | None
+) -> ExecutionState:
+    """Mapeia status de task e resultado de verificação para ExecutionState."""
+    status_str = str(status_val).upper()
+    if status_str == "DONE":
+        if verified is False:
+            return ExecutionState.VERIFICATION_FAILED
+        return ExecutionState.SUCCEEDED
+    if status_str in ("FAILED", "REJECTED"):
+        return ExecutionState.FAILED
+    if status_str == "RUNNING":
+        return ExecutionState.RUNNING
+    if status_str == "PENDING":
+        return ExecutionState.PENDING
+    if status_str == "SKIPPED":
+        return ExecutionState.CANCELLED
+    return ExecutionState.UNKNOWN
+
+
 # ------------------------------------------------------------------ store
 class ExecutionBundleStore:
-    """Grava bundles de execução sanitizados em ``base_dir`` (atômico)."""
+    """Grava e recupera bundles de execução sanitizados em ``base_dir`` (atômico)."""
 
     def __init__(self, base_dir: Path | str, *, max_string_bytes: int = 16 * 1024) -> None:
         self._base_dir = Path(base_dir)
@@ -154,34 +241,115 @@ class ExecutionBundleStore:
         report: Any,
         correction: Any | None = None,
         lumen_version: str = "",
+        conversation_id: str | None = None,
+        workspace: str | None = None,
     ) -> Path:
-        """Sanitiza e grava o bundle; devolve o caminho gravado.
-
-        O diretório só nasce no momento da gravação (persistência
-        desligada ⇒ nenhum efeito no disco). Nada de permissões ou
-        autorizações é incluído — o bundle é apenas observabilidade.
-        """
+        """Sanitiza e grava o bundle; devolve o caminho gravado."""
         report_dict = _serialize(report)
+        plan_dict = _serialize(plan)
+        plan_id = sanitize_any(
+            str(getattr(report, "plan_id", getattr(plan, "id", ""))), self._limit
+        )
+
+        effective_conv_id = sanitize_any(
+            str(
+                conversation_id
+                or getattr(report, "conversation_id", None)
+                or getattr(plan, "conversation_id", "")
+                or ""
+            ),
+            self._limit,
+        )
+        effective_workspace = sanitize_any(
+            str(
+                workspace
+                or getattr(report, "workspace", None)
+                or getattr(plan, "workspace", "")
+                or ""
+            ),
+            self._limit,
+        )
+
+        tasks_dict = []
+        execution_records = []
+
+        # Mapeamento das tasks do plano para catálogo de ferramentas
+        tasks_map = {}
+        if isinstance(plan_dict, dict) and isinstance(plan_dict.get("tasks"), list):
+            for ptask in plan_dict["tasks"]:
+                if isinstance(ptask, dict) and "id" in ptask:
+                    tasks_map[ptask["id"]] = ptask
+
         if isinstance(report_dict, dict):
             for task in report_dict.get("tasks", []) or []:
-                if isinstance(task, dict) and isinstance(task.get("result"), str):
-                    task["result"] = sanitize_result_string(
-                        task["result"], self._limit,
+                if isinstance(task, dict):
+                    raw_res = task.get("result")
+                    if isinstance(raw_res, str):
+                        task["result"] = sanitize_result_string(
+                            raw_res, self._limit
+                        )
+                    tasks_dict.append(task)
+
+                    # Constrói o ExecutionRecordEntry estruturado para cada task
+                    t_id = str(task.get("id", "T1"))
+                    exec_id = f"EXEC-{plan_id}-{t_id}"
+                    planned_info = tasks_map.get(t_id, {})
+                    tool_name = planned_info.get("tool") or task.get("tool")
+                    args = planned_info.get("parameters") or task.get("parameters") or {}
+
+                    t_status = task.get("status", "UNKNOWN")
+                    verified = task.get("verified")
+                    state = _map_task_status_to_execution_state(t_status, verified)
+
+                    parsed_result = None
+                    if isinstance(task.get("result"), str):
+                        try:
+                            parsed_result = json.loads(task["result"])
+                        except Exception:
+                            parsed_result = task["result"]
+
+                    rec = ExecutionRecordEntry(
+                        execution_id=exec_id,
+                        conversation_id=effective_conv_id or None,
+                        task_id=t_id,
+                        parent_execution_id=None,
+                        tool_name=tool_name,
+                        tool_version=None,
+                        requested_action=planned_info.get("description") or task.get("description"),
+                        arguments=sanitize_any(args, self._limit) if isinstance(args, dict) else {},
+                        started_at=getattr(report, "started_at", None),
+                        completed_at=getattr(report, "finished_at", None),
+                        status=state,
+                        result=parsed_result,
+                        error=sanitize_any(task.get("error"), self._limit) if task.get("error") else None,
+                        verification={
+                            "verified": verified,
+                            "error": task.get("error") if verified is False else None,
+                        },
+                        workspace=effective_workspace or None,
+                        evidence=[],
                     )
+                    execution_records.append(rec.to_dict())
+
         bundle = {
             "version": BUNDLE_VERSION,
             "lumen_version": sanitize_any(str(lumen_version), self._limit),
             "saved_at": datetime.now(timezone.utc).isoformat(),
-            "plan_id": sanitize_any(str(getattr(report, "plan_id", "")), self._limit),
-            "plan": sanitize_any(_serialize(plan), self._limit),
+            "plan_id": plan_id,
+            "conversation_id": effective_conv_id,
+            "workspace": effective_workspace,
+            "plan": sanitize_any(plan_dict, self._limit),
             "execution_report": sanitize_any(report_dict, self._limit),
+            "execution_records": sanitize_any(execution_records, self._limit),
             "correction": (
                 sanitize_any(_serialize(correction), self._limit)
-                if correction else None
+                if correction
+                else None
             ),
         }
+
         safe_name = (
-            re.sub(r"[^A-Za-z0-9._-]", "_", str(getattr(report, "plan_id", "")))
+            re.sub(r"[^A-Za-z0-9._-]", "_", str(plan_id))
             or "plano"
         )
         path = self._base_dir / f"{safe_name}.json"
@@ -199,3 +367,73 @@ class ExecutionBundleStore:
             ) from exc
         logger.info("Bundle de execução salvo em %s.", path)
         return path
+
+    def load_bundle(self, plan_id: str) -> dict[str, Any] | None:
+        """Carrega o bundle salvo correspondente ao plan_id."""
+        safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", str(plan_id)) or "plano"
+        path = self._base_dir / f"{safe_name}.json"
+        if not path.exists():
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.error("Falha ao ler bundle em %s: %s", path, exc)
+            return None
+
+    def get_execution(self, execution_id: str) -> dict[str, Any] | None:
+        """Busca uma execução individual por execution_id através de todos os bundles."""
+        if not self._base_dir.exists():
+            return None
+        for file_path in self._base_dir.glob("*.json"):
+            try:
+                bundle = json.loads(file_path.read_text(encoding="utf-8"))
+                records = bundle.get("execution_records", [])
+                if isinstance(records, list):
+                    for rec in records:
+                        if isinstance(rec, dict) and rec.get("execution_id") == execution_id:
+                            return rec
+            except Exception:
+                continue
+        return None
+
+    def query_executions(
+        self,
+        conversation_id: str | None = None,
+        task_id: str | None = None,
+        workspace: str | None = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Consulta execuções filtrando por conversa, task e/ou workspace."""
+        if not self._base_dir.exists():
+            return []
+        matches: list[dict[str, Any]] = []
+        for file_path in sorted(
+            self._base_dir.glob("*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        ):
+            try:
+                bundle = json.loads(file_path.read_text(encoding="utf-8"))
+                records = bundle.get("execution_records", [])
+                b_conv = bundle.get("conversation_id")
+                b_ws = bundle.get("workspace")
+                if isinstance(records, list):
+                    for rec in records:
+                        if not isinstance(rec, dict):
+                            continue
+                        if conversation_id is not None:
+                            rec_conv = rec.get("conversation_id") or b_conv
+                            if rec_conv != conversation_id:
+                                continue
+                        if task_id is not None and rec.get("task_id") != task_id:
+                            continue
+                        if workspace is not None:
+                            rec_ws = rec.get("workspace") or b_ws
+                            if rec_ws != workspace:
+                                continue
+                        matches.append(rec)
+                        if len(matches) >= limit:
+                            return matches
+            except Exception:
+                continue
+        return matches

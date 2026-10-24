@@ -8,6 +8,10 @@ data/logs/*
 !data/logs/.gitkeep
 data/memory/*
 !data/memory/.gitkeep
+data/executions/*
+!data/executions/.gitkeep
+data/reports/*
+!data/reports/.gitkeep
 data/tasks.json
 
 # Python
