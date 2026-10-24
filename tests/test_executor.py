@@ -323,3 +323,16 @@ def test_resume_fails_closed_for_unverified_saved_result():
     snapshot = _running_snapshot(plan, first_result='{"ok":false,"data":{},"error":"falhou"}')
     with pytest.raises(ExecutorError, match="não comprova sucesso"):
         PlanExecutor(plan, SimulatedHandler(), initial_report=snapshot)
+
+
+
+def test_state_callback_snapshots_in_progress_before_done():
+    snapshots = []
+    executor = PlanExecutor(
+        make_plan(),
+        SimulatedHandler(),
+        state_callback=lambda report: snapshots.append(statuses(report)),
+    )
+    executor.run_all()
+    assert any(state["T1"] is PlannedTaskStatus.IN_PROGRESS for state in snapshots)
+    assert any(state["T1"] is PlannedTaskStatus.DONE for state in snapshots)
