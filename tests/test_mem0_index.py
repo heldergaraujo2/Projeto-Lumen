@@ -1,7 +1,9 @@
 """Testes isolados do índice semântico Mem0; não exigem Ollama nem Mem0 instalado."""
 from __future__ import annotations
 
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
+import os
+import sys
 
 from app.memory.mem0_index import Mem0SemanticIndex
 
@@ -45,6 +47,29 @@ def test_mem0_config_is_local_and_stored_under_data_dir(tmp_path, monkeypatch):
     assert config["vector_store"]["config"]["path"].startswith(str(tmp_path))
     assert config["history_db_path"].startswith(str(tmp_path))
     assert "api_key" not in str(config).lower()
+
+
+
+def test_mem0_runtime_and_telemetry_are_scoped_before_import(tmp_path, monkeypatch):
+    monkeypatch.setenv("LUMEN_MEM0_ENABLED", "1")
+    monkeypatch.delenv("MEM0_DIR", raising=False)
+    monkeypatch.delenv("MEM0_TELEMETRY", raising=False)
+    fake_module = ModuleType("mem0")
+
+    class FakeMemory:
+        @staticmethod
+        def from_config(config):
+            return {"config": config}
+
+    fake_module.Memory = FakeMemory
+    monkeypatch.setitem(sys.modules, "mem0", fake_module)
+    index = Mem0SemanticIndex(tmp_path / "mem0")
+
+    client = index._make_client()
+
+    assert client["config"]["vector_store"]["provider"] == "qdrant"
+    assert os.environ["MEM0_DIR"] == str(tmp_path / "mem0" / "runtime")
+    assert os.environ["MEM0_TELEMETRY"] == "false"
 
 
 def test_mem0_adds_structured_record_with_stable_metadata(tmp_path, monkeypatch):
