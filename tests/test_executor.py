@@ -336,3 +336,20 @@ def test_state_callback_snapshots_in_progress_before_done():
     executor.run_all()
     assert any(state["T1"] is PlannedTaskStatus.IN_PROGRESS for state in snapshots)
     assert any(state["T1"] is PlannedTaskStatus.DONE for state in snapshots)
+
+
+
+def test_snapshot_persistence_failure_blocks_tool_execution():
+    handler = SimulatedHandler()
+
+    def fail_persistence(_report):
+        raise OSError("disk full")
+
+    executor = PlanExecutor(
+        make_plan(),
+        handler,
+        state_callback=fail_persistence,
+    )
+    with pytest.raises(OSError, match="disk full"):
+        executor.run_all()
+    assert handler.executed == []
