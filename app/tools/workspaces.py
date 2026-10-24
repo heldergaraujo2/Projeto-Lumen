@@ -229,9 +229,9 @@ class MultiWorkspaceSandbox:
 
     - ``resolve`` procura em cada workspace (na ordem autorizada) e
       devolve o primeiro que contém o caminho;
-    - ``check_operation`` aplica a política **do workspace que contém o
-      caminho** (somente leitura num workspace bloqueia escrita mesmo
-      que outro permita);
+    - ``check_operation`` aplica a política do workspace **mais específico**
+      que contém o caminho; assim, uma raiz de disco somente-leitura não
+      sobrepõe uma autorização explícita de diretório mais restrito;
     - conjunto vazio ⇒ **tudo** bloqueado (``PathOutsideWorkspaceError``).
 
     Interface compatível com :class:`~app.tools.filesystem.WorkspaceSandbox`
@@ -269,14 +269,18 @@ class MultiWorkspaceSandbox:
         return self._unrestricted or any(entry.allow_delete for entry in self._entries)
 
     def entry_for(self, resolved: Path) -> WorkspaceEntry | None:
-        """Workspace que contém ``resolved`` (ou ``None``)."""
+        """Workspace mais específico que contém ``resolved`` (ou ``None``)."""
+        matches: list[WorkspaceEntry] = []
         for entry in self._entries:
             try:
                 resolved.relative_to(entry.root)
-                return entry
+                matches.append(entry)
             except ValueError:
                 continue
-        return None
+        # O caminho mais profundo representa a autorização mais específica.
+        # Isso permite uma raiz de disco somente-leitura como fallback, sem
+        # anular permissões explícitas concedidas a subdiretórios.
+        return max(matches, key=lambda entry: len(entry.root.parts), default=None)
 
     def resolve(self, path) -> Path:
         if self._unrestricted:
@@ -312,16 +316,13 @@ class MultiWorkspaceSandbox:
             if operation not in {"read", "write", "delete"}:
                 raise FilesystemError(f"Operação desconhecida: {operation!r}.")
             return
-        for entry, sandbox in zip(self._entries, self._sandboxes):
-            try:
-                resolved.relative_to(entry.root)
-            except ValueError:
-                continue
-            sandbox.assert_operation_allowed(operation)
-            return
-        raise PathOutsideWorkspaceError(
-            f"Caminho fora dos workspaces autorizados: {resolved}"
-        )
+        entry = self.entry_for(resolved)
+        if entry is None:
+            raise PathOutsideWorkspaceError(
+                f"Caminho fora dos workspaces autorizados: {resolved}"
+            )
+        sandbox = self._sandboxes[self._entries.index(entry)]
+        sandbox.assert_operation_allowed(operation)
 
     def assert_operation_allowed(self, operation: str) -> None:
         """Resumo independente de caminho (leitura livre; escrita/exclusão
