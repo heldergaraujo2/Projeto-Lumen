@@ -820,13 +820,18 @@ class PlanExecutor:
         )
 
     def _notify_state(self) -> None:
-        """Notifica snapshots imutáveis; callback best-effort e sem I/O próprio."""
+        """Grava snapshots; falha de persistência interrompe o passo antes da ferramenta."""
         if self._state_callback is None:
             return
         try:
             self._state_callback(self.report())
         except Exception:
-            logger.exception("Callback de persistência do executor falhou; execução continua.")
+            logger.exception(
+                "Snapshot de execução não pôde ser persistido; passo bloqueado."
+            )
+            # Fail-closed: nunca invocar a ferramenta se não foi possível
+            # persistir o estado IN_PROGRESS imediatamente antes da chamada.
+            raise
 
     def report(self) -> ExecutionReport:
         """Snapshot imutável do estado atual (parcial, pausado ou final)."""
