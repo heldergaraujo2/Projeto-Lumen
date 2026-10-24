@@ -1042,3 +1042,30 @@ def test_resume_execution_requires_bundle_for_same_conversation(tmp_path):
     )
     with pytest.raises(ToolsControlError, match="não encontrada"):
         controller.resume_execution("PLN-missing", conversation_id="conv-a")
+
+
+
+# ------------------------------------------------ recuperação segura (9C)
+def test_resume_requires_opt_in_persistence(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="desativada"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-a")
+
+
+def test_resume_rejects_cross_conversation_before_reading_bundle(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=tmp_path / "execution",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="Identidade de conversa inválida"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-b")
+    assert not (tmp_path / "execution").exists()
