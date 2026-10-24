@@ -22,7 +22,6 @@ livre de código de execução — garantido por testes estáticos).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import PurePosixPath, PureWindowsPath
 
 #: Tipos aceitos nos parâmetros (validação estrita de protocolo).
 _TYPE_NAMES = ("string", "integer", "array")
@@ -317,10 +316,10 @@ def catalog_prompt_section(catalog: dict[str, dict]) -> str:
 
 
 def _path_suspect(value: str) -> bool:
-    """Detecta traversal lexical, sem substituir a autorização do sandbox."""
-    stripped = value.strip()
-    parts = set(PurePosixPath(stripped).parts)
-    parts.update(PureWindowsPath(stripped).parts)
+    """Detecta traversal lexical sem importar APIs de filesystem no Planner."""
+    # Normalize both separator styles and inspect lexical components only.
+    # The execution sandbox remains the authority for the resolved path.
+    parts = value.strip().replace("\\", "/").split("/")
     return ".." in parts
 
 

@@ -58,6 +58,20 @@ _EXPLICIT_FILE_READ_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+# Other concrete actions mean the request may legitimately require multiple tools.
+# In that case read_file must not be imposed on every task in the plan.
+_EXPLICIT_NON_READ_ACTION_RE = re.compile(
+    r"\b(?:crie|criar|escreva|escrever|grave|gravar|sobrescreva|sobrescrever|"
+    r"liste|listar|procure|procurar|busque|buscar|pesquise|pesquisar|"
+    r"edite|editar|altere|alterar|modifique|modificar|apague|apagar|"
+    r"delete|deletar|remova|remover|execute|executar|rode|rodar|"
+    r"abra|abrir|acesse|acessar|inspecione|inspecionar|analise|analisar|"
+    r"use|utilize|create|write|save|overwrite|list|search|edit|modify|"
+    r"delete|remove|execute|open|access|inspect|analyze)\b",
+    re.IGNORECASE,
+)
+
+
 
 def _is_explicit_action_request(text: str) -> bool:
     """True only for concrete tool-oriented requests, not questions or negations."""
@@ -215,8 +229,12 @@ class ToolCallingBridge:
         result = self._agent.request_tool_plan(cleaned, catalog)
 
         explicit_read = _is_explicit_file_read_request(cleaned)
-        wrong_read_tool = (
+        read_only_request = (
             explicit_read
+            and not _EXPLICIT_NON_READ_ACTION_RE.search(cleaned)
+        )
+        wrong_read_tool = (
+            read_only_request
             and result.kind == "plan"
             and any(task.tool != "read_file" for task in result.plan.tasks)
         )
@@ -241,7 +259,7 @@ class ToolCallingBridge:
             )
             result = self._agent.request_tool_plan(
                 retry_request, catalog, require_plan=True,
-                required_tool="read_file" if explicit_read else None,
+                required_tool="read_file" if read_only_request else None,
             )
             if result.kind == "conversation":
                 message = (
