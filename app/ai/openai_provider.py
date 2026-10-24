@@ -130,6 +130,8 @@ class OpenAIProvider(AIProvider):
 
         messages = self._build_messages(message, context, system_prompt)
         extra = {"max_tokens": max_tokens} if max_tokens is not None else {}
+        if json_format:
+            extra["response_format"] = {"type": "json_object"}
         total_attempts = self._max_retries + 1
 
         for attempt in range(1, total_attempts + 1):
@@ -142,7 +144,7 @@ class OpenAIProvider(AIProvider):
             try:
                 if on_delta is None:
                     return self._request_plain_compat(messages, extra)
-                return self._request_streaming(messages, _delta)
+                return self._request_streaming(messages, _delta, json_format=json_format)
             except ProviderError as exc:
                 retryable = isinstance(exc, RETRYABLE_ERRORS)
                 last_attempt = attempt == total_attempts
@@ -195,7 +197,8 @@ class OpenAIProvider(AIProvider):
             cause = getattr(exc, "__cause__", None)
             if extra and cause is not None and "max_tokens" in str(cause).lower():
                 logger.info("Modelo não aceita 'max_tokens'; repetindo sem o parâmetro.")
-                return self._request_plain(messages, None)
+                retry_extra = {key: value for key, value in (extra or {}).items() if key != "max_tokens"}
+                return self._request_plain(messages, retry_extra or None)
             raise
 
     def _request_plain(self, messages: list[dict[str, str]], extra: dict | None = None) -> AIResponse:
@@ -211,7 +214,7 @@ class OpenAIProvider(AIProvider):
         return self._normalize_plain(response)
 
     def _request_streaming(
-        self, messages: list[dict[str, str]], on_delta: DeltaCallback
+        self, messages: list[dict[str, str]], on_delta: DeltaCallback, *, json_format: bool = False
     ) -> AIResponse:
         try:
             stream = self._client.chat.completions.create(
@@ -219,6 +222,7 @@ class OpenAIProvider(AIProvider):
                 messages=messages,
                 stream=True,
                 timeout=self._timeout,
+                **({"response_format": {"type": "json_object"}} if json_format else {}),
             )
             content_parts: list[str] = []
             finish_reason = ""

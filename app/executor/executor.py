@@ -120,11 +120,15 @@ class TaskRun:
     description: str
     order: int
     dependencies: tuple[str, ...]
+    tool: str | None = None
     status: PlannedTaskStatus = PlannedTaskStatus.PENDING
     result: str | None = None
     error: str | None = None
     attempts: int = 0
     verified: bool | None = None
+    verification_name: str | None = None
+    verification_detail: str | None = None
+    verification_authority: str | None = None
     attempt_log: tuple[AttemptRecord, ...] = ()
 
     def to_dict(self) -> dict:
@@ -133,11 +137,15 @@ class TaskRun:
             "description": self.description,
             "order": self.order,
             "dependencies": list(self.dependencies),
+            "tool": self.tool,
             "status": self.status.value,
             "result": self.result,
             "error": self.error,
             "attempts": self.attempts,
             "verified": self.verified,
+            "verification_name": self.verification_name,
+            "verification_detail": self.verification_detail,
+            "verification_authority": self.verification_authority,
             "attempt_log": [attempt.to_dict() for attempt in self.attempt_log],
         }
 
@@ -236,6 +244,8 @@ class PlanExecutor:
         retry: RetryPolicy | None = None,
         checkpoints: CheckpointPolicy | None = None,
         sleeper: Sleeper = time.sleep,
+        state_callback: Callable[[ExecutionReport], None] | None = None,
+        initial_report: ExecutionReport | None = None,
     ) -> None:
         self._validate_plan(plan)
         self._plan = plan
@@ -247,12 +257,14 @@ class PlanExecutor:
             checkpoints if checkpoints is not None else NeverCheckpoints()
         )
         self._sleep = sleeper
+        self._state_callback = state_callback
         self._runs: dict[str, TaskRun] = {
             task.id: TaskRun(
                 id=task.id,
                 description=task.description,
                 order=task.order,
                 dependencies=tuple(task.dependencies),
+                tool=task.tool,
             )
             for task in sorted(plan.tasks, key=lambda t: t.order)
         }
@@ -265,6 +277,8 @@ class PlanExecutor:
         self._approved_checkpoints: set[str] = set()
         self._checkpoint_counter = 0
         self._failure_reason: str | None = None
+        if initial_report is not None:
+            self._restore_progress(initial_report)
         logger.info(
             "Executor montado para o plano %s (%d tarefas, handler=%s, "
             "retry=%d tentativa(s), verifier=%s, checkpoints=%s).",
@@ -272,6 +286,54 @@ class PlanExecutor:
             getattr(self._verifier, "name", None) or "nenhum",
             type(self._checkpoint_policy).__name__,
         )
+
+    def _restore_progress(self, snapshot: ExecutionReport) -> None:
+        """Restaura somente progresso inequívoco; nunca repete IN_PROGRESS."""
+        if snapshot.plan_id != self._plan.id or snapshot.objective != self._plan.objective:
+            raise ExecutorError("Snapshot não corresponde ao plano solicitado.")
+        if snapshot.status is not PlanStatus.RUNNING:
+            raise ExecutorError("Somente snapshots RUNNING podem ser retomados.")
+        expected = {task.id: task for task in self._plan.tasks}
+        supplied = {run.id: run for run in snapshot.tasks}
+        if len(supplied) != len(snapshot.tasks) or set(supplied) != set(expected):
+            raise ExecutorError("Snapshot contém IDs de tarefas ausentes ou duplicados.")
+        for task_id, run in supplied.items():
+            task = expected[task_id]
+            if (
+                run.description != task.description
+                or run.order != task.order
+                or tuple(run.dependencies) != tuple(task.dependencies)
+                or run.tool != task.tool
+            ):
+                raise ExecutorError(f"Definição da tarefa {task_id} diverge do plano.")
+            if run.status not in (PlannedTaskStatus.PENDING, PlannedTaskStatus.DONE):
+                raise ExecutorError(
+                    f"Tarefa {task_id} em estado {run.status.value}; retomada bloqueada."
+                )
+            if run.status is PlannedTaskStatus.DONE:
+                try:
+                    result = json.loads(run.result or "")
+                except (TypeError, ValueError) as exc:
+                    raise ExecutorError(
+                        f"Resultado persistido da tarefa {task_id} é inválido."
+                    ) from exc
+                if not isinstance(result, dict) or result.get("ok") is not True:
+                    raise ExecutorError(
+                        f"Resultado da tarefa {task_id} não comprova sucesso; retomada bloqueada."
+                    )
+        for task_id, run in supplied.items():
+            if run.status is PlannedTaskStatus.DONE and any(
+                supplied[dep].status is not PlannedTaskStatus.DONE
+                for dep in run.dependencies
+            ):
+                raise ExecutorError(
+                    f"Snapshot inconsistente: dependência de {task_id} não concluída."
+                )
+        self._runs.update(supplied)
+        self._events = list(snapshot.events)
+        self._started_at = snapshot.started_at or _now_iso()
+        # Checkpoints e aprovações NÃO são restaurados. Uma tarefa pendente
+        # passa novamente pela política de checkpoint vigente.
 
     # ------------------------------------------------------------ validação
     @staticmethod
@@ -549,6 +611,7 @@ class PlanExecutor:
         run = self._next_eligible()
         if run is None:
             self._finish()
+            self._notify_state()
             return None
 
         # 8B — data-flow: resolve referências ${Tn.data.<campo>} ANTES do
@@ -593,11 +656,18 @@ class PlanExecutor:
                 task.parameters.update(resolved_params)
 
         if self._maybe_checkpoint(run):
-            return None  # pausado aguardando confirmação
+            self._notify_state()  # checkpoint pendente recuperável; aprovação será renovada
+            return None
 
+        # Persistir IN_PROGRESS antes de invocar a ferramenta. Se o processo
+        # cair durante o efeito externo, a recuperação falha fechada e não
+        # repete automaticamente uma ação de resultado ambíguo.
+        in_progress = replace(run, status=PlannedTaskStatus.IN_PROGRESS)
+        self._runs[run.id] = in_progress
+        self._notify_state()
         self._record("task_started", run.id)
-        self._observer.on_task_started(run)
-        final = self._execute_with_retry(run)
+        self._observer.on_task_started(in_progress)
+        final = self._execute_with_retry(in_progress)
         self._runs[run.id] = final
         self._observer.on_task_finished(final)
 
@@ -607,6 +677,7 @@ class PlanExecutor:
                 self._record("task_verification_passed", run.id)
             if self._next_eligible() is None:
                 self._finish()
+            self._notify_state()
             return final
 
         if final.status is PlannedTaskStatus.REJECTED:
@@ -616,6 +687,7 @@ class PlanExecutor:
                 run.id, self._plan.id, final.error,
             )
             self._interrupt(final.error or "reprovada na verificação")
+            self._notify_state()
             return final
 
         # FAILED (execução)
@@ -625,6 +697,7 @@ class PlanExecutor:
             run.id, self._plan.id, final.attempts, final.error,
         )
         self._interrupt(final.error or "falha de execução")
+        self._notify_state()
         return final
 
     def _execute_with_retry(self, run: TaskRun) -> TaskRun:
@@ -678,13 +751,19 @@ class PlanExecutor:
                     return replace(
                         run, status=PlannedTaskStatus.REJECTED,
                         result=result, verified=False,
+                        verification_name=self._verifier.name,
+                        verification_detail=outcome.detail,
+                        verification_authority=outcome.authority,
                         error=f"Verificação falhou: {outcome.detail}",
                         attempts=attempt, attempt_log=tuple(attempt_log),
                     )
                 if outcome.applied:
                     return replace(
                         run, status=PlannedTaskStatus.DONE, result=result,
-                        verified=True, attempts=attempt,
+                        verified=True, verification_name=self._verifier.name,
+                        verification_detail=outcome.detail,
+                        verification_authority=outcome.authority,
+                        attempts=attempt,
                         attempt_log=tuple(attempt_log),
                     )
             # 11E: ``applied=False`` ("não aplicável") chega aqui —
@@ -692,6 +771,9 @@ class PlanExecutor:
             # (mesmo fluxo de "sem verifier").
             return replace(
                 run, status=PlannedTaskStatus.DONE, result=result,
+                verification_name=(self._verifier.name if self._verifier is not None else None),
+                verification_detail=(outcome.detail if self._verifier is not None else None),
+                verification_authority=(outcome.authority if self._verifier is not None else None),
                 attempts=attempt, attempt_log=tuple(attempt_log),
             )
         raise ExecutorError("Loop de tentativas encerrado sem resultado.")  # pragma: no cover
@@ -736,6 +818,20 @@ class PlanExecutor:
         self._events.append(
             ExecutionEvent(kind=kind, task_id=task_id, detail=detail)
         )
+
+    def _notify_state(self) -> None:
+        """Grava snapshots; falha de persistência interrompe o passo antes da ferramenta."""
+        if self._state_callback is None:
+            return
+        try:
+            self._state_callback(self.report())
+        except Exception:
+            logger.exception(
+                "Snapshot de execução não pôde ser persistido; passo bloqueado."
+            )
+            # Fail-closed: nunca invocar a ferramenta se não foi possível
+            # persistir o estado IN_PROGRESS imediatamente antes da chamada.
+            raise
 
     def report(self) -> ExecutionReport:
         """Snapshot imutável do estado atual (parcial, pausado ou final)."""

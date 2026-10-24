@@ -22,6 +22,8 @@ Garantias:
 """
 from __future__ import annotations
 
+import copy
+import json
 import logging
 import re
 from uuid import uuid4
@@ -83,6 +85,8 @@ from app.unreal.models import UnrealPlan, UnrealProject
 from app.computer_control.service import ComputerControlService
 from app.computer_control.session import CCGrantRequest, CCSessionManager
 from app.computer_control.api import CCActionType
+from app.mcp_runtime.adapter import MCPRuntimeConfig
+from app.tools.mcp import MCPCallTool
 
 logger = logging.getLogger("lumen.tools.control")
 
@@ -187,6 +191,7 @@ def _auto_pytest_limit_report(plan: Plan) -> ExecutionReport:
             description=task.description,
             order=task.order,
             dependencies=task.dependencies,
+            tool=task.tool,
             status=PlannedTaskStatus.SKIPPED,
             error="Pulada: guardrail 11F (plano no limite de tasks).",
         )
@@ -203,6 +208,115 @@ def _auto_pytest_limit_report(plan: Plan) -> ExecutionReport:
         tasks=tasks,
         events=tuple(events),
         error=reason,
+    )
+
+
+def _contains_sanitization_marker(value: Any) -> bool:
+    """Detecta dados do plano alterados pelo redator/truncador do bundle."""
+    if isinstance(value, str):
+        return "…[truncado]" in value or "***" in value
+    if isinstance(value, dict):
+        return any(
+            _contains_sanitization_marker(key) or _contains_sanitization_marker(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_sanitization_marker(item) for item in value)
+    return False
+
+
+def _plan_from_bundle(data: dict[str, Any]) -> Plan:
+    """Reconstrói um Plan com validação estrita a partir do JSON persistido."""
+    if not isinstance(data, dict):
+        raise ToolsControlError("Plano persistido inválido.")
+    required = ("id", "objective", "status", "tasks")
+    if any(key not in data for key in required):
+        raise ToolsControlError("Plano persistido incompleto.")
+    if not isinstance(data["tasks"], list) or not data["tasks"]:
+        raise ToolsControlError("Plano persistido sem tarefas.")
+    tasks = []
+    for item in data["tasks"]:
+        if not isinstance(item, dict):
+            raise ToolsControlError("Tarefa persistida inválida.")
+        dependencies = item.get("dependencies", [])
+        criteria = item.get("success_criteria", [])
+        parameters = item.get("parameters")
+        if not isinstance(dependencies, list) or not all(isinstance(x, str) for x in dependencies):
+            raise ToolsControlError("Dependências persistidas inválidas.")
+        if not isinstance(criteria, list) or not all(isinstance(x, str) for x in criteria):
+            raise ToolsControlError("Critérios persistidos inválidos.")
+        if parameters is not None and not isinstance(parameters, dict):
+            raise ToolsControlError("Parâmetros persistidos inválidos.")
+        tasks.append(PlannedTask(
+            id=str(item["id"]),
+            description=str(item["description"]),
+            order=int(item["order"]),
+            dependencies=tuple(dependencies),
+            status=PlannedTaskStatus(item.get("status", "PENDING")),
+            result=item.get("result"),
+            error=item.get("error"),
+            tool=item.get("tool"),
+            parameters=parameters,
+            success_criteria=tuple(criteria),
+        ))
+    return Plan(
+        id=str(data["id"]),
+        objective=str(data["objective"]),
+        status=PlanStatus(data["status"]),
+        analysis=tuple(data.get("analysis") or ()),
+        tasks=tuple(tasks),
+        error=data.get("error"),
+        created_at=str(data.get("created_at") or ""),
+        updated_at=str(data.get("updated_at") or ""),
+    )
+
+
+def _report_from_bundle(data: dict[str, Any]) -> ExecutionReport:
+    """Reconstrói somente os campos de estado necessários para validar resume."""
+    if not isinstance(data, dict) or not isinstance(data.get("tasks"), list):
+        raise ToolsControlError("Relatório persistido inválido.")
+    runs = []
+    for item in data["tasks"]:
+        if not isinstance(item, dict):
+            raise ToolsControlError("Estado de tarefa persistido inválido.")
+        dependencies = item.get("dependencies", [])
+        if not isinstance(dependencies, list) or not all(isinstance(x, str) for x in dependencies):
+            raise ToolsControlError("Dependências do relatório inválidas.")
+        runs.append(TaskRun(
+            id=str(item["id"]),
+            description=str(item["description"]),
+            order=int(item["order"]),
+            dependencies=tuple(dependencies),
+            tool=item.get("tool"),
+            status=PlannedTaskStatus(item["status"]),
+            result=item.get("result"),
+            error=item.get("error"),
+            attempts=int(item.get("attempts", 0)),
+            verified=item.get("verified"),
+            verification_name=item.get("verification_name"),
+            verification_detail=item.get("verification_detail"),
+            verification_authority=item.get("verification_authority"),
+        ))
+    events_data = data.get("events") or []
+    if not isinstance(events_data, list):
+        raise ToolsControlError("Eventos persistidos inválidos.")
+    events = tuple(
+        ExecutionEvent(
+            kind=str(item["kind"]),
+            task_id=item.get("task_id"),
+            detail=str(item.get("detail", "")),
+        )
+        for item in events_data if isinstance(item, dict) and "kind" in item
+    )
+    return ExecutionReport(
+        plan_id=str(data["plan_id"]),
+        objective=str(data["objective"]),
+        status=PlanStatus(data["status"]),
+        tasks=tuple(runs),
+        events=events,
+        error=data.get("error"),
+        started_at=str(data.get("started_at") or ""),
+        finished_at=str(data.get("finished_at") or ""),
     )
 
 
@@ -318,7 +432,7 @@ class _CombinedCheckpoints(ToolCheckpoints):
         return any(policy.requires_checkpoint(task) for policy in self._policies)
 
 
-def _maybe_persist_execution_state(config, plan, report, *, correction=None) -> None:
+def _maybe_persist_execution_state(config, plan, report, *, correction=None, conversation_id=None) -> None:
     """9B: persiste o bundle de execução, se ``config`` habilitar (best-effort).
 
     ``config`` é qualquer objeto Settings-like com
@@ -340,6 +454,7 @@ def _maybe_persist_execution_state(config, plan, report, *, correction=None) -> 
         ExecutionBundleStore(base_dir).save_bundle(
             plan=plan, report=report,
             correction=correction, lumen_version=__version__,
+            conversation_id=conversation_id,
         )
     except Exception:  # sink nunca derruba o fluxo
         logger.exception(
@@ -360,6 +475,7 @@ class ToolsController:
         terminal_file: Path | None = None,
         persist_execution_state: bool = False,
         execution_state_dir: Path | str | None = None,
+        conversation_id: str | None = None,
         toggles_file: Path | None = None,
         export_execution_reports: bool = False,
         reports_dir: Path | None = None,
@@ -368,6 +484,7 @@ class ToolsController:
         snapshot_max_bytes: int = 1_000_000,
         unreal: UnrealIntegration | None = None,
         computer_control_service: ComputerControlService | None = None,
+        mcp_config_file: Path | None = None,
     ) -> None:
         if not isinstance(permissions, PermissionManager):
             raise ToolsControlError(
@@ -379,14 +496,24 @@ class ToolsController:
         # Serviço de Computer Control injetado pela composição; não concede
         # permissão, não cria scope e não arma o driver no startup.
         self._computer_control_service = computer_control_service
+        # MCP servers stay inert unless a local config enables a server and
+        # explicitly allow-lists at least one tool. Invalid config fails closed.
+        self._mcp_config = MCPRuntimeConfig()
+        if mcp_config_file is not None:
+            try:
+                self._mcp_config = MCPRuntimeConfig.load(mcp_config_file)
+            except (ValueError, OSError) as exc:
+                logger.error("MCP externo desabilitado por configuração inválida: %s", type(exc).__name__)
         self._cc_sessions = CCSessionManager()
         self._unreal_scope_id: str | None = None
         self._autonomous_mode = False
         self._autonomous_previous_grants: frozenset[PermissionLevel] | None = None
         self._pending_unreal_plan: UnrealPlan | None = None
         self._store = WorkspaceStore(workspaces_file)
+        self._autonomy_file = Path(workspaces_file).with_name("autonomy_mode.json")
         self._audit_file = Path(audit_file)
         self._audit = FilesystemAudit(sink=JsonlAuditSink(self._audit_file))
+        self._load_autonomous_mode()
         self._executor: PlanExecutor | None = None
         self._plan: Plan | None = None
         self._registry: ToolRegistry | None = None
@@ -420,6 +547,13 @@ class ToolsController:
         self._execution_state_dir = (
             Path(execution_state_dir) if execution_state_dir is not None else None
         )
+        # Identidade opaca do histórico de conversa; nunca inferida do texto.
+        self._conversation_id = (
+            conversation_id.strip()
+            if isinstance(conversation_id, str) and conversation_id.strip()
+            else None
+        )
+        self._execution_plan_snapshot: Plan | None = None
         # 11K: snapshot "before" de operações destrutivas (opt-in,
         # default OFF — bit-a-bit; best-effort; somente metadados no
         # audit; ver docs/SPEC-11K-SNAPSHOT_ROLLBACK.md). O store não
@@ -970,10 +1104,44 @@ class ToolsController:
     def autonomous_mode(self) -> bool:
         return self._autonomous_mode
 
+    def _load_autonomous_mode(self) -> None:
+        """Restaura o modo global explicitamente salvo pelo usuário."""
+        try:
+            if not self._autonomy_file.exists():
+                return
+            data = json.loads(self._autonomy_file.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or data.get("enabled") is not True:
+                return
+            names = data.get("previous_grants", [])
+            previous = frozenset(
+                PermissionLevel[name] for name in names
+                if isinstance(name, str) and name in PermissionLevel.__members__
+            )
+            self._autonomous_previous_grants = previous
+            for level in PermissionLevel:
+                self._permissions.grant(level)
+            self._autonomous_mode = True
+        except (OSError, ValueError, TypeError) as exc:
+            logger.error("Modo autônomo não restaurado (configuração inválida): %s", exc)
+
+    def _save_autonomous_mode(self, enabled: bool, previous: frozenset[PermissionLevel] = frozenset()) -> None:
+        payload = {
+            "enabled": bool(enabled),
+            "previous_grants": sorted(level.name for level in previous),
+        }
+        self._autonomy_file.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self._autonomy_file.with_suffix(self._autonomy_file.suffix + ".tmp")
+        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temporary.replace(self._autonomy_file)
+
     def enable_autonomous_mode(self) -> None:
         if self._autonomous_mode:
             return
-        self._autonomous_previous_grants = self._permissions.granted_levels()
+        previous = self._permissions.granted_levels()
+        # Persiste primeiro: se a gravação falhar, não anuncia uma autorização
+        # que desaparecerá silenciosamente ao reiniciar.
+        self._save_autonomous_mode(True, previous)
+        self._autonomous_previous_grants = previous
         for level in PermissionLevel:
             self._permissions.grant(level)
         self._autonomous_mode = True
@@ -983,6 +1151,7 @@ class ToolsController:
         if not self._autonomous_mode:
             return
         previous = self._autonomous_previous_grants or frozenset()
+        self._save_autonomous_mode(False, previous)
         for level in PermissionLevel:
             if level in previous:
                 self._permissions.grant(level)
@@ -1106,7 +1275,9 @@ class ToolsController:
 
     # ------------------------------------------------------------- sandbox/tool
     def _sandbox(self) -> MultiWorkspaceSandbox:
-        return MultiWorkspaceSandbox(self._store.load())
+        return MultiWorkspaceSandbox(
+            self._store.load(), unrestricted=self._autonomous_mode
+        )
 
     def planning_catalog(self) -> dict:
         """Allowlist de ferramentas que o chat pode planejar (0.6.3).
@@ -1121,10 +1292,31 @@ class ToolsController:
         """
         from app.planner.catalog import build_catalog
 
-        return build_catalog(
+        catalog = build_catalog(
             include_terminal=self._terminal_policy is not None,
             include_unreal=self._unreal is not None,
+            include_mcp=self._mcp_config.has_allowlisted_tools,
         )
+        # The generic mcp_call schema is not enough for a small local model:
+        # expose the operator-configured server/tool names in its description
+        # so the planner can select an exact allow-listed tool instead of
+        # guessing. The execution adapter still checks the live tools/list
+        # response before dispatch; this description is not an authorization.
+        mcp_spec = catalog.get("mcp_call")
+        if mcp_spec is not None:
+            configured = [
+                f"{server.name}: {', '.join(sorted(server.allowed_tools))}"
+                for server in self._mcp_config.servers
+                if server.allowed_tools
+            ]
+            if configured:
+                mcp_spec["description"] += (
+                    " Configured server and exact allow-listed tool names "
+                    "(each tool must also be advertised by the live server): "
+                    + "; ".join(configured)
+                    + "."
+                )
+        return catalog
 
     def build_registry(self) -> ToolRegistry:
         """Registry com as ferramentas habilitadas sobre os workspaces atuais.
@@ -1159,6 +1351,8 @@ class ToolsController:
         registry.register(WebSearchTool(audit=self._audit))
         registry.register(WebFetchTool(audit=self._audit))
         registry.register(WebResearchTool(audit=self._audit))
+        if self._mcp_config.has_allowlisted_tools:
+            registry.register(MCPCallTool(self._mcp_config, audit=self._audit))
         if self._unreal is not None:
             registry.register(UnrealSnapshotTool(self._unreal))
             registry.register(UnrealPlanTool())
@@ -1184,7 +1378,7 @@ class ToolsController:
                 name=name,
                 description=str(info.get("description") or ""),
                 parameters=params,
-                destructive=name in FILESYSTEM_DESTRUCTIVE_TOOLS,
+                destructive=(name in FILESYSTEM_DESTRUCTIVE_TOOLS or name == "mcp_call"),
             )
         available = {item["name"] for item in registry.list_tools()}
         definitions = {name: definition for name, definition in definitions.items()
@@ -1237,7 +1431,9 @@ class ToolsController:
         )
 
     # ---------------------------------------------------------------- execução
-    def run_plan(self, plan: Plan) -> ExecutionReport:
+    def run_plan(
+        self, plan: Plan, *, _resume_report: ExecutionReport | None = None,
+    ) -> ExecutionReport:
         """Executa um plano com as ferramentas reais + checkpoints.
 
         Executa até pausar por checkpoint (operação destrutiva **viável**
@@ -1262,7 +1458,7 @@ class ToolsController:
         self._engine = None
         # 11F: auto-anexo de run_pytest após WRITE — guardrails **antes**
         # de qualquer task executar (sem chamadas de tool, sem checkpoint).
-        if _needs_auto_pytest(
+        if _resume_report is None and _needs_auto_pytest(
             plan,
             terminal_enabled=self._terminal_policy is not None,
             verification_enabled=self.verification_enabled,
@@ -1271,20 +1467,31 @@ class ToolsController:
                 return self._final(_auto_pytest_limit_report(plan))
             plan = _attach_run_pytest(plan)
             self._plan = plan  # 9B: bundle persiste o plano ajustado
-        policies: list[ToolCheckpoints] = [
-            PrevalidatedCheckpoints(
+        # O Executor pode resolver data-flow in-place; snapshots persistidos
+        # mantêm parâmetros originais, nunca conteúdo resolvido de arquivos.
+        self._execution_plan_snapshot = copy.deepcopy(plan)
+        policies: list[ToolCheckpoints] = []
+        if not self._autonomous_mode:
+            policies.append(PrevalidatedCheckpoints(
                 self._permissions, registry, sandbox,
                 # 11K: pré-validação de restore_snapshot (viável ou não).
                 snapshots_dir=self._snapshots_dir,
-            )
-        ]
-        if self._terminal_policy is not None:
+            ))
+        if self._terminal_policy is not None and not self._autonomous_mode:
             policies.append(
                 PrevalidatedTerminalCheckpoints(
                     self._permissions, registry, self._terminal_policy, sandbox
                 )
             )
-        if self._corrections is not None:
+        if self._mcp_config.has_allowlisted_tools:
+            # MCP externo sempre exige aprovação explícita, inclusive no modo
+            # autônomo: conceder permissões globais não autoriza efeitos externos
+            # sem confirmação por chamada.
+            policies.append(ToolCheckpoints({"mcp_call"}))
+        # Um snapshot recuperável só é produzido no executor direto. Ao
+        # retomar esse snapshot, não se injeta retroativamente um ciclo de
+        # correção que não participou da execução original.
+        if self._corrections is not None and _resume_report is None:
             # 0.6.2: ciclo controlado EXECUTAR→VERIFICAR→(ANALISAR→PROPOR→
             # VALIDAR→APROVAR→APLICAR→RETRY→VERIFICAR)* com limites rígidos.
             # 11G etapa 1: sucessores #C recebem o mesmo auto-anexo de
@@ -1343,6 +1550,14 @@ class ToolsController:
         self._executor = PlanExecutor(
             plan, handler, checkpoints=_CombinedCheckpoints(policies),
             verifier=self._verifier,  # 11E: None (default) ou opt-in
+            state_callback=(
+                (lambda snapshot: self._persist_execution_snapshot(
+                    self._execution_plan_snapshot or plan, snapshot
+                ))
+                if self._persist_execution_state and self._conversation_id
+                else None
+            ),
+            initial_report=_resume_report,
         )
         if self._autonomous_mode:
             return self._drive_autonomous()
@@ -1356,6 +1571,13 @@ class ToolsController:
             report = self._executor.report()
             if not self._executor.paused:
                 return self._final(report)
+            checkpoint = self._executor.pending_checkpoint
+            if checkpoint is not None:
+                task = self._plan.task_by_id(checkpoint.task_id)
+                if task.tool == "mcp_call":
+                    # Modo autônomo remove confirmações repetitivas locais,
+                    # mas nunca autoaprova chamadas para processos externos.
+                    return self._final(report)
             self._executor.approve_checkpoint("autonomous-mode")
 
     def _drive_autonomous_engine(self) -> ExecutionReport:
@@ -1366,6 +1588,12 @@ class ToolsController:
                 self._engine.approve_correction("autonomous-mode")
                 continue
             if self._engine.executor.paused:
+                checkpoint = self._engine.executor.pending_checkpoint
+                if checkpoint is not None:
+                    task = self._engine.current_plan.task_by_id(checkpoint.task_id)
+                    if task.tool == "mcp_call":
+                        # Mesmo no modo autônomo, MCP externo aguarda aprovação humana.
+                        return self._final(report)
                 self._engine.executor.approve_checkpoint("autonomous-mode")
                 continue
             return self._final(report)
@@ -1375,6 +1603,69 @@ class ToolsController:
         while self._executor.step() is not None:
             pass
         return self._executor.report()
+
+    @property
+    def conversation_id(self) -> str | None:
+        """ID opaco do histórico local, usado pelo bridge ao retomar explicitamente."""
+        return self._conversation_id
+
+    def resume_execution(self, plan_id: str, *, conversation_id: str) -> ExecutionReport:
+        """Retoma explicitamente apenas progresso inequívoco da mesma conversa."""
+        if not self._persist_execution_state:
+            raise ToolsControlError("Persistência de execução está desativada.")
+        if not self._conversation_id or conversation_id != self._conversation_id:
+            raise ToolsControlError("Identidade de conversa inválida; retomada bloqueada.")
+        if self._autonomous_mode:
+            raise ToolsControlError(
+                "Retomada indisponível para execução autônoma."
+            )
+        base_dir = self._execution_state_dir
+        if base_dir is None:
+            from app.config.settings import Settings
+            base_dir = Settings().execution_dir
+        try:
+            bundle = ExecutionBundleStore(base_dir).load_bundle(
+                plan_id, conversation_id=conversation_id,
+            )
+            plan_data = bundle["plan"]
+            report_data = bundle["execution_report"]
+            plan = _plan_from_bundle(plan_data)
+            report = _report_from_bundle(report_data)
+            # Evita executar parâmetros potencialmente alterados pela sanitização.
+            if _contains_sanitization_marker(plan_data):
+                raise ToolsControlError(
+                    "Parâmetros do plano foram sanitizados/truncados; retomada bloqueada."
+                )
+            if report.plan_id != plan_id or report.status is not PlanStatus.RUNNING:
+                raise ToolsControlError("O bundle não contém uma execução interrompida retomável.")
+            return self.run_plan(plan, _resume_report=report)
+        except ToolsControlError:
+            raise
+        except Exception as exc:
+            raise ToolsControlError(f"Retomada bloqueada: {exc}") from exc
+
+    def _persist_execution_snapshot(self, plan: Plan, report: ExecutionReport) -> None:
+        """Persiste progresso por tarefa para recuperação explícita.
+
+        O callback só existe com persistência opt-in e identidade de conversa.
+        O store sanitiza o resultado; IN_PROGRESS é deliberadamente gravado
+        antes do handler para impedir repetição automática após queda ambígua.
+        """
+        if not self._persist_execution_state or not self._conversation_id:
+            return
+        from app import __version__
+
+        base_dir = self._execution_state_dir
+        if base_dir is None:
+            from app.config.settings import Settings
+            base_dir = Settings().execution_dir
+        ExecutionBundleStore(base_dir).save_bundle(
+            plan=plan,
+            report=report,
+            correction=self.correction_history() or None,
+            lumen_version=__version__,
+            conversation_id=self._conversation_id,
+        )
 
     def _final(self, report: ExecutionReport) -> ExecutionReport:
         """9B: persiste o bundle em estado TERMINAL (best-effort, opt-in).
@@ -1401,8 +1692,9 @@ class ToolsController:
             execution_dir=self._execution_state_dir,  # None ⇒ Settings()
         )
         _maybe_persist_execution_state(
-            config, self._plan, report,
+            config, self._execution_plan_snapshot or self._plan, report,
             correction=self.correction_history() or None,
+            conversation_id=self._conversation_id,
         )
         return report
 

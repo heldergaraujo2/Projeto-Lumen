@@ -28,12 +28,49 @@ autorizou".
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
 
 logger = logging.getLogger("lumen.bridge")
+
+
+# Concrete action requests must not silently fall through to chat just
+# because a small/local model misclassified the request as conversational.
+_EXPLICIT_ACTION_RE = re.compile(
+    r"\b(?:crie|criar|leia|ler|liste|listar|procure|procurar|busque|buscar|"
+    r"pesquise|pesquisar|edite|editar|altere|alterar|verifique|verificar|"
+    r"execute|executar|rode|rodar|abra|abrir|acesse|acessar|inspecione|"
+    r"inspecionar|analise|analisar|use|utilize|run|read|create|list|search|"
+    r"edit|modify|check|execute|open|inspect|analyze)\b.{0,100}\b"
+    r"(?:arquivo|arquivos|pasta|pastas|diret[oó]rio|internet|web|url|site|"
+    r"teste|testes|pytest|comando|terminal|c[oó]digo|projeto|reposit[oó]rio|"
+    r"mcp|ghidra|file|files|folder|directory|website|tests?|command|terminal|"
+    r"code|project|repository)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _is_explicit_action_request(text: str) -> bool:
+    """True only for concrete tool-oriented requests, not questions or negations."""
+    normalized = " ".join((text or "").split())
+    if not normalized or re.match(r"^(como|how|o que|what)\b", normalized, re.I):
+        return False
+    if re.search(
+        r"\b(?:não|nao|don't|do not|never)\s+"
+        r"(?:crie|criar|leia|ler|liste|listar|procure|procurar|busque|buscar|"
+        r"pesquise|pesquisar|edite|editar|altere|alterar|verifique|verificar|"
+        r"execute|executar|rode|rodar|abra|abrir|acesse|acessar|inspecione|"
+        r"inspecionar|analise|analisar|use|utilize|run|read|create|list|search|"
+        r"edit|modify|check|execute|open|inspect|analyze)\b",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return False
+    return bool(_EXPLICIT_ACTION_RE.search(normalized))
 
 
 class RequestState(str, Enum):
@@ -52,8 +89,27 @@ class RequestState(str, Enum):
     EXECUTING = "EXECUTING"              # execução em andamento
     VERIFYING = "VERIFYING"              # verificação pós-execução
     COMPLETED = "COMPLETED"              # sucesso (verificado)
+    EXECUTED_UNVERIFIED = "EXECUTED_UNVERIFIED"  # execução observada, sem verificação funcional
     FAILED = "FAILED"                    # falha controlada
     REJECTED = "REJECTED"                # reprovação de verificação
+
+
+@dataclass(frozen=True)
+class TaskExecutionEvidence:
+    """Evidência resumida da execução/verificação de uma tarefa."""
+
+    task_id: str
+    tool: str
+    execution_status: str
+    result_sha256: str | None
+    result_summary: str
+    verification_status: str
+    verification_name: str | None = None
+    verification_detail: str | None = None
+    verification_authority: str | None = None
+    requested_path: str | None = None
+    resolved_path: str | None = None
+    exists: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -68,6 +124,7 @@ class AgentOutcome:
     state: RequestState
     text: str
     plan_id: str | None = None
+    execution_evidence: tuple[TaskExecutionEvidence, ...] = ()
 
 
 class ToolCallingBridge:
@@ -96,7 +153,12 @@ class ToolCallingBridge:
             return None
         message = result.text.strip()
         self._remember(cleaned, message)
-        return AgentOutcome(RequestState.COMPLETED, message)
+        state = (
+            RequestState.EXECUTED_UNVERIFIED
+            if result.used_tools
+            else RequestState.CONVERSATIONAL
+        )
+        return AgentOutcome(state, message)
 
     # ------------------------------------------------------------------ API
     def process(self, text: str, on_delta=None) -> AgentOutcome:
@@ -107,24 +169,69 @@ class ToolCallingBridge:
                 RequestState.CONVERSATIONAL, "A mensagem não pode ser vazia."
             )
 
+        # Comando explícito e determinístico; nunca passa pelo LLM/runtime universal.
+        if cleaned == "/retomar" or cleaned.startswith("/retomar "):
+            parts = cleaned.split()
+            if len(parts) != 2 or parts[0] != "/retomar":
+                message = "Uso: /retomar <ID_DO_PLANO>"
+                self._remember(cleaned, message)
+                return AgentOutcome(RequestState.PLAN_INVALID, message)
+            plan_id = parts[1]
+            conversation_id = getattr(self._controller, "conversation_id", None)
+            if not isinstance(conversation_id, str) or not conversation_id:
+                message = (
+                    "Retomada bloqueada: esta instalação não tem identidade "
+                    "de conversa persistente ou a configuração não a habilitou."
+                )
+                self._remember(cleaned, message)
+                return AgentOutcome(RequestState.FAILED, message, plan_id)
+            try:
+                report = self._controller.resume_execution(
+                    plan_id, conversation_id=conversation_id,
+                )
+            except Exception as exc:
+                message = f"Retomada do plano {plan_id} bloqueada: {exc}"
+                self._remember(cleaned, message)
+                return AgentOutcome(RequestState.FAILED, message, plan_id)
+            return self.outcome_for_report(cleaned, plan_id, report)
+
         # 1) PLANNING: o provedor classifica e (se for ação) planeja com
         #    a allowlist de ferramentas do controller.
         catalog = self._controller.planning_catalog()
         result = self._agent.request_tool_plan(cleaned, catalog)
 
         if result.kind == "conversation":
-            universal = self._try_universal(cleaned)
-            if universal is not None:
-                return universal
-            reply = self._agent.send_message(cleaned, on_delta=on_delta)
-            return AgentOutcome(RequestState.CONVERSATIONAL, reply)
+            # A local model can misclassify a concrete external action as chat.
+            # Retry once with explicit routing guidance, but only for specific
+            # action requests; generic asks such as "give me unrestricted access"
+            # remain conversational and do not trigger tool execution.
+            if _is_explicit_action_request(cleaned):
+                retry_request = (
+                    f"{cleaned}\n\n"
+                    'ROTEAMENTO OBRIGATÓRIO: o pedido acima solicita uma ação concreta. '
+                    'Reavalie a allowlist fornecida e retorne "type": "plan" '
+                    'com ferramentas existentes se houver ferramenta adequada. '
+                    'Não responda em linguagem natural. Se não houver ferramenta adequada, '
+                    'retorne "type": "conversation" sem inventar capacidades.'
+                )
+                result = self._agent.request_tool_plan(retry_request, catalog)
+                if result.kind == "conversation":
+                    message = (
+                        "Não consegui transformar este pedido de ação em um plano de "
+                        "ferramentas válido. Nenhuma ação foi executada. Verifique se a "
+                        "ferramenta necessária está conectada e permitida nesta instalação."
+                    )
+                    self._remember(cleaned, message)
+                    return AgentOutcome(RequestState.PLAN_INVALID, message)
+            else:
+                # Pure conversation remains on the regular chat path.
+                reply = self._agent.send_message(cleaned, on_delta=on_delta)
+                return AgentOutcome(RequestState.CONVERSATIONAL, reply)
 
         if result.kind == "invalid":
-            universal = self._try_universal(cleaned)
-            if universal is not None:
-                return universal
             # 3) Saída inválida do LLM/provedor: falha controlada, NADA
-            #    executa (nunca execução parcial de plano inválido).
+            #    executa. Não delegue ao runtime universal: isso permitiria
+            #    contornar a validação de protocolo com a mesma solicitação.
             reason = result.reason or "motivo desconhecido"
             logger.warning("Plano inválido via chat: %s", reason)
             message = (
@@ -159,13 +266,20 @@ class ToolCallingBridge:
         if any(task.tool == "unreal_plan" for task in plan.tasks):
             return self._unreal_plan_outcome(cleaned, plan, report)
 
+        execution_evidence = self._execution_evidence(report)
+
         # 5) Pesquisa Web: transforma as evidências reais em resposta natural.
         if any(task.tool == "web_research" for task in plan.tasks):
             if getattr(report.status, "value", None) == "COMPLETED":
                 answer = self._web_research_answer(cleaned, plan, report)
                 if answer:
                     self._remember(cleaned, answer)
-                    return AgentOutcome(RequestState.COMPLETED, answer, plan.id)
+                    return AgentOutcome(
+                        RequestState.EXECUTED_UNVERIFIED,
+                        answer + "\n\n" + self._format_execution_evidence(execution_evidence),
+                        plan.id,
+                        execution_evidence,
+                    )
 
         # 6) Demais planos mantêm o desfecho existente.
         return self.outcome_for_report(cleaned, plan.id, report)
@@ -294,7 +408,27 @@ class ToolCallingBridge:
             logger.exception("Falha controlada ao processar ToolCall.")
             return AgentOutcome(RequestState.FAILED, f"✖ Falha ao processar ToolCall: {exc}")
         if result.ok:
-            return AgentOutcome(RequestState.COMPLETED, "✔ ToolCall concluído.", result.data.get("plan_id"))
+            evidence = self._execution_evidence_from_runs(
+                (result.data.get("execution_report") or {}).get("tasks", [])
+            )
+            verified = bool(evidence) and all(
+                item.execution_status == "DONE"
+                and item.result_sha256 is not None
+                and item.verification_status == "passed"
+                and item.verification_authority == "observed"
+                for item in evidence
+            )
+            state = RequestState.COMPLETED if verified else RequestState.EXECUTED_UNVERIFIED
+            message = (
+                "✔ ToolCall executado e verificado."
+                if verified else
+                "⚠ ToolCall executado; verificação funcional não foi confirmada."
+            )
+            if evidence:
+                message += "\n\n" + self._format_execution_evidence(evidence)
+            return AgentOutcome(
+                state, message, result.data.get("plan_id"), evidence,
+            )
         if result.data.get("awaiting_approval"):
             return AgentOutcome(
                 RequestState.WAITING_APPROVAL,
@@ -326,19 +460,36 @@ class ToolCallingBridge:
 
         done = sum(1 for r in report.tasks if r.status.value == "DONE")
         total = len(report.tasks)
+        evidence = self._execution_evidence(report)
 
         if report.status is PlanStatus.COMPLETED:
-            verified = sum(
-                1 for r in report.tasks
-                if r.status.value == "DONE" and r.verified is not False
+            verified = sum(1 for item in evidence if item.verification_status == "passed")
+            all_verified = bool(evidence) and len(evidence) == total and all(
+                item.execution_status == "DONE"
+                and item.result_sha256 is not None
+                and item.verification_status == "passed"
+                and item.verification_authority == "observed"
+                for item in evidence
             )
-            message = (
-                f"✔ Plano {plan_id} concluído: {done}/{total} tarefa(s) "
-                f"executada(s) e verificada(s) ({verified} com verificação "
-                "explícita)."
-            )
+            if all_verified:
+                state = RequestState.COMPLETED
+                message = (
+                    f"✔ Plano {plan_id}: execução concluída e verificada — "
+                    f"{done}/{total} tarefa(s) executada(s), com resultado e "
+                    "verificação explícitos."
+                )
+            else:
+                state = RequestState.EXECUTED_UNVERIFIED
+                message = (
+                    f"⚠ Plano {plan_id}: execução técnica concluída — "
+                    f"{done}/{total} tarefa(s) retornaram sucesso; "
+                    f"{verified}/{total} passaram por verificação funcional explícita. "
+                    "O sucesso funcional não foi confirmado."
+                )
+            if evidence:
+                message += "\n\n" + self._format_execution_evidence(evidence)
             self._remember(request, message)
-            return AgentOutcome(RequestState.COMPLETED, message, plan_id)
+            return AgentOutcome(state, message, plan_id, evidence)
 
         if report.status is PlanStatus.RUNNING and self._controller.has_pending:
             pending = self._controller.pending_approval() or {}
@@ -355,8 +506,12 @@ class ToolCallingBridge:
                 "\nNada é executado antes de você APROVAR; RECUSAR mantém "
                 "tudo como está."
             )
+            if evidence:
+                message += "\n\n" + self._format_execution_evidence(evidence)
             self._remember(request, message)
-            return AgentOutcome(RequestState.WAITING_APPROVAL, message, plan_id)
+            return AgentOutcome(
+                RequestState.WAITING_APPROVAL, message, plan_id, evidence,
+            )
 
         # FAILED (fail-fast) — distingue reprovação de verificação.
         rejected = next(
@@ -374,8 +529,162 @@ class ToolCallingBridge:
             f"✖ Plano {plan_id} {label}: {detail} "
             f"({done}/{total} tarefa(s) concluída(s)). Nada mais foi executado."
         )
+        if evidence:
+            message += "\n\n" + self._format_execution_evidence(evidence)
         self._remember(request, message)
-        return AgentOutcome(state, message, plan_id)
+        return AgentOutcome(state, message, plan_id, evidence)
+
+    @classmethod
+    def _execution_evidence(cls, report) -> tuple[TaskExecutionEvidence, ...]:
+        return cls._execution_evidence_from_runs(report.tasks)
+
+    @classmethod
+    def _execution_evidence_from_runs(cls, task_runs) -> tuple[TaskExecutionEvidence, ...]:
+        evidence = []
+        for run in task_runs:
+            get_value = (
+                (lambda key, default=None: run.get(key, default))
+                if isinstance(run, dict)
+                else (lambda key, default=None: getattr(run, key, default))
+            )
+            raw_result = get_value("result")
+            result = raw_result if isinstance(raw_result, str) else None
+            tool = str(get_value("tool") or "unknown")
+            result_sha256 = (
+                hashlib.sha256(result.encode("utf-8")).hexdigest()
+                if result is not None else None
+            )
+            requested_path = None
+            resolved_path = None
+            exists = None
+            if tool == "file_exists" and result is not None:
+                try:
+                    result_payload = json.loads(result)
+                except (TypeError, ValueError):
+                    result_payload = None
+                data = (
+                    result_payload.get("data")
+                    if isinstance(result_payload, dict) else None
+                )
+                if isinstance(data, dict):
+                    requested = data.get("requested_path")
+                    resolved = data.get("resolved_path")
+                    requested_path = (
+                        requested if isinstance(requested, str) and requested.strip()
+                        else None
+                    )
+                    resolved_path = (
+                        resolved if isinstance(resolved, str) and resolved.strip()
+                        else None
+                    )
+                    exists_value = data.get("exists")
+                    exists = exists_value if isinstance(exists_value, bool) else None
+            verified = get_value("verified")
+            verification_authority = get_value("verification_authority")
+            if verified is True and verification_authority == "observed":
+                verification_status = "passed"
+            elif verified is False:
+                verification_status = "failed"
+            elif verified is True:
+                verification_status = "simulated_or_untrusted"
+            elif get_value("verification_name"):
+                verification_status = "not_applicable"
+            else:
+                verification_status = "not_run"
+            status = get_value("status", "UNKNOWN")
+            status = getattr(status, "value", status)
+            evidence.append(TaskExecutionEvidence(
+                task_id=str(get_value("id", "?")),
+                tool=tool,
+                execution_status=str(status),
+                result_sha256=result_sha256,
+                result_summary=cls._summarize_tool_result(result),
+                verification_status=verification_status,
+                verification_name=get_value("verification_name"),
+                verification_detail=get_value("verification_detail"),
+                verification_authority=verification_authority,
+                requested_path=requested_path,
+                resolved_path=resolved_path,
+                exists=exists,
+            ))
+        return tuple(evidence)
+
+    @staticmethod
+    def _summarize_tool_result(result: str | None) -> str:
+        if result is None:
+            return "nenhum resultado retornado"
+        try:
+            payload = json.loads(result)
+        except (TypeError, ValueError):
+            return f"resultado textual ({len(result.encode('utf-8'))} bytes)"
+        if not isinstance(payload, dict):
+            return "resultado estruturado inesperado"
+        parts = []
+        if isinstance(payload.get("ok"), bool):
+            parts.append(f"ok={str(payload['ok']).lower()}")
+        data = payload.get("data")
+        if isinstance(data, dict):
+            entries = data.get("entries")
+            if isinstance(entries, list):
+                names = [
+                    str(item.get("name")) for item in entries[:8]
+                    if isinstance(item, dict) and item.get("name") is not None
+                ]
+                parts.append(f"entries={len(entries)}")
+                if names:
+                    parts.append("names=" + ", ".join(names))
+            content = data.get("content")
+            if isinstance(content, str):
+                content_bytes = content.encode("utf-8")
+                parts.append(f"content_bytes={len(content_bytes)}")
+                parts.append(f"content_sha256={hashlib.sha256(content_bytes).hexdigest()}")
+            for key in ("exists", "count", "bytes", "exit_code", "timed_out"):
+                value = data.get(key)
+                if isinstance(value, (int, float, bool)) or (
+                    key == "exit_code" and isinstance(value, str)
+                ):
+                    parts.append(f"{key}={value}")
+            summary_line = data.get("summary_line")
+            if isinstance(summary_line, str) and summary_line.strip():
+                parts.append("summary=" + " ".join(summary_line.split())[:180])
+            sources = data.get("sources")
+            if isinstance(sources, list):
+                parts.append(f"sources={len(sources)}")
+        if not parts and payload.get("error"):
+            parts.append("error=" + " ".join(str(payload["error"]).split())[:180])
+        return "; ".join(parts) if parts else "resultado JSON sem campos resumíveis"
+
+    @staticmethod
+    def _format_execution_evidence(
+        evidence: tuple[TaskExecutionEvidence, ...],
+    ) -> str:
+        lines = ["Evidências de execução (resultado da ferramenta e verificação separados):"]
+        for item in evidence:
+            verification = item.verification_status
+            if item.verification_name:
+                verification += f" via {item.verification_name}"
+            if item.verification_authority:
+                verification += f" [{item.verification_authority}]"
+            if item.verification_detail:
+                verification += f" ({item.verification_detail[:180]})"
+            digest = item.result_sha256 or "indisponível"
+            lines.append(
+                f"- {item.task_id} {item.tool}: execução={item.execution_status}; "
+                f"verificação={verification}; resultado_sha256={digest}; "
+                f"{item.result_summary}"
+            )
+            if item.tool == "file_exists":
+                requested = item.requested_path or "indisponível no resultado"
+                resolved = item.resolved_path or "indisponível no resultado"
+                exists = (
+                    str(item.exists).lower()
+                    if item.exists is not None else "indisponível no resultado"
+                )
+                lines.append(
+                    f"  caminho solicitado={requested}; "
+                    f"caminho completo consultado={resolved}; exists={exists}"
+                )
+        return "\n".join(lines)
 
     def _remember(self, request: str | None, reply: str) -> None:
         """Mantém o histórico de conversa coerente (ação também é conversa)."""

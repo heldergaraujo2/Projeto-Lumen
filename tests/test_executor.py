@@ -14,6 +14,7 @@ from app.executor import (
     PlanExecutor,
     SimulatedHandler,
 )
+from app.executor.executor import TaskRun
 from app.executor.handlers import TaskHandler
 from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
 
@@ -276,3 +277,79 @@ def test_report_serializes_to_dict():
     assert data["tasks"][0]["status"] == "DONE"
     assert data["tasks"][0]["attempts"] == 1
     assert data["events"][-1]["kind"] == "plan_finished"
+
+
+
+# ------------------------------------------------ recuperação segura (9C)
+def _running_snapshot(plan, first_status=PlannedTaskStatus.DONE, first_result='{"ok":true,"data":{},"error":null}'):
+    runs = []
+    for task in plan.tasks:
+        if task.id == "T1":
+            runs.append(TaskRun(
+                id=task.id, description=task.description, order=task.order,
+                dependencies=task.dependencies, tool=task.tool,
+                status=first_status, result=first_result,
+            ))
+        else:
+            runs.append(TaskRun(
+                id=task.id, description=task.description, order=task.order,
+                dependencies=task.dependencies, tool=task.tool,
+                status=PlannedTaskStatus.PENDING,
+            ))
+    return ExecutionReport(
+        plan_id=plan.id, objective=plan.objective, status=PlanStatus.RUNNING,
+        tasks=tuple(runs), events=(), started_at="snapshot-start",
+    )
+
+
+def test_resume_executes_only_pending_tasks_and_reuses_done(tmp_path):
+    plan = make_plan([("primeira", []), ("segunda", ["T1"])])
+    handler = SimulatedHandler()
+    executor = PlanExecutor(plan, handler, initial_report=_running_snapshot(plan))
+    report = executor.run_all()
+    assert report.status is PlanStatus.COMPLETED
+    assert handler.executed == ["T2"]
+
+
+def test_resume_fails_closed_for_in_progress_task():
+    plan = make_plan([("primeira", []), ("segunda", ["T1"])])
+    snapshot = _running_snapshot(plan, first_status=PlannedTaskStatus.IN_PROGRESS)
+    with pytest.raises(ExecutorError, match="retomada bloqueada"):
+        PlanExecutor(plan, SimulatedHandler(), initial_report=snapshot)
+
+
+def test_resume_fails_closed_for_unverified_saved_result():
+    plan = make_plan([("primeira", []), ("segunda", ["T1"])])
+    snapshot = _running_snapshot(plan, first_result='{"ok":false,"data":{},"error":"falhou"}')
+    with pytest.raises(ExecutorError, match="não comprova sucesso"):
+        PlanExecutor(plan, SimulatedHandler(), initial_report=snapshot)
+
+
+
+def test_state_callback_snapshots_in_progress_before_done():
+    snapshots = []
+    executor = PlanExecutor(
+        make_plan(),
+        SimulatedHandler(),
+        state_callback=lambda report: snapshots.append(statuses(report)),
+    )
+    executor.run_all()
+    assert any(state["T1"] is PlannedTaskStatus.IN_PROGRESS for state in snapshots)
+    assert any(state["T1"] is PlannedTaskStatus.DONE for state in snapshots)
+
+
+
+def test_snapshot_persistence_failure_blocks_tool_execution():
+    handler = SimulatedHandler()
+
+    def fail_persistence(_report):
+        raise OSError("disk full")
+
+    executor = PlanExecutor(
+        make_plan(),
+        handler,
+        state_callback=fail_persistence,
+    )
+    with pytest.raises(OSError, match="disk full"):
+        executor.run_all()
+    assert handler.executed == []

@@ -38,6 +38,7 @@ class VerificationResult:
     passed: bool
     detail: str = ""
     applied: bool = True
+    authority: str = "unknown"
 
     def to_dict(self) -> dict:
         return {"passed": self.passed, "detail": self.detail}
@@ -68,8 +69,12 @@ class SimulatedVerifier(TaskVerifier):
 
     def verify(self, task: PlannedTask, result: str) -> VerificationResult:
         if task.id in self._failures:
-            return VerificationResult(False, self._failures[task.id])
-        return VerificationResult(True, "verificado (simulado)")
+            return VerificationResult(
+                False, self._failures[task.id], authority="simulated",
+            )
+        return VerificationResult(
+            True, "verificado (simulado)", authority="simulated",
+        )
 
 
 class PytestResultVerifier(TaskVerifier):
@@ -97,30 +102,35 @@ class PytestResultVerifier(TaskVerifier):
 
     def verify(self, task: PlannedTask, result: str) -> VerificationResult:
         if task.tool != "run_pytest":
-            return VerificationResult(True, "not applicable", applied=False)
+            return VerificationResult(
+                True, "not applicable", applied=False, authority="none",
+            )
 
         try:
             payload = json.loads(result)
         except (TypeError, ValueError):
-            return VerificationResult(False, "invalid tool result json")
+            return VerificationResult(False, "invalid tool result json", authority="observed")
         if not isinstance(payload, dict):
-            return VerificationResult(False, "invalid tool result json")
+            return VerificationResult(False, "invalid tool result json", authority="observed")
         if payload.get("ok") is not True:
             return VerificationResult(
                 False,
                 str(payload.get("error") or "tool result reported failure"),
+                authority="observed",
             )
         data = payload.get("data")
         if not isinstance(data, dict):
             return VerificationResult(
-                False, "invalid tool result: missing 'data' object"
+                False, "invalid tool result: missing 'data' object",
+                authority="observed",
             )
         if data.get("timed_out") is True:
-            return VerificationResult(False, "timed out")
+            return VerificationResult(False, "timed out", authority="observed")
         exit_code = data.get("exit_code")
         if isinstance(exit_code, bool) or not isinstance(exit_code, int):
             return VerificationResult(
-                False, "invalid tool result: missing/invalid 'exit_code'"
+                False, "invalid tool result: missing/invalid 'exit_code'",
+                authority="observed",
             )
         summary = data.get("summary_line")
         detail = (
@@ -128,4 +138,4 @@ class PytestResultVerifier(TaskVerifier):
             if isinstance(summary, str) and summary
             else f"exit_code={exit_code}"
         )
-        return VerificationResult(exit_code == 0, detail)
+        return VerificationResult(exit_code == 0, detail, authority="observed")

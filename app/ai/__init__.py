@@ -8,6 +8,8 @@ from app.ai.mock import MockProvider
 from app.ai.openai_provider import OpenAIProvider
 from app.ai.ollama_provider import DEFAULT_MODEL as OLLAMA_DEFAULT_MODEL
 from app.ai.ollama_provider import OllamaProvider
+from app.ai.orcarouter_provider import DEFAULT_MODEL as ORCAROUTER_DEFAULT_MODEL
+from app.ai.orcarouter_provider import OrcaRouterProvider
 from app.ai.together_provider import DEFAULT_MODEL as TOGETHER_DEFAULT_MODEL
 from app.ai.together_provider import TogetherProvider
 from app.ai.provider_runtime import ProviderRuntime, RuntimeAttempt, RuntimeProviderSpec, RuntimeRequest, RuntimeResult
@@ -56,6 +58,8 @@ __all__ = [
     "OpenAIProvider",
     "OLLAMA_DEFAULT_MODEL",
     "OllamaProvider",
+    "ORCAROUTER_DEFAULT_MODEL",
+    "OrcaRouterProvider",
     "ProviderAuthError",
     "ProviderDependencyError",
     "ProviderError",
