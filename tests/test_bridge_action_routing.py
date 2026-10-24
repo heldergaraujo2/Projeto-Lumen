@@ -49,6 +49,7 @@ def test_explicit_file_and_web_actions_are_detected():
 def test_generic_unrestricted_access_request_is_not_an_action():
     assert not _is_explicit_action_request("Quero acesso irrestrito a todas as ferramentas")
     assert not _is_explicit_action_request("Como posso ler um arquivo?")
+    assert not _is_explicit_action_request("Não leia o arquivo docs/README.md")
 
 
 def test_explicit_action_retries_planner_and_never_falls_back_to_chat():
