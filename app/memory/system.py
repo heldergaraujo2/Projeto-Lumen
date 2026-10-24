@@ -17,9 +17,9 @@ Fornece também:
 - ``recall(query)`` — busca unificada por relevância em todos os
   domínios estruturados;
 - ``build_context(query)`` — seleção de contexto **limitada**
-  (``LUMEN_MAX_MEMORY_RECORDS``) pronta para o futuro fluxo do Agent
-  (0.4+): registros estruturados primeiro, mensagens de conversa
-  completando a cota;
+  (``LUMEN_MAX_MEMORY_RECORDS``): registros estruturados primeiro,
+  resultados semânticos locais quando Mem0 estiver habilitado e mensagens
+  de conversa completando a cota;
 - proteção de segredos em TODOS os domínios estruturados (redação antes
   de persistir — :mod:`app.memory.sanitization`).
 
