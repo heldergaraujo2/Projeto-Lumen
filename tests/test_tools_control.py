@@ -1007,3 +1007,38 @@ def test_resume_restores_done_task_and_executes_pending_only(tmp_path):
     ]
     assert report.tasks[0].result == previous_result
     assert "read on resume" in (report.tasks[1].result or "")
+
+
+
+# ------------------------------------------------ recuperação segura (9C)
+def test_resume_execution_is_disabled_by_default(controller):
+    with pytest.raises(ToolsControlError, match="desativada"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-a")
+
+
+def test_resume_execution_rejects_missing_or_foreign_conversation(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=tmp_path / "executions",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="Identidade de conversa inválida"):
+        controller.resume_execution("PLN-4242", conversation_id="")
+    with pytest.raises(ToolsControlError, match="Identidade de conversa inválida"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-b")
+
+
+def test_resume_execution_requires_bundle_for_same_conversation(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=tmp_path / "executions",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="não encontrada"):
+        controller.resume_execution("PLN-missing", conversation_id="conv-a")
