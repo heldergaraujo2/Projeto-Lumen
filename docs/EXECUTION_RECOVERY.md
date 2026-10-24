@@ -24,7 +24,7 @@ Substitua o exemplo pelo ID do plano interrompido. O comando é tratado antes do
 - Checkpoints e aprovações não são restaurados. A tarefa pendente passa novamente pela política de aprovação vigente.
 - Parâmetros são persistidos a partir do plano original, não dos valores de data-flow resolvidos. Se a sanitização alterou parâmetros, a retomada é bloqueada.
 - Segredos, saídas de terminal e conteúdo integral de arquivos continuam sujeitos à sanitização existente.
-- Retomada está desabilitada para o modo autônomo e para ciclos de correção, pois esses fluxos precisam de snapshots próprios antes de serem recuperados com segurança.
+- O modo autônomo é bloqueado para retomada. O ciclo de correção não emite snapshots intermediários: se uma execução desse modo for interrompida, ela não será retomável. Um snapshot recuperável do executor direto continua usando o executor direto ao retomar; a Lúmen não injeta um ciclo de correção novo no meio da execução.
 
 ## Limitações operacionais
 
