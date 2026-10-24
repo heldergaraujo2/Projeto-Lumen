@@ -1,18 +1,8 @@
-"""Modelo de registros de memória da Lumen (0.3).
+"""Modelo de registros de memória da Lumen (0.3 + Fase E).
 
 Um :class:`MemoryRecord` é a unidade de informação dos domínios de
 memória estruturada (projeto, tarefa, conhecimento, decisão, erro,
-solução). Características exigidas pela 0.3:
-
-- ``id`` único e legível por domínio (``PRJ-0001``, ``KN-0001``, …);
-- ``created_at``/``updated_at`` (ISO-8601 com fuso);
-- ``origin`` (origem da informação: usuário, agente, manual…);
-- ``related_ids`` (relacionamento entre registros, inclusive entre
-  domínios — ex.: erro ``ERR-0001`` ↔ solução ``SOL-0001``);
-- ``supersedes`` (trilha de atualização: registro novo que substitui um
-  antigo, que por sua vez vira ``OBSOLETE``);
-- ``content_hash`` (deduplicação básica: título+conteúdo normalizados);
-- ``status`` (``ACTIVE`` | ``OBSOLETE``).
+solução).
 """
 from __future__ import annotations
 
@@ -24,7 +14,7 @@ from enum import Enum
 
 
 class MemoryKind(str, Enum):
-    """Domínios de memória estruturada (a conversa fica no MemoryStore 0.1)."""
+    """Domínios de memória estruturada."""
 
     PROJECT = "PROJECT"        # informações sobre projetos do usuário
     TASK = "TASK"              # tarefas realizadas/pendentes (registro histórico)
@@ -39,7 +29,7 @@ class RecordStatus(str, Enum):
     OBSOLETE = "OBSOLETE"
 
 
-#: Prefixo de ID por domínio (legível e único entre domínios).
+#: Prefixo de ID por domínio.
 ID_PREFIXES: dict[MemoryKind, str] = {
     MemoryKind.PROJECT: "PRJ",
     MemoryKind.TASK: "TASK",
@@ -101,6 +91,10 @@ class MemoryRecord:
     related_ids: tuple[str, ...] = ()
     supersedes: str | None = None
     content_hash: str = field(default="", compare=False)
+    execution_id: str | None = None
+    confidence: float = 1.0
+    workspace: str | None = None
+    is_hypothesis: bool = False
 
     def __post_init__(self) -> None:
         if not self.id or not self.id.strip():
@@ -130,6 +124,10 @@ class MemoryRecord:
             "related_ids": list(self.related_ids),
             "supersedes": self.supersedes,
             "content_hash": self.content_hash,
+            "execution_id": self.execution_id,
+            "confidence": self.confidence,
+            "workspace": self.workspace,
+            "is_hypothesis": self.is_hypothesis,
         }
 
     @classmethod
@@ -156,4 +154,8 @@ class MemoryRecord:
             related_ids=tuple(data.get("related_ids") or ()),
             supersedes=data.get("supersedes"),
             content_hash=data.get("content_hash") or "",
+            execution_id=data.get("execution_id"),
+            confidence=float(data.get("confidence", 1.0)),
+            workspace=data.get("workspace"),
+            is_hypothesis=bool(data.get("is_hypothesis", False)),
         )

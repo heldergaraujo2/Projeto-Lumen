@@ -1,30 +1,9 @@
-"""Tool Calling / Planner Bridge — a ponte Chat → Ferramentas (0.6.3).
+"""Tool Calling / Planner Bridge — a ponte Chat → Ferramentas (0.6.3 + Fase C).
 
 Antes da 0.6.3 o chat era **somente** conversacional: ``send_message``
 ia direto ao provedor e nenhuma mensagem chegava ao Planner ou às
-ferramentas (diagnóstico 0.6.2). Este módulo fecha os três gaps:
-
-1. classifica o pedido (conversa × ação) **via provedor** com o
-   protocolo estruturado do Planner (nada de regex no caminho principal
-   — o regex determinístico vive só dentro do :class:`MockProvider`,
-   que simula o LLM em testes/offline);
-2. o Planner emite ``tool``/``parameters`` **validados contra uma
-   allowlist** (:mod:`app.planner.catalog`) — o LLM não pode inventar
-   ferramentas nem parâmetros;
-3. entrega o plano válido ao ``ToolsController.run_plan`` — a cadeia de
-   segurança existente (permissões → workspace/sandbox → checkpoint →
-   tool) permanece a **autoridade final** e intocada.
-
-Hierarquia de autoridade (nunca invertida)::
-
-    Sistema de segurança → Permissões → Workspace/Sandbox →
-    Checkpoint → ToolRegistry → Plano → LLM
-
-O bridge **não** contém lógica de filesystem/terminal (isso vive na
-camada de tools); ele apenas orquestra abstrações. Nenhum poder novo é
-criado: se a operação exige WRITE/TERMINAL e a permissão não foi
-concedida, falha controlada — "o usuário pediu" não é "o usuário
-autorizou".
+ferramentas. Este módulo orquestra o fluxo de intenções e a recuperação
+de contexto de execuções anteriores.
 """
 from __future__ import annotations
 
@@ -33,6 +12,7 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 logger = logging.getLogger("lumen.bridge")
 
@@ -41,6 +21,8 @@ _READ_ONLY_RESULT_TOOLS = frozenset({
     "unreal_get_info",
     "unreal_describe_object",
     "unreal_search_assets",
+    "read_file",
+    "search_files",
 })
 
 
@@ -55,7 +37,35 @@ def _display_text(value: object, limit: int = 500) -> str:
 
 
 def _format_read_only_result(tool: str, data: Mapping) -> str:
-    """Renderiza somente os quatro resultados de leitura para o chat da UI."""
+    """Renderiza os resultados de leitura para o chat da UI com dados reais do ToolResult."""
+    if tool == "read_file":
+        requested_path = _display_text(data.get("requested_path"), 300)
+        resolved_path = _display_text(data.get("resolved_path"), 300)
+        exists = data.get("exists", True)
+        lines = [f"Arquivo verificado — {requested_path}"]
+        if resolved_path:
+            lines.append(f"Caminho resolvido: {resolved_path}")
+        lines.append(f"Existe: {'Sim' if exists else 'Não'}")
+        if data.get("is_dir") is not None:
+            lines.append(f"Tipo: {'Diretório' if data.get('is_dir') else 'Arquivo'}")
+        return "\n".join(lines)
+
+    if tool == "search_files":
+        requested_path = _display_text(data.get("requested_path"), 300)
+        resolved_path = _display_text(data.get("resolved_path"), 300)
+        matches = data.get("matches") or []
+        count = data.get("count", len(matches))
+        lines = [f"Busca de arquivos — {requested_path}"]
+        if resolved_path:
+            lines.append(f"Caminho resolvido: {resolved_path}")
+        lines.append(f"Arquivos encontrados ({count}):")
+        if isinstance(matches, list):
+            for match in matches[:20]:
+                lines.append(f"  • {_display_text(match, 240)}")
+            if len(matches) > 20:
+                lines.append(f"  • … e mais {len(matches) - 20}")
+        return "\n".join(lines)
+
     if tool == "web_search":
         lines = [f"Pesquisa web — {_display_text(data.get('query'), 240)}"]
         answer = _display_text(data.get("answer"), 800)
@@ -166,53 +176,41 @@ def _read_only_results_for_display(report) -> str:
 
 
 class RequestState(str, Enum):
-    """Estados do ciclo de vida de uma mensagem (0.6.3 — FASE 8).
+    """Estados do ciclo de vida de uma mensagem (0.6.3 — FASE 8)."""
 
-    CONVERSATIONAL/PLAN_*/WAITING_APPROVAL/COMPLETED/FAILED/REJECTED
-    são desfechos observáveis; PLANNING/EXECUTING/VERIFYING são
-    transitórios (registrados no log/auditoria da cadeia).
-    """
-
-    CONVERSATIONAL = "CONVERSATIONAL"    # só conversa — nada é executado
-    PLANNING = "PLANNING"                # pedindo o plano ao provedor
-    PLAN_READY = "PLAN_READY"            # plano válido pronto p/ executar
-    PLAN_INVALID = "PLAN_INVALID"        # saída inválida — nada executa
-    WAITING_APPROVAL = "WAITING_APPROVAL"  # checkpoint pausou a execução
-    EXECUTING = "EXECUTING"              # execução em andamento
-    VERIFYING = "VERIFYING"              # verificação pós-execução
-    COMPLETED = "COMPLETED"              # sucesso (verificado)
-    FAILED = "FAILED"                    # falha controlada
-    REJECTED = "REJECTED"                # reprovação de verificação
+    CONVERSATIONAL = "CONVERSATIONAL"
+    PLANNING = "PLANNING"
+    PLAN_READY = "PLAN_READY"
+    PLAN_INVALID = "PLAN_INVALID"
+    WAITING_APPROVAL = "WAITING_APPROVAL"
+    EXECUTING = "EXECUTING"
+    VERIFYING = "VERIFYING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    REJECTED = "REJECTED"
 
 
 @dataclass(frozen=True)
 class AgentOutcome:
-    """Resultado de :meth:`ToolCallingBridge.process` para a UI.
-
-    ``text`` é SEMPRE uma mensagem pronta para exibir ao usuário (no
-    caminho conversacional é a resposta do provedor, já transmitida por
-    streaming via ``on_delta``).
-    """
+    """Resultado de :meth:`ToolCallingBridge.process` para a UI."""
 
     state: RequestState
     text: str
     plan_id: str | None = None
+    execution_details: dict[str, Any] | None = None
 
 
 class ToolCallingBridge:
-    """Orquestra CHAT → INTENÇÃO → PLANNER → VALIDAÇÃO → TOOLS CONTROLLER.
-
-    Depende apenas de abstrações: o ``agent`` (provedor vigente,
-    memória, gates) e o ``controller`` (fachada de ferramentas). Não
-    conhece UI, filesystem ou terminal.
-    """
+    """Orquestra CHAT → INTENÇÃO → PLANNER → VALIDAÇÃO → TOOLS CONTROLLER."""
 
     def __init__(self, agent, controller) -> None:
         self._agent = agent
         self._controller = controller
 
     # ------------------------------------------------------------------ API
-    def process(self, text: str, on_delta=None) -> AgentOutcome:
+    def process(
+        self, text: str, on_delta=None, conversation_id: str | None = None
+    ) -> AgentOutcome:
         """Processa uma mensagem do chat decidindo conversa × ação."""
         cleaned = (text or "").strip()
         if not cleaned:
@@ -220,19 +218,22 @@ class ToolCallingBridge:
                 RequestState.CONVERSATIONAL, "A mensagem não pode ser vazia."
             )
 
-        # 1) PLANNING: o provedor classifica e (se for ação) planeja com
-        #    a allowlist de ferramentas do controller.
+        # 1) PLANNING
         catalog = self._controller.planning_catalog()
         result = self._agent.request_tool_plan(cleaned, catalog)
 
         if result.kind == "conversation":
-            # 2) Conversa: fluxo clássico preservado (streaming + memória).
-            reply = self._agent.send_message(cleaned, on_delta=on_delta)
+            # Tenta recuperar contexto de execução prévia se houver pergunta sobre execuções anteriores
+            context_text = self.get_execution_context(conversation_id, cleaned)
+            augmented_input = (
+                f"{cleaned}\n\n[Contexto de execuções anteriores recuperadas:\n{context_text}]"
+                if context_text
+                else cleaned
+            )
+            reply = self._agent.send_message(augmented_input, on_delta=on_delta)
             return AgentOutcome(RequestState.CONVERSATIONAL, reply)
 
         if result.kind == "invalid":
-            # 3) Saída inválida do LLM/provedor: falha controlada, NADA
-            #    executa (nunca execução parcial de plano inválido).
             reason = result.reason or "motivo desconhecido"
             logger.warning("Plano inválido via chat: %s", reason)
             message = (
@@ -245,23 +246,70 @@ class ToolCallingBridge:
             )
 
         plan = result.plan
+        if conversation_id:
+            setattr(plan, "conversation_id", conversation_id)
         logger.info(
             "Plano %s pronto via chat (%d tarefa(s)) — executando.",
             plan.id, len(plan.tasks),
         )
 
-        # 4) PLAN_READY → EXECUTING: entrega ao controller. Todas as
-        #    proteções (permissões, sandbox, checkpoint) rodam lá.
         try:
             report = self._controller.run_plan(plan)
-        except Exception as exc:  # controlado — a UI segue viva
+        except Exception as exc:
             logger.exception("Falha ao executar plano %s via chat.", plan.id)
             message = f"✖ Falha ao executar o plano {plan.id}: {exc}"
             self._remember(cleaned, message)
             return AgentOutcome(RequestState.FAILED, message, plan.id)
 
-        # 5) Desfecho do relatório de execução.
         return self.outcome_for_report(cleaned, plan.id, report)
+
+    def get_execution_context(
+        self, conversation_id: str | None, query: str = ""
+    ) -> str:
+        """Recupera execuções anteriores estruturadas para o contexto conversacional."""
+        if not conversation_id:
+            return ""
+
+        execution_store = getattr(self._controller, "execution_store", None)
+        if not execution_store:
+            try:
+                from app.config.settings import Settings
+                from app.memory.execution_store import ExecutionBundleStore
+
+                execution_store = ExecutionBundleStore(
+                    Settings().execution_dir
+                )
+            except Exception:
+                return ""
+
+        records = execution_store.query_executions(
+            conversation_id=conversation_id, limit=5
+        )
+        if not records:
+            return ""
+
+        lines = []
+        for rec in records:
+            tool = rec.get("tool_name") or "ferramenta"
+            action = rec.get("requested_action") or ""
+            res = rec.get("result")
+            res_str = ""
+            if isinstance(res, dict):
+                data = res.get("data") if "data" in res else res
+                if isinstance(data, dict):
+                    resolved = data.get("resolved_path") or data.get("path")
+                    exists = data.get("exists")
+                    res_str = f"caminho_resolvido={resolved}, existe={exists}"
+                else:
+                    res_str = str(data)[:200]
+            else:
+                res_str = str(res)[:200] if res is not None else "Sem resultado"
+
+            lines.append(
+                f"- Execução {rec.get('execution_id')}: Tool '{tool}' ({action}) -> Resultado: {res_str}"
+            )
+
+        return "\n".join(lines)
 
     # -------------------------------------------------------- F2 ToolCall API
     def process_tool_call(self, payload: ToolCall | dict) -> AgentOutcome:
@@ -289,18 +337,8 @@ class ToolCallingBridge:
     def outcome_for_report(
         self, request: str | None, plan_id: str, report
     ) -> AgentOutcome:
-        """Converte um ``ExecutionReport`` em mensagem para o usuário.
-
-        Método **puro e reutilizável** (0.6.6): além do fluxo interno de
-        :meth:`process`, pode ser usado por quem conclui um plano fora
-        do ciclo do chat (ex.: aprovação de checkpoint na tela 🛡) para
-        formatar o desfecho final com o mesmo texto. ``request`` é o
-        texto original do usuário quando conhecido (usado para registrar
-        o par pergunta/resposta na memória linear); ``None`` registra
-        apenas a mensagem de desfecho.
-        """
-        from app.planner.models import PlanStatus
-        from app.planner.models import PlannedTaskStatus
+        """Converte um ``ExecutionReport`` em mensagem para o usuário."""
+        from app.planner.models import PlanStatus, PlannedTaskStatus
 
         done = sum(1 for r in report.tasks if r.status.value == "DONE")
         total = len(report.tasks)
@@ -340,7 +378,6 @@ class ToolCallingBridge:
             visible = f"{message}\n\n{results}" if results else message
             return AgentOutcome(RequestState.WAITING_APPROVAL, visible, plan_id)
 
-        # FAILED (fail-fast) — distingue reprovação de verificação.
         rejected = next(
             (r for r in report.tasks
              if r.status is PlannedTaskStatus.REJECTED),
@@ -362,11 +399,11 @@ class ToolCallingBridge:
         return AgentOutcome(state, visible, plan_id)
 
     def _remember(self, request: str | None, reply: str) -> None:
-        """Mantém o histórico de conversa coerente (ação também é conversa)."""
+        """Mantém o histórico de conversa coerente."""
         try:
             memory = self._agent.memory
             if request:
                 memory.add_message("user", request)
             memory.add_message("assistant", reply)
-        except Exception:  # memória nunca deve derrubar o fluxo
+        except Exception:
             logger.exception("Falha ao registrar ação na memória linear.")

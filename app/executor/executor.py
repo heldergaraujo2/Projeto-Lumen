@@ -3,37 +3,6 @@
 Recebe um :class:`~app.planner.models.Plan` **pronto** (``READY``,
 produzido pelo Planner) e executa suas tarefas de maneira controlada e
 determinística, **exclusivamente via handlers simulados/in-memory**.
-
-Separação de responsabilidades (regra da 0.4.x):
-
-- o **Planner** apenas produz planos — não conhece o Executor;
-- o **Executor** apenas coordena estados/ordem/dependências — não
-  planeja e não conhece provedores de IA;
-- a "ação" de cada tarefa vive em um :class:`~app.executor.handlers.TaskHandler`;
-- a verificação vive em um :class:`~app.executor.verification.TaskVerifier`;
-- retry vive em :class:`~app.executor.retry.RetryPolicy` (limite estrito,
-  nunca infinito); checkpoints vivem em
-  :mod:`app.executor.checkpoints` (pausa antes de ações importantes).
-
-Mecânica (0.4.x):
-
-- **Ordem e dependências**: tarefa só é elegível com **todas** as
-  dependências ``DONE``; executa na ordem planejada.
-- **Checkpoints**: se a política exige confirmação para a tarefa e ela
-  ainda não foi aprovada, o Executor **pausa** (``PENDING_APPROVAL``),
-  expõe ``pending_checkpoint`` e espera ``approve_checkpoint()`` /
-  ``refuse_checkpoint()``. Recusa ⇒ plano ``FAILED`` controlado.
-- **Retry controlado**: até ``RetryPolicy.max_attempts`` tentativas por
-  tarefa, com backoff linear injetável e **registro de cada tentativa**
-  (:class:`~app.executor.retry.AttemptRecord`). Erros *inesperados* do
-  handler não são repetidos (fora do contrato).
-- **Verificação**: com um verifier, ``EXECUTOU → VERIFICOU → SUCESSO``
-  (``DONE``/``verified=True``) ou ``… → FALHOU`` (``REJECTED``/
-  ``verified=False``, fail-fast). Falha de verificação **não** consome
-  retry — o loop de correção (análise → correção → nova tentativa) é
-  futuro (:mod:`app.executor.correction`).
-- **Fail-fast**: falha/reprovação interrompe o plano; restantes ficam
-  ``SKIPPED``.
 """
 from __future__ import annotations
 
@@ -42,6 +11,7 @@ import logging
 import re
 import time
 from collections import deque
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Callable
@@ -58,21 +28,14 @@ from app.executor.verification import TaskVerifier, VerificationResult
 from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
 
 # ------------------------------------------------------------- data-flow (8B)
-#: Referência a dados de uma tarefa anterior: ``${T2.data.content}``.
-#: Padrão ESTRITO: só a forma exata é referência — qualquer outro texto
-#: (incluindo malformado) permanece literal e nunca é interpretado.
 _DATA_REF_PATTERN = re.compile(r"\$\{T(\d+)\.data\.([A-Za-z_][A-Za-z0-9_]*)\}")
 
-#: Allowlist de exportação por ferramenta: somente campos listados aqui
-#: podem ser referenciados por tarefas dependentes. ``run_command`` NÃO
-#: exporta nada (stdout/stderr ficam fora do data-flow no MVP).
 _EXPORTABLE_FIELDS: dict[str, frozenset[str]] = {
     "read_file": frozenset({"content", "resolved_path"}),
 }
 
-#: Limites do MVP do data-flow (fail-fast ao exceder).
-_MAX_RESOLVED_BYTES = 16 * 1024          # por parâmetro resolvido (UTF-8)
-_MAX_REFERENCES_PER_PARAMETER = 4        # referências por parâmetro
+_MAX_RESOLVED_BYTES = 16 * 1024
+_MAX_REFERENCES_PER_PARAMETER = 4
 
 logger = logging.getLogger("lumen.executor")
 
@@ -89,14 +52,7 @@ class ExecutorError(RuntimeError):
 
 @dataclass(frozen=True)
 class ExecutionEvent:
-    """Evento imutável da linha do tempo de execução.
-
-    Tipos: ``task_started`` · ``task_retry`` · ``task_completed`` ·
-    ``task_failed`` · ``task_verification_passed`` ·
-    ``task_verification_failed`` · ``task_skipped`` ·
-    ``checkpoint_requested`` · ``checkpoint_approved`` ·
-    ``checkpoint_refused`` · ``plan_finished``.
-    """
+    """Evento imutável da linha do tempo de execução."""
 
     kind: str
     task_id: str | None = None
@@ -108,13 +64,7 @@ class ExecutionEvent:
 
 @dataclass(frozen=True)
 class TaskRun:
-    """Estado de execução de UMA tarefa (snapshot do progresso).
-
-    O :class:`PlannedTask` original permanece intocado (imutável); o
-    ``TaskRun`` acumula o que aconteceu durante a execução — incluindo
-    o log de tentativas (:class:`~app.executor.retry.AttemptRecord`) e o
-    desfecho da verificação (``verified``: ``None`` = sem verifier).
-    """
+    """Estado de execução de UMA tarefa (snapshot do progresso)."""
 
     id: str
     description: str
@@ -126,6 +76,7 @@ class TaskRun:
     attempts: int = 0
     verified: bool | None = None
     attempt_log: tuple[AttemptRecord, ...] = ()
+    conversation_id: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -139,16 +90,13 @@ class TaskRun:
             "attempts": self.attempts,
             "verified": self.verified,
             "attempt_log": [attempt.to_dict() for attempt in self.attempt_log],
+            "conversation_id": self.conversation_id,
         }
 
 
 @dataclass(frozen=True)
 class ExecutionReport:
-    """Resultado (parcial ou final) da execução de um plano.
-
-    ``pending_checkpoint`` ≠ ``None`` significa execução **pausada**
-    aguardando confirmação (``checkpoints`` guarda o histórico).
-    """
+    """Resultado (parcial ou final) da execução de um plano."""
 
     plan_id: str
     objective: str
@@ -160,6 +108,7 @@ class ExecutionReport:
     finished_at: str = ""
     checkpoints: tuple[CheckpointRequest, ...] = ()
     pending_checkpoint: CheckpointRequest | None = None
+    conversation_id: str | None = None
 
     @property
     def completed(self) -> bool:
@@ -185,46 +134,25 @@ class ExecutionReport:
             "pending_checkpoint": (
                 self.pending_checkpoint.to_dict() if self.pending_checkpoint else None
             ),
+            "conversation_id": self.conversation_id,
         }
 
 
 class ExecutionObserver:
-    """Gancho para observadores de execução (NO-OP por padrão).
+    """Gancho para observadores de execução (NO-OP por padrão)."""
 
-    Preparado para futuros: UI de checkpoints, integração com
-    TaskManager/memória — nada disso está implementado; subclasses
-    futuras receberão estes eventos.
-    """
-
-    def on_task_started(self, run: TaskRun) -> None:  # pragma: no cover - no-op
+    def on_task_started(self, run: TaskRun) -> None:
         """Chamado antes de cada tarefa elegível ser executada."""
 
-    def on_task_finished(self, run: TaskRun) -> None:  # pragma: no cover - no-op
-        """Chamado após cada tarefa terminar (DONE, FAILED ou REJECTED)."""
+    def on_task_finished(self, run: TaskRun) -> None:
+        """Chamado após cada tarefa terminar."""
 
-    def on_plan_finished(self, report: ExecutionReport) -> None:  # pragma: no cover - no-op
+    def on_plan_finished(self, report: ExecutionReport) -> None:
         """Chamado quando o plano atinge um estado terminal."""
 
 
 class PlanExecutor:
-    """Executa um plano ``READY`` tarefa por tarefa, de forma controlada.
-
-    Args:
-        plan: plano produzido pelo Planner (``READY``; dependências
-            revalidadas defensivamente).
-        handler: handler que "executa" cada tarefa (nesta fundação,
-            apenas :class:`~app.executor.handlers.SimulatedHandler`).
-        observer: observador opcional de eventos (no-op por padrão).
-        verifier: verificador opcional de resultados (simulado/in-memory).
-        retry: política de tentativas por tarefa (padrão: 1 tentativa).
-        checkpoints: política de checkpoints (padrão: nenhum).
-        sleeper: espera injetável para o backoff do retry (padrão
-            ``time.sleep``; testes injetam um registrador).
-
-    Raises:
-        ExecutorError: plano não ``READY``, sem tarefas ou com
-            dependências inválidas/cíclicas.
-    """
+    """Executa um plano ``READY`` tarefa por tarefa, de forma controlada."""
 
     def __init__(
         self,
@@ -236,6 +164,8 @@ class PlanExecutor:
         retry: RetryPolicy | None = None,
         checkpoints: CheckpointPolicy | None = None,
         sleeper: Sleeper = time.sleep,
+        conversation_id: str | None = None,
+        initial_runs: Mapping[str, TaskRun] | None = None,
     ) -> None:
         self._validate_plan(plan)
         self._plan = plan
@@ -247,15 +177,21 @@ class PlanExecutor:
             checkpoints if checkpoints is not None else NeverCheckpoints()
         )
         self._sleep = sleeper
-        self._runs: dict[str, TaskRun] = {
-            task.id: TaskRun(
-                id=task.id,
-                description=task.description,
-                order=task.order,
-                dependencies=tuple(task.dependencies),
-            )
-            for task in sorted(plan.tasks, key=lambda t: t.order)
-        }
+        self._conversation_id = conversation_id or getattr(
+            plan, "conversation_id", None
+        )
+        self._runs: dict[str, TaskRun] = {}
+        for task in sorted(plan.tasks, key=lambda t: t.order):
+            if initial_runs and task.id in initial_runs:
+                self._runs[task.id] = initial_runs[task.id]
+            else:
+                self._runs[task.id] = TaskRun(
+                    id=task.id,
+                    description=task.description,
+                    order=task.order,
+                    dependencies=tuple(task.dependencies),
+                    conversation_id=self._conversation_id,
+                )
         self._events: list[ExecutionEvent] = []
         self._status = PlanStatus.RUNNING
         self._started_at = _now_iso()
@@ -273,7 +209,6 @@ class PlanExecutor:
             type(self._checkpoint_policy).__name__,
         )
 
-    # ------------------------------------------------------------ validação
     @staticmethod
     def _validate_plan(plan: Plan) -> None:
         if plan.status is not PlanStatus.READY:
@@ -315,7 +250,6 @@ class PlanExecutor:
                 f"O plano {plan.id} é inválido: dependências cíclicas."
             )
 
-    # ----------------------------------------------------------- propriedades
     @property
     def status(self) -> PlanStatus:
         return self._status
@@ -326,16 +260,13 @@ class PlanExecutor:
 
     @property
     def paused(self) -> bool:
-        """Execução pausada aguardando aprovação de checkpoint."""
         return self._pending is not None and not self.finished
 
     @property
     def pending_checkpoint(self) -> CheckpointRequest | None:
-        """Checkpoint aguardando decisão (``None`` se não houver)."""
         return self._pending
 
     def _next_eligible(self) -> TaskRun | None:
-        """Próxima tarefa PENDING com todas as dependências DONE."""
         for run in sorted(self._runs.values(), key=lambda r: r.order):
             if run.status is not PlannedTaskStatus.PENDING:
                 continue
@@ -346,9 +277,7 @@ class PlanExecutor:
                 return run
         return None
 
-    # ------------------------------------------------------------- checkpoints
     def approve_checkpoint(self, note: str = "") -> CheckpointRequest:
-        """Aprova o checkpoint pendente (a tarefa poderá executar)."""
         if self._pending is None:
             raise ExecutorError("Nenhum checkpoint aguardando aprovação.")
         approved = replace(
@@ -366,7 +295,6 @@ class PlanExecutor:
         return approved
 
     def refuse_checkpoint(self, reason: str = "") -> CheckpointRequest:
-        """Recusa o checkpoint pendente: o plano falha de forma controlada."""
         if self._pending is None:
             raise ExecutorError("Nenhum checkpoint aguardando decisão.")
         refused = replace(
@@ -400,14 +328,13 @@ class PlanExecutor:
         ]
 
     def _maybe_checkpoint(self, run: TaskRun) -> bool:
-        """Pausa por checkpoint se necessário; devolve True se pausou."""
         task = self._plan.task_by_id(run.id)
         if not self._checkpoint_policy.requires_checkpoint(task):
             return False
         if run.id in self._approved_checkpoints:
             return False
         if self._pending is not None and self._pending.task_id == run.id:
-            return True  # já pausado por este checkpoint
+            return True
         self._checkpoint_counter += 1
         self._pending = CheckpointRequest(
             id=f"CP-{self._checkpoint_counter:04d}",
@@ -422,8 +349,6 @@ class PlanExecutor:
         )
         return True
 
-    # ------------------------------------------------------------- execução
-    # 8B — data-flow: helpers de resolução de referências entre tarefas.
     @staticmethod
     def _resolve_references(
         parameters: dict,
@@ -432,23 +357,6 @@ class PlanExecutor:
         task: PlannedTask | None = None,
         tools_by_id: dict[str, str] | None = None,
     ) -> dict:
-        """Resolve referências ``${Tn.data.<campo>}`` em parâmetros de texto.
-
-        MVP do data-flow (8B): o valor vem de ``prior_runs[Tn].result``
-        (JSON do ``ToolResult``) sob ``data.<campo>``. Resolução em
-        **PASSO ÚNICO** — o valor resolvido jamais é re-escaneado
-        (injeção em cascata é impossível por construção). Validações,
-        todas fail-fast com :class:`ExecutorError`:
-
-        - ``Tn`` precisa ser dependência DECLARADA de ``task`` e estar
-          concluída (``DONE``) em ``prior_runs``;
-        - o campo precisa estar na allowlist ``_EXPORTABLE_FIELDS`` da
-          ferramenta que produziu ``Tn`` (via ``tools_by_id``);
-        - no máximo ``_MAX_REFERENCES_PER_PARAMETER`` referências e
-          ``_MAX_RESOLVED_BYTES`` bytes UTF-8 por parâmetro resolvido.
-
-        Texto que não casa o padrão permanece intacto (não é referência).
-        """
         resolved = dict(parameters or {})
         for key, value in list(resolved.items()):
             if not isinstance(value, str) or not _DATA_REF_PATTERN.search(value):
@@ -461,13 +369,10 @@ class PlanExecutor:
                 )
             whole = _DATA_REF_PATTERN.fullmatch(value)
             if whole is not None:
-                # Parâmetro É exatamente uma referência: preserva o tipo
-                # do campo (texto, inteiro, booleano…).
                 value = PlanExecutor._reference_value(
                     whole, prior_runs, task=task, tools_by_id=tools_by_id,
                 )
             else:
-                # Interpolação no meio do texto: exige valor textual.
                 value = _DATA_REF_PATTERN.sub(
                     lambda match: PlanExecutor._text_of(PlanExecutor._reference_value(
                         match, prior_runs, task=task, tools_by_id=tools_by_id,
@@ -492,7 +397,6 @@ class PlanExecutor:
         task: PlannedTask | None,
         tools_by_id: dict[str, str] | None,
     ):
-        """Valor bruto de UMA referência, com todas as validações."""
         referenced = f"T{match.group(1)}"
         field = match.group(2)
         if task is not None and referenced not in task.dependencies:
@@ -529,7 +433,6 @@ class PlanExecutor:
 
     @staticmethod
     def _text_of(value: object) -> str:
-        """Interpolação composta exige valor textual."""
         if not isinstance(value, str):
             raise ExecutorError(
                 "Somente campos textuais podem ser interpolados no meio de "
@@ -538,12 +441,6 @@ class PlanExecutor:
         return value
 
     def step(self) -> TaskRun | None:
-        """Executa exatamente UMA tarefa elegível e devolve seu ``TaskRun``.
-
-        Devolve ``None`` quando: não há nada elegível (fim), o plano já
-        terminou, ou a execução está **pausada** por checkpoint
-        (veja ``pending_checkpoint``/``paused``).
-        """
         if self.finished:
             return None
         run = self._next_eligible()
@@ -551,10 +448,6 @@ class PlanExecutor:
             self._finish()
             return None
 
-        # 8B — data-flow: resolve referências ${Tn.data.<campo>} ANTES do
-        # checkpoint — a aprovação (e a auditoria) sempre veem o valor
-        # REAL, nunca o template. Referência inválida = falha controlada
-        # da tarefa (fail-fast; seguintes ficam SKIPPED, nada executa).
         task = self._plan.task_by_id(run.id)
         if task is not None:
             try:
@@ -584,16 +477,11 @@ class PlanExecutor:
                 self._interrupt(message)
                 return final
             if isinstance(task.parameters, dict) and task.parameters != resolved_params:
-                # Controller/checkpoint/auditoria leem o PLANO compartilhado:
-                # atualiza o dict de parâmetros da tarefa in-place para que
-                # todos vejam o valor resolvido (dataclass frozen — o dict
-                # interno é o único ponto mutável; idempotente: re-resolver
-                # um valor já resolvido é no-op, garantindo passo único).
                 task.parameters.clear()
                 task.parameters.update(resolved_params)
 
         if self._maybe_checkpoint(run):
-            return None  # pausado aguardando confirmação
+            return None
 
         self._record("task_started", run.id)
         self._observer.on_task_started(run)
@@ -618,7 +506,6 @@ class PlanExecutor:
             self._interrupt(final.error or "reprovada na verificação")
             return final
 
-        # FAILED (execução)
         self._record("task_failed", run.id, final.error or "")
         logger.error(
             "Tarefa %s falhou no plano %s após %d tentativa(s): %s",
@@ -628,11 +515,9 @@ class PlanExecutor:
         return final
 
     def _execute_with_retry(self, run: TaskRun) -> TaskRun:
-        """Executa a tarefa respeitando o RetryPolicy; devolve o run final."""
         task = self._plan.task_by_id(run.id)
         attempt_log: list[AttemptRecord] = []
         for attempt in range(1, self._retry.max_attempts + 1):
-            # Backoff (injetável) antes de REPETIR — não antes da 1ª tentativa.
             if attempt > 1:
                 delay = self._retry.backoff_seconds * (attempt - 1)
                 if delay > 0:
@@ -654,7 +539,7 @@ class PlanExecutor:
                     run, status=PlannedTaskStatus.FAILED, error=str(exc),
                     attempts=attempt, attempt_log=tuple(attempt_log),
                 )
-            except Exception as exc:  # fora do contrato: NÃO repete
+            except Exception as exc:
                 error = f"Erro inesperado do handler: {exc}"
                 attempt_log.append(
                     AttemptRecord(number=attempt, error=error)
@@ -668,13 +553,11 @@ class PlanExecutor:
             if self._verifier is not None:
                 try:
                     outcome = self._verifier.verify(task, result)
-                except Exception as exc:  # verificador quebrado: controlado
+                except Exception as exc:
                     outcome = VerificationResult(
                         passed=False, detail=f"verificador falhou: {exc}"
                     )
                 if outcome.applied and not outcome.passed:
-                    # Falha de verificação NÃO consome retry nesta fundação:
-                    # o loop "análise → correção → nova tentativa" é futuro.
                     return replace(
                         run, status=PlannedTaskStatus.REJECTED,
                         result=result, verified=False,
@@ -687,24 +570,18 @@ class PlanExecutor:
                         verified=True, attempts=attempt,
                         attempt_log=tuple(attempt_log),
                     )
-            # 11E: ``applied=False`` ("não aplicável") chega aqui —
-            # ``verified`` segue ``None`` e a task NÃO é rejeitada
-            # (mesmo fluxo de "sem verifier").
             return replace(
                 run, status=PlannedTaskStatus.DONE, result=result,
                 attempts=attempt, attempt_log=tuple(attempt_log),
             )
-        raise ExecutorError("Loop de tentativas encerrado sem resultado.")  # pragma: no cover
+        raise ExecutorError("Loop de tentativas encerrado sem resultado.")
 
     def run_all(self) -> ExecutionReport:
-        """Executa até concluir, falhar ou **pausar** por checkpoint."""
         while self.step() is not None:
             pass
         return self.report()
 
-    # --------------------------------------------------------------- estados
     def _interrupt(self, reason: str) -> None:
-        """Fail-fast: tarefas restantes ficam SKIPPED e o plano falha."""
         for run in sorted(self._runs.values(), key=lambda r: r.order):
             if run.status is PlannedTaskStatus.PENDING:
                 skipped = replace(
@@ -725,7 +602,7 @@ class PlanExecutor:
             self._failure_reason = error or self._failure_reason
         elif all(r.status is PlannedTaskStatus.DONE for r in self._runs.values()):
             self._status = PlanStatus.COMPLETED
-        else:  # não deveria ocorrer; defensivo
+        else:
             self._status = PlanStatus.FAILED
             error = error or "Plano encerrado com tarefas pendentes."
         self._record("plan_finished", None, self._status.value)
@@ -738,7 +615,6 @@ class PlanExecutor:
         )
 
     def report(self) -> ExecutionReport:
-        """Snapshot imutável do estado atual (parcial, pausado ou final)."""
         tasks = tuple(sorted(self._runs.values(), key=lambda r: r.order))
         error = None
         if self._status is PlanStatus.FAILED:
@@ -760,4 +636,5 @@ class PlanExecutor:
             finished_at=self._finished_at or "",
             checkpoints=tuple(self._checkpoint_requests),
             pending_checkpoint=self._pending,
+            conversation_id=self._conversation_id,
         )

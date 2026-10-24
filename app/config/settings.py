@@ -33,11 +33,7 @@ class ConfigError(RuntimeError):
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
-    """Parser mínimo de arquivos ``.env`` (sem dependências externas).
-
-    Aceita ``CHAVE=valor``, ``export CHAVE=valor``, comentários com ``#``
-    e valores entre aspas simples ou duplas.
-    """
+    """Parser mínimo de arquivos ``.env`` (sem dependências externas)."""
     values: dict[str, str] = {}
     if not path.exists():
         return values
@@ -62,26 +58,7 @@ def _parse_env_file(path: Path) -> dict[str, str]:
 
 @dataclass(frozen=True)
 class Settings:
-    """Configurações da Lumen, imutáveis após o carregamento.
-
-    Atributos:
-        provider: nome do provedor de IA (``LUMEN_PROVIDER``; ``mock``,
-            ``ollama``, ``openai`` e demais Providers registrados).
-        model: identificador de modelo (``LUMEN_MODEL``) — obrigatório
-            para provedores reais.
-        api_key: chave de API (``LUMEN_API_KEY``) — nunca vai para logs.
-        data_dir: diretório de dados (``LUMEN_DATA_DIR``), absoluto ou
-            relativo à raiz do projeto.
-        log_level: nível de logging (``LUMEN_LOG_LEVEL``).
-        max_context_messages: quantas mensagens de histórico o Agent envia
-            ao provedor (``LUMEN_MAX_CONTEXT_MESSAGES``).
-        request_timeout: timeout em segundos para chamadas ao provedor
-            (``LUMEN_REQUEST_TIMEOUT``).
-        max_retries: retries adicionais para erros temporários
-            (``LUMEN_MAX_RETRIES``); 0 = tentativa única.
-        max_memory_records: limite de registros de memória estruturada
-            selecionados como contexto (``LUMEN_MAX_MEMORY_RECORDS``).
-    """
+    """Configurações da Lumen, imutáveis após o carregamento."""
 
     provider: str = "mock"
     model: str = ""
@@ -92,22 +69,16 @@ class Settings:
     request_timeout: float = 60.0
     max_retries: int = 2
     max_memory_records: int = 12
-    #: 10B — guardrails do planejamento (exceder REJEITA o plano, nunca
-    #: trunca silenciosamente nem executa parcialmente).
     planner_max_tasks: int = 12
     planner_max_dependency_depth: int = 6
     planner_max_text_field_bytes: int = 16 * 1024
     planner_max_dataflow_refs_per_param: int = 4
-    #: 10B — Stage 2 do planejamento (refinador conservador, com fallback).
     planner_refine_enabled: bool = False
     #: 9B: persistência do Execution State (observabilidade) — OFF por padrão.
     persist_execution_state: bool = False
-    #: 11I: export do relatório de evidências pós-execução
-    #: (observabilidade) — OFF por padrão.
+    #: 11I: export do relatório de evidências pós-execução — OFF por padrão.
     export_execution_reports: bool = False
-    #: F1 — endpoint local do daemon Ollama.
     ollama_base_url: str = "http://127.0.0.1:11434"
-    #: F1 — tempo de retenção do modelo na memória do Ollama.
     ollama_keep_alive: str = "5m"
 
     def __post_init__(self) -> None:
@@ -146,6 +117,8 @@ class Settings:
                 )
         if not isinstance(self.planner_refine_enabled, bool):
             raise ConfigError("planner_refine_enabled deve ser booleano.")
+        if not isinstance(self.persist_execution_state, bool):
+            raise ConfigError("persist_execution_state deve ser booleano.")
 
     # ------------------------------------------------------- caminhos derivados
     @property
@@ -181,13 +154,7 @@ class Settings:
         env_file: Path | str | None = None,
         environ: Mapping[str, str] | None = None,
     ) -> "Settings":
-        """Carrega as configurações: o ambiente real vence o ``.env``.
-
-        Args:
-            env_file: caminho do arquivo ``.env`` (padrão: raiz do projeto).
-            environ: ambiente alternativo (padrão: ``os.environ``) — útil
-                para testes.
-        """
+        """Carrega as configurações: o ambiente real vence o ``.env``."""
         env_path = Path(env_file) if env_file is not None else ENV_FILE
         file_values = _parse_env_file(env_path)
         env = os.environ if environ is None else environ
@@ -237,6 +204,10 @@ class Settings:
                 pick("LUMEN_PLANNER_REFINE", "0").strip().lower()
                 in ("1", "true", "yes", "sim", "on")
             ),
+            persist_execution_state=(
+                pick("LUMEN_PERSIST_EXECUTION_STATE", "0").strip().lower()
+                in ("1", "true", "yes", "sim", "on")
+            ),
             export_execution_reports=(
                 pick("LUMEN_EXPORT_EXECUTION_REPORTS", "0").strip().lower()
                 in ("1", "true", "yes", "sim", "on")
@@ -249,10 +220,9 @@ class Settings:
         )
 
 
-# --------------------------------------------------------------------- logging
 _TOKEN_PATTERNS = (
-    re.compile(r"sk-[A-Za-z0-9_\-]{6,}"),                      # chaves estilo OpenAI
-    re.compile(r"(?i)(api[_\-]?key\s*[:=]\s*)\S+"),            # "api_key=..." explícito
+    re.compile(r"sk-[A-Za-z0-9_\-]{6,}"),
+    re.compile(r"(?i)(api[_\-]?key\s*[:=]\s*)\S+"),
 )
 
 
@@ -266,7 +236,7 @@ class _SecretRedactionFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         try:
             message = record.getMessage()
-        except Exception:  # pragma: no cover - registro malformado
+        except Exception:
             return True
 
         redacted = message
@@ -282,18 +252,14 @@ class _SecretRedactionFilter(logging.Filter):
 
 
 def setup_logging(settings: Settings) -> None:
-    """Configura o logger da aplicação.
-
-    Console + arquivo rotativo em ``data/logs/lumen.log`` (1 MB × 3
-    backups). Todo o tráfego fica sob o namespace ``lumen``.
-    """
+    """Configura o logger da aplicação."""
     settings.ensure_dirs()
 
     logger = logging.getLogger("lumen")
     logger.setLevel(settings.log_level)
     logger.propagate = False
 
-    for handler in list(logger.handlers):  # reconfiguração segura
+    for handler in list(logger.handlers):
         logger.removeHandler(handler)
         handler.close()
 
