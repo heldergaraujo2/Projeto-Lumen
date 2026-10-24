@@ -321,3 +321,20 @@ def test_tool_prompt_includes_run_command_only_with_terminal():
     planner.create_tool_plan("leia a.txt")
     assert "- run_command" in planner._provider.calls[0]
     assert "- run_pytest" in planner._provider.calls[0]  # 11D
+
+
+
+def test_tool_planning_prompt_prioritizes_action_requests_and_real_evidence():
+    provider = FixedProvider(tool_json(
+        "create_file", {"path": "probe.txt", "content": "probe"},
+    ))
+    planner = Planner(provider, catalog=build_catalog(include_terminal=True))
+
+    result = planner.create_tool_plan("Crie o arquivo probe.txt")
+
+    assert result.kind == "plan"
+    prompt = provider.calls[0]
+    assert "REGRA PRIORITARIA DE CLASSIFICACAO" in prompt
+    assert "NUNCA responda" in prompt
+    assert "nao declare sucesso sem evidencia" in prompt
+    assert "REA/Ghidra" in prompt

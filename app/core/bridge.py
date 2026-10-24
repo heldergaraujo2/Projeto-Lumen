@@ -31,10 +31,46 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
 
 logger = logging.getLogger("lumen.bridge")
+
+
+# Concrete action requests must not silently fall through to chat just
+# because a small/local model misclassified the request as conversational.
+_EXPLICIT_ACTION_RE = re.compile(
+    r"\b(?:crie|criar|leia|ler|liste|listar|procure|procurar|busque|buscar|"
+    r"pesquise|pesquisar|edite|editar|altere|alterar|verifique|verificar|"
+    r"execute|executar|rode|rodar|abra|abrir|acesse|acessar|inspecione|"
+    r"inspecionar|analise|analisar|use|utilize|run|read|create|list|search|"
+    r"edit|modify|check|execute|open|inspect|analyze)\b.{0,100}\b"
+    r"(?:arquivo|arquivos|pasta|pastas|diret[oó]rio|internet|web|url|site|"
+    r"teste|testes|pytest|comando|terminal|c[oó]digo|projeto|reposit[oó]rio|"
+    r"mcp|ghidra|file|files|folder|directory|website|tests?|command|terminal|"
+    r"code|project|repository)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _is_explicit_action_request(text: str) -> bool:
+    """True only for concrete tool-oriented requests, not questions or negations."""
+    normalized = " ".join((text or "").split())
+    if not normalized or re.match(r"^(como|how|o que|what)\b", normalized, re.I):
+        return False
+    if re.search(
+        r"\b(?:não|nao|don't|do not|never)\s+"
+        r"(?:crie|criar|leia|ler|liste|listar|procure|procurar|busque|buscar|"
+        r"pesquise|pesquisar|edite|editar|altere|alterar|verifique|verificar|"
+        r"execute|executar|rode|rodar|abra|abrir|acesse|acessar|inspecione|"
+        r"inspecionar|analise|analisar|use|utilize|run|read|create|list|search|"
+        r"edit|modify|check|execute|open|inspect|analyze)\b",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return False
+    return bool(_EXPLICIT_ACTION_RE.search(normalized))
 
 
 class RequestState(str, Enum):
@@ -165,11 +201,32 @@ class ToolCallingBridge:
         result = self._agent.request_tool_plan(cleaned, catalog)
 
         if result.kind == "conversation":
-            # "conversation" is the planner's explicit no-tool decision.
-            # Do not hand it to a runtime that can independently invoke tools;
-            # the regular Agent chat also receives the saved conversation history.
-            reply = self._agent.send_message(cleaned, on_delta=on_delta)
-            return AgentOutcome(RequestState.CONVERSATIONAL, reply)
+            # A local model can misclassify a concrete external action as chat.
+            # Retry once with explicit routing guidance, but only for specific
+            # action requests; generic asks such as "give me unrestricted access"
+            # remain conversational and do not trigger tool execution.
+            if _is_explicit_action_request(cleaned):
+                retry_request = (
+                    f"{cleaned}\n\n"
+                    'ROTEAMENTO OBRIGATÓRIO: o pedido acima solicita uma ação concreta. '
+                    'Reavalie a allowlist fornecida e retorne "type": "plan" '
+                    'com ferramentas existentes se houver ferramenta adequada. '
+                    'Não responda em linguagem natural. Se não houver ferramenta adequada, '
+                    'retorne "type": "conversation" sem inventar capacidades.'
+                )
+                result = self._agent.request_tool_plan(retry_request, catalog)
+                if result.kind == "conversation":
+                    message = (
+                        "Não consegui transformar este pedido de ação em um plano de "
+                        "ferramentas válido. Nenhuma ação foi executada. Verifique se a "
+                        "ferramenta necessária está conectada e permitida nesta instalação."
+                    )
+                    self._remember(cleaned, message)
+                    return AgentOutcome(RequestState.PLAN_INVALID, message)
+            else:
+                # Pure conversation remains on the regular chat path.
+                reply = self._agent.send_message(cleaned, on_delta=on_delta)
+                return AgentOutcome(RequestState.CONVERSATIONAL, reply)
 
         if result.kind == "invalid":
             # 3) Saída inválida do LLM/provedor: falha controlada, NADA
