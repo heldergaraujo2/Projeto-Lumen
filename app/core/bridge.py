@@ -336,6 +336,7 @@ class ToolCallingBridge:
         """Sintetiza evidências de ``web_research`` sem confiar no conteúdo Web."""
         evidence = []
         sources = []
+        research_items = []
         planned_by_id = {task.id: task for task in plan.tasks}
         for task in report.tasks:
             planned_task = planned_by_id.get(task.id)
@@ -358,6 +359,7 @@ class ToolCallingBridge:
                 if url not in sources:
                     sources.append(url)
                 text = str(source.get("text") or source.get("snippet") or "")
+                research_items.append({"title": title, "url": url, "text": text[:5000]})
                 evidence.append(
                     f"[Fonte {len(sources)}]\n"
                     f"Título: {title}\nURL: {url}\n"
@@ -397,7 +399,43 @@ class ToolCallingBridge:
         source_lines = ["\n\nFontes consultadas:"]
         for index, url in enumerate(sources, start=1):
             source_lines.append(f"{index}. {url}")
+        self._remember_research_evidence(request or "", research_items)
         return answer + "".join(source_lines)
+
+    def _remember_research_evidence(self, request: str, sources: list[dict]) -> None:
+        """Persiste evidencias-fonte de pesquisas concluídas para reutilização futura.
+
+        Armazena fonte e trecho observado, não a resposta sintetizada como verdade.
+        O conteúdo Web continua marcado como dado não confiável no contexto de recuperação.
+        """
+        memory = getattr(self._agent, "memory_system", None)
+        if memory is None or not request.strip() or not sources:
+            return
+        try:
+            from app.memory.records import MemoryKind
+
+            for source in sources[:5]:
+                title = str(source.get("title") or "Fonte sem título").strip()[:180]
+                url = str(source.get("url") or "").strip()
+                excerpt = str(source.get("text") or "").strip()[:3000]
+                if not url:
+                    continue
+                content = (
+                    f"Pergunta pesquisada: {request[:1000]}\n"
+                    f"URL da fonte: {url}\n"
+                    "Trecho recuperado da Web (dado não confiável; verificar antes de concluir):\n"
+                    f"{excerpt}"
+                )
+                memory.remember(
+                    MemoryKind.KNOWLEDGE,
+                    f"Pesquisa: {request[:100]} — {title}",
+                    content,
+                    origin="agent",
+                    tags=("pesquisa-web", "evidencia-fonte"),
+                )
+        except Exception:
+            # A falha de aprendizado nunca deve invalidar a resposta da pesquisa.
+            logger.exception("Falha ao persistir evidências da pesquisa na memória.")
 
     # -------------------------------------------------------- F2 ToolCall API
     def process_tool_call(self, payload: ToolCall | dict) -> AgentOutcome:

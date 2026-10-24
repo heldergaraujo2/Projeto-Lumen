@@ -142,11 +142,7 @@ class MemoryStore:
             self._save()
 
     def search(self, query: str, limit: int = 10) -> list["Message"]:
-        """Busca simples por termos na conversa (0.3).
-
-        Casamento insensível a acentos/caixa; qualquer termo presente no
-        conteúdo conta. Ordem cronológica.
-        """
+        """Busca simples por termos; mantém a ordem cronológica histórica."""
         terms = [t for t in _normalize_for_search(query).split() if t]
         if not terms or limit <= 0:
             return []
@@ -158,3 +154,49 @@ class MemoryStore:
             if any(term in content for term in terms):
                 found.append(message)
         return found[-limit:]
+
+    def search_relevant(self, query: str, limit: int = 8) -> list["Message"]:
+        """Retorna mensagens historicas por relevancia lexical, da maior para a menor.
+
+        Remove palavras funcionais em portugues/ingles, pontua coincidencias
+        de termos completos e da prioridade a mensagens que cobrem mais termos.
+        Empates favorecem mensagens mais recentes. A API search permanece
+        inalterada para nao quebrar consumidores que dependem da ordem cronologica.
+        """
+        stopwords = {
+            "a", "ao", "aos", "as", "com", "como", "da", "das", "de", "dela",
+            "dele", "deles", "delas", "do", "dos", "e", "ela", "ele", "em",
+            "entre", "essa", "esse", "esta", "este", "eu", "foi", "for", "foram",
+            "ha", "isso", "isto", "ja", "la", "lhe", "lhes", "mais", "mas",
+            "me", "meu", "minha", "muito", "na", "nas", "no", "nos", "o", "os",
+            "ou", "para", "pela", "pelas", "pelo", "pelos", "por", "porque",
+            "qual", "quando", "que", "quem", "se", "sem", "seu", "sua", "suas",
+            "seus", "sobre", "te", "tem", "tendo", "um", "uma", "umas", "uns",
+            "voce", "voces", "the", "an", "and", "are", "from", "how", "in",
+            "is", "it", "of", "on", "or", "our", "that", "this", "to", "was",
+            "what", "when", "who", "with", "you", "your",
+        }
+        normalized = _normalize_for_search(query)
+        terms = [term for term in normalized.split() if len(term) > 1 and term not in stopwords]
+        if not terms or limit <= 0:
+            return []
+        with self._lock:
+            messages = list(self._messages)
+
+        scored: list[tuple[float, int, Message]] = []
+        for index, message in enumerate(messages):
+            content = _normalize_for_search(message.content)
+            tokens = content.split()
+            token_set = set(tokens)
+            matched = [term for term in terms if term in token_set]
+            if not matched:
+                continue
+            score = 3.0 * len(matched)
+            score += 2.0 * len(matched) / len(terms)
+            if normalized and normalized in content:
+                score += 4.0
+            score += index / max(1, len(messages)) * 0.01
+            scored.append((score, index, message))
+
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return [message for _, _, message in scored[:limit]]
