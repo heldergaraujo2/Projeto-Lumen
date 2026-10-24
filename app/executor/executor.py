@@ -560,6 +560,7 @@ class PlanExecutor:
         run = self._next_eligible()
         if run is None:
             self._finish()
+            self._notify_state()
             return None
 
         # 8B — data-flow: resolve referências ${Tn.data.<campo>} ANTES do
@@ -625,6 +626,7 @@ class PlanExecutor:
                 self._record("task_verification_passed", run.id)
             if self._next_eligible() is None:
                 self._finish()
+            self._notify_state()
             return final
 
         if final.status is PlannedTaskStatus.REJECTED:
@@ -634,6 +636,7 @@ class PlanExecutor:
                 run.id, self._plan.id, final.error,
             )
             self._interrupt(final.error or "reprovada na verificação")
+            self._notify_state()
             return final
 
         # FAILED (execução)
@@ -643,6 +646,7 @@ class PlanExecutor:
             run.id, self._plan.id, final.attempts, final.error,
         )
         self._interrupt(final.error or "falha de execução")
+        self._notify_state()
         return final
 
     def _execute_with_retry(self, run: TaskRun) -> TaskRun:
