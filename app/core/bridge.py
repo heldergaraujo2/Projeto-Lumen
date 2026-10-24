@@ -133,6 +133,32 @@ class ToolCallingBridge:
                 RequestState.CONVERSATIONAL, "A mensagem não pode ser vazia."
             )
 
+        # Comando explícito e determinístico; nunca passa pelo LLM/runtime universal.
+        if cleaned == "/retomar" or cleaned.startswith("/retomar "):
+            parts = cleaned.split()
+            if len(parts) != 2 or parts[0] != "/retomar":
+                message = "Uso: /retomar <ID_DO_PLANO>"
+                self._remember(cleaned, message)
+                return AgentOutcome(RequestState.PLAN_INVALID, message)
+            plan_id = parts[1]
+            conversation_id = getattr(self._controller, "conversation_id", None)
+            if not isinstance(conversation_id, str) or not conversation_id:
+                message = (
+                    "Retomada bloqueada: esta instalação não tem identidade "
+                    "de conversa persistente ou a configuração não a habilitou."
+                )
+                self._remember(cleaned, message)
+                return AgentOutcome(RequestState.FAILED, message, plan_id)
+            try:
+                report = self._controller.resume_execution(
+                    plan_id, conversation_id=conversation_id,
+                )
+            except Exception as exc:
+                message = f"Retomada do plano {plan_id} bloqueada: {exc}"
+                self._remember(cleaned, message)
+                return AgentOutcome(RequestState.FAILED, message, plan_id)
+            return self.outcome_for_report(cleaned, plan_id, report)
+
         # 1) PLANNING: o provedor classifica e (se for ação) planeja com
         #    a allowlist de ferramentas do controller.
         catalog = self._controller.planning_catalog()
