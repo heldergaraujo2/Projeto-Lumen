@@ -43,7 +43,7 @@ def test_agent_includes_relevant_persistent_conversation_in_provider_context(tmp
     store.add_message("assistant", "Ainda não confirmamos o nome do criador da Lumen.")
     store.add_message("user", "Falamos também sobre receitas de bolo.")
     provider = RecordingProvider()
-    agent = Agent(provider=provider, memory=store, permissions=PermissionManager())
+    agent = Agent(provider=provider, memory=store, permissions=PermissionManager(), context_window=1)
 
     reply = agent.send_message("Retome o que sabemos sobre o criador da Lumen.")
 
