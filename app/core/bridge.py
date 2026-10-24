@@ -421,9 +421,9 @@ class ToolCallingBridge:
                 if not url:
                     continue
                 content = (
-                    f"Pergunta pesquisada: {request[:1000]}\\n"
-                    f"URL da fonte: {url}\\n"
-                    "Trecho recuperado da Web (dado não confiável; verificar antes de concluir):\\n"
+                    f"Pergunta pesquisada: {request[:1000]}\n"
+                    f"URL da fonte: {url}\n"
+                    "Trecho recuperado da Web (dado não confiável; verificar antes de concluir):\n"
                     f"{excerpt}"
                 )
                 memory.remember(
