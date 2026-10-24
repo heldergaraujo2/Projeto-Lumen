@@ -55,9 +55,20 @@ _EXPLICIT_ACTION_RE = re.compile(
 
 
 def _is_explicit_action_request(text: str) -> bool:
-    """True only for concrete tool-oriented requests, not generic autonomy asks."""
+    """True only for concrete tool-oriented requests, not questions or negations."""
     normalized = " ".join((text or "").split())
     if not normalized or re.match(r"^(como|how|o que|what)\b", normalized, re.I):
+        return False
+    if re.search(
+        r"\b(?:não|nao|don't|do not|never)\s+"
+        r"(?:crie|criar|leia|ler|liste|listar|procure|procurar|busque|buscar|"
+        r"pesquise|pesquisar|edite|editar|altere|alterar|verifique|verificar|"
+        r"execute|executar|rode|rodar|abra|abrir|acesse|acessar|inspecione|"
+        r"inspecionar|analise|analisar|use|utilize|run|read|create|list|search|"
+        r"edit|modify|check|execute|open|inspect|analyze)\b",
+        normalized,
+        re.IGNORECASE,
+    ):
         return False
     return bool(_EXPLICIT_ACTION_RE.search(normalized))
 
