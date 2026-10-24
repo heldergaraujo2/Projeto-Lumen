@@ -79,7 +79,7 @@ def test_bundle_criado_e_valido(tmp_path):
     )
     assert path == tmp_path / "PLN-9B.json" and path.exists()
     bundle = json.loads(path.read_text(encoding="utf-8"))
-    assert bundle["version"] == 1
+    assert bundle["version"] == 2
     assert bundle["lumen_version"] == "0.6.7"
     assert bundle["plan_id"] == "PLN-9B"
     assert bundle["saved_at"]
