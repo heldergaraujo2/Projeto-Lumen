@@ -100,6 +100,8 @@ class Settings:
     planner_max_dataflow_refs_per_param: int = 4
     #: 10B — Stage 2 do planejamento (refinador conservador, com fallback).
     planner_refine_enabled: bool = False
+    #: 9B — grava bundles de execução sanitizados (OFF por padrão).
+    persist_execution_state: bool = False
     #: 9B: persistência do Execution State (observabilidade) — OFF por padrão.
     persist_execution_state: bool = False
     #: 11I: export do relatório de evidências pós-execução
@@ -238,6 +240,10 @@ class Settings:
             ),
             planner_refine_enabled=(
                 pick("LUMEN_PLANNER_REFINE", "0").strip().lower()
+                in ("1", "true", "yes", "sim", "on")
+            ),
+            persist_execution_state=(
+                pick("LUMEN_PERSIST_EXECUTION_STATE", "0").strip().lower()
                 in ("1", "true", "yes", "sim", "on")
             ),
             export_execution_reports=(

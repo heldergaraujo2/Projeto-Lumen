@@ -79,7 +79,7 @@ def test_bundle_criado_e_valido(tmp_path):
     )
     assert path == tmp_path / "PLN-9B.json" and path.exists()
     bundle = json.loads(path.read_text(encoding="utf-8"))
-    assert bundle["version"] == 1
+    assert bundle["version"] == 2
     assert bundle["lumen_version"] == "0.6.7"
     assert bundle["plan_id"] == "PLN-9B"
     assert bundle["saved_at"]
@@ -245,3 +245,55 @@ def test_sanitize_any_puro():
     assert sanitize_result_string("não sou json") .endswith(
         "<unparseable ToolResult>",
     )
+
+
+
+# ------------------------------------------------ recuperação segura (9C)
+def test_load_bundle_exige_conversa_explicita_e_identica(tmp_path):
+    store = ExecutionBundleStore(tmp_path)
+    store.save_bundle(
+        plan=make_plan(), report=make_report(), conversation_id="conv-a",
+    )
+    loaded = store.load_bundle("PLN-9B", conversation_id="conv-a")
+    assert loaded["conversation_id"] == "conv-a"
+    assert loaded["plan"]["id"] == "PLN-9B"
+
+
+def test_load_bundle_bloqueia_conversa_diferente(tmp_path):
+    from app.memory.execution_store import ExecutionStoreError
+    store = ExecutionBundleStore(tmp_path)
+    store.save_bundle(
+        plan=make_plan(), report=make_report(), conversation_id="conv-a",
+    )
+    try:
+        store.load_bundle("PLN-9B", conversation_id="conv-b")
+    except ExecutionStoreError as exc:
+        assert "outra conversa" in str(exc)
+    else:
+        raise AssertionError("bundle de outra conversa não pode ser carregado")
+
+
+def test_load_bundle_bloqueia_bundle_legado_sem_conversa(tmp_path):
+    from app.memory.execution_store import ExecutionStoreError
+    store = ExecutionBundleStore(tmp_path)
+    path = store.save_bundle(plan=make_plan(), report=make_report())
+    try:
+        store.load_bundle("PLN-9B", conversation_id="conv-a")
+    except ExecutionStoreError as exc:
+        assert "legado" in str(exc)
+    else:
+        raise AssertionError("bundle sem identidade deve falhar fechado")
+
+
+def test_load_bundle_exige_conversation_id(tmp_path):
+    from app.memory.execution_store import ExecutionStoreError
+    store = ExecutionBundleStore(tmp_path)
+    store.save_bundle(
+        plan=make_plan(), report=make_report(), conversation_id="conv-a",
+    )
+    try:
+        store.load_bundle("PLN-9B", conversation_id="")
+    except ExecutionStoreError as exc:
+        assert "conversation_id obrigatório" in str(exc)
+    else:
+        raise AssertionError("conversation_id vazio não pode ser aceito")

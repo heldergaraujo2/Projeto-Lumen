@@ -12,6 +12,8 @@ from pathlib import Path
 import pytest
 
 from app.planner.models import Plan, PlanStatus, PlannedTask, PlannedTaskStatus
+from app.executor.executor import ExecutionReport, TaskRun
+from app.memory.execution_store import ExecutionBundleStore
 from app.security.permissions import PermissionLevel, PermissionManager
 from app.computer_control.service import ComputerControlService
 from app.tools.control import ToolsControlError, ToolsController
@@ -923,3 +925,147 @@ def test_autonomous_mode_persists_global_file_access_and_all_permission_grants(t
     assert restarted._permissions.is_granted(PermissionLevel.CHAT) is True
     assert restarted._permissions.is_granted(PermissionLevel.WEB_ACCESS) is True
     assert restarted._permissions.is_granted(PermissionLevel.READ) is False
+
+
+
+# ------------------------------------------------ recuperação segura (9C)
+def test_resume_requires_persistence_enabled(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit.jsonl",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="desativada"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-a")
+
+
+def test_resume_rejects_cross_conversation_before_loading_bundle(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=tmp_path / "executions",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="Identidade de conversa inválida"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-b")
+    assert not (tmp_path / "executions").exists()
+
+
+
+def test_resume_restores_done_task_and_executes_pending_only(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "a.txt").write_text("already read", encoding="utf-8")
+    (workspace / "b.txt").write_text("read on resume", encoding="utf-8")
+    execution_dir = tmp_path / "executions"
+    plan = ready(
+        "retomada de teste",
+        armed("T1", "read_file", {"path": "a.txt"}, order=1),
+        armed("T2", "read_file", {"path": "b.txt"}, order=2, dependencies=("T1",)),
+    )
+    previous_result = '{"ok":true,"data":{"marker":"reused"},"error":null}'
+    snapshot = ExecutionReport(
+        plan_id=plan.id,
+        objective=plan.objective,
+        status=PlanStatus.RUNNING,
+        tasks=(
+            TaskRun(
+                id="T1", description=plan.tasks[0].description, order=1,
+                dependencies=(), tool="read_file",
+                status=PlannedTaskStatus.DONE, result=previous_result,
+            ),
+            TaskRun(
+                id="T2", description=plan.tasks[1].description, order=2,
+                dependencies=("T1",), tool="read_file",
+                status=PlannedTaskStatus.PENDING,
+            ),
+        ),
+        events=(),
+        started_at="earlier",
+    )
+    ExecutionBundleStore(execution_dir).save_bundle(
+        plan=plan, report=snapshot, conversation_id="conv-a",
+    )
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=execution_dir,
+        conversation_id="conv-a",
+    )
+    controller.add_workspace(str(workspace))
+    controller.grant_permission("READ")
+
+    report = controller.resume_execution(plan.id, conversation_id="conv-a")
+    assert report.status is PlanStatus.COMPLETED
+    assert [task.status for task in report.tasks] == [
+        PlannedTaskStatus.DONE, PlannedTaskStatus.DONE,
+    ]
+    assert json.loads(report.tasks[0].result) == json.loads(previous_result)
+    assert "read on resume" in (report.tasks[1].result or "")
+
+
+
+# ------------------------------------------------ recuperação segura (9C)
+def test_resume_execution_is_disabled_by_default(controller):
+    with pytest.raises(ToolsControlError, match="desativada"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-a")
+
+
+def test_resume_execution_rejects_missing_or_foreign_conversation(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=tmp_path / "executions",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="Identidade de conversa inválida"):
+        controller.resume_execution("PLN-4242", conversation_id="")
+    with pytest.raises(ToolsControlError, match="Identidade de conversa inválida"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-b")
+
+
+def test_resume_execution_requires_bundle_for_same_conversation(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=tmp_path / "executions",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="não encontrada"):
+        controller.resume_execution("PLN-missing", conversation_id="conv-a")
+
+
+
+# ------------------------------------------------ recuperação segura (9C)
+def test_resume_requires_opt_in_persistence(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="desativada"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-a")
+
+
+def test_resume_rejects_cross_conversation_before_reading_bundle(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=tmp_path / "execution",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="Identidade de conversa inválida"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-b")
+    assert not (tmp_path / "execution").exists()
