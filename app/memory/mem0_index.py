@@ -45,6 +45,8 @@ class Mem0SemanticIndex:
 
     def _config(self) -> dict[str, Any]:
         ollama_url = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+        if not ollama_url.startswith(("http://", "https://")):
+            ollama_url = "http://" + ollama_url
         llm_model = (
             os.getenv("LUMEN_MEM0_LLM_MODEL")
             or os.getenv("OLLAMA_MODEL")
