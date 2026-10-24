@@ -125,3 +125,17 @@ def test_persist_execution_state_loading(tmp_path, val, expected):
         environ={"LUMEN_PERSIST_EXECUTION_STATE": val},
     )
     assert settings.persist_execution_state is expected
+
+
+
+def test_persist_execution_state_env_file_and_environment_precedence(tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("LUMEN_PERSIST_EXECUTION_STATE=0\n", encoding="utf-8")
+
+    from_file = Settings.load(env_file=env_file, environ={})
+    from_environment = Settings.load(
+        env_file=env_file, environ={"LUMEN_PERSIST_EXECUTION_STATE": "1"}
+    )
+
+    assert from_file.persist_execution_state is False
+    assert from_environment.persist_execution_state is True
