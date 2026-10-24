@@ -176,6 +176,35 @@ def test_multi_policy_is_per_root_not_weakest_link(tmp_path):
     sandbox.check_operation("write", rw_file)          # rw permite
 
 
+@pytest.mark.parametrize("root_first", [True, False])
+def test_readonly_drive_root_does_not_override_nested_workspace(tmp_path, root_first):
+    """A raiz é fallback somente-leitura; o workspace explícito mais específico prevalece."""
+    drive_root = Path(tmp_path.resolve().anchor).resolve()
+    project = tmp_path / "projeto"
+    project.mkdir()
+    entries = [
+        WorkspaceEntry(drive_root),
+        WorkspaceEntry(project, writable=True, allow_delete=True),
+    ]
+    if not root_first:
+        entries.reverse()
+
+    sandbox = MultiWorkspaceSandbox(entries)
+    project_file = (project / "novo.txt").resolve()
+    outside_specific_workspace = (tmp_path / "outro.txt").resolve()
+
+    # A autorização explícita mais restrita permite escrita/exclusão,
+    # independentemente da ordem em que os workspaces foram adicionados.
+    assert sandbox.entry_for(project_file).root == project.resolve()
+    sandbox.check_operation("write", project_file)
+    sandbox.check_operation("delete", project_file)
+
+    # Fora do workspace específico, a política da raiz continua somente leitura.
+    assert sandbox.entry_for(outside_specific_workspace).root == drive_root
+    with pytest.raises(WriteNotAllowedError):
+        sandbox.check_operation("write", outside_specific_workspace)
+
+
 def test_multi_delete_needs_per_root_opt_in(tmp_path):
     writable_no_delete, full = tmp_path / "rw", tmp_path / "full"
     writable_no_delete.mkdir()
