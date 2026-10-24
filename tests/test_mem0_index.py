@@ -40,6 +40,8 @@ def test_mem0_config_is_local_and_stored_under_data_dir(tmp_path, monkeypatch):
     assert config["llm"]["config"]["model"] == "qwen-local"
     assert config["embedder"]["provider"] == "ollama"
     assert config["vector_store"]["provider"] == "qdrant"
+    assert config["vector_store"]["config"]["on_disk"] is True
+    assert config["embedder"]["config"]["embedding_dims"] == 768
     assert config["vector_store"]["config"]["path"].startswith(str(tmp_path))
     assert config["history_db_path"].startswith(str(tmp_path))
     assert "api_key" not in str(config).lower()
