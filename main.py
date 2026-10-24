@@ -141,8 +141,11 @@ def main() -> int:
             terminal_file=settings.data_dir / "terminal.json",
             persist_execution_state=settings.persist_execution_state,
             execution_state_dir=settings.execution_dir,
-            conversation_id=_load_or_create_conversation_id(
-                settings.data_dir / "conversation_id.txt"
+            conversation_id=(
+                _load_or_create_conversation_id(
+                    settings.data_dir / "conversation_id.txt"
+                )
+                if settings.persist_execution_state else None
             ),
             toggles_file=settings.data_dir / "agent_toggles.json",
             export_execution_reports=settings.export_execution_reports,
