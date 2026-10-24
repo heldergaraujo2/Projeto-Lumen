@@ -39,7 +39,7 @@ from app.memory.sanitization import redact_secrets
 logger = logging.getLogger("lumen.memory.execution_store")
 
 #: Versão do formato do bundle (evoluções futuras bumpam aqui).
-BUNDLE_VERSION = 1
+BUNDLE_VERSION = 2
 
 #: Marcador anexado a strings truncadas.
 _TRUNCATION_MARKER = "…[truncado]"
