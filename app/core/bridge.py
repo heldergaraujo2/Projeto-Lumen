@@ -52,6 +52,11 @@ _EXPLICIT_ACTION_RE = re.compile(
     r"code|project|repository)\b",
     re.IGNORECASE | re.DOTALL,
 )
+_EXPLICIT_FILE_READ_RE = re.compile(
+    r"\b(?:leia|ler|mostre|mostrar|exiba|exibir|read|show|display)\b"
+    r".{0,160}\b(?:arquivo|ficheiro|file)\b",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def _is_explicit_action_request(text: str) -> bool:
@@ -71,6 +76,15 @@ def _is_explicit_action_request(text: str) -> bool:
     ):
         return False
     return bool(_EXPLICIT_ACTION_RE.search(normalized))
+
+
+def _is_explicit_file_read_request(text: str) -> bool:
+    """Identifica pedidos explícitos para ler/exibir conteúdo de arquivo."""
+    normalized = " ".join((text or "").split())
+    return (
+        _is_explicit_action_request(normalized)
+        and bool(_EXPLICIT_FILE_READ_RE.search(normalized))
+    )
 
 
 class RequestState(str, Enum):
@@ -200,33 +214,47 @@ class ToolCallingBridge:
         catalog = self._controller.planning_catalog()
         result = self._agent.request_tool_plan(cleaned, catalog)
 
-        if result.kind == "conversation":
+        explicit_read = _is_explicit_file_read_request(cleaned)
+        wrong_read_tool = (
+            explicit_read
+            and result.kind == "plan"
+            and any(task.tool != "read_file" for task in result.plan.tasks)
+        )
+        should_retry_action = (
+            result.kind == "conversation"
+            and _is_explicit_action_request(cleaned)
+        )
+        if should_retry_action or wrong_read_tool:
             # A local model can misclassify a concrete external action as chat.
-            # Retry once with explicit routing guidance, but only for specific
-            # action requests; generic asks such as "give me unrestricted access"
-            # remain conversational and do not trigger tool execution.
-            if _is_explicit_action_request(cleaned):
-                retry_request = (
-                    f"{cleaned}\n\n"
-                    'ROTEAMENTO OBRIGATÓRIO: o pedido acima solicita uma ação concreta. '
-                    'Reavalie a allowlist fornecida e retorne "type": "plan" '
-                    'com ferramentas existentes se houver ferramenta adequada. '
-                    'Não responda em linguagem natural. Se não houver ferramenta adequada, '
-                    'retorne "type": "conversation" sem inventar capacidades.'
+            # Retry once with a plan-only protocol. Explicit reads also pin
+            # the tool selector; all parameters and paths remain validated
+            # by Planner/catalog and ToolsController/sandbox.
+            retry_request = (
+                f"{cleaned}\n\n"
+                'ROTEAMENTO OBRIGATÓRIO: este pedido solicita uma ação concreta. '
+                'Retorne um plano válido usando exclusivamente ferramentas da allowlist. '
+                + (
+                    'Para ler o conteúdo, use read_file com somente o parâmetro path; '
+                    'não substitua por file_exists. '
+                    if explicit_read else ""
                 )
-                result = self._agent.request_tool_plan(retry_request, catalog)
-                if result.kind == "conversation":
-                    message = (
-                        "Não consegui transformar este pedido de ação em um plano de "
-                        "ferramentas válido. Nenhuma ação foi executada. Verifique se a "
-                        "ferramenta necessária está conectada e permitida nesta instalação."
-                    )
-                    self._remember(cleaned, message)
-                    return AgentOutcome(RequestState.PLAN_INVALID, message)
-            else:
-                # Pure conversation remains on the regular chat path.
-                reply = self._agent.send_message(cleaned, on_delta=on_delta)
-                return AgentOutcome(RequestState.CONVERSATIONAL, reply)
+            )
+            result = self._agent.request_tool_plan(
+                retry_request, catalog, require_plan=True,
+                required_tool="read_file" if explicit_read else None,
+            )
+            if result.kind == "conversation":
+                message = (
+                    "Não consegui transformar este pedido de ação em um plano de "
+                    "ferramentas válido. Nenhuma ação foi executada. Verifique se a "
+                    "ferramenta necessária está conectada e permitida nesta instalação."
+                )
+                self._remember(cleaned, message)
+                return AgentOutcome(RequestState.PLAN_INVALID, message)
+        elif result.kind == "conversation":
+            # Pure conversation remains on the regular chat path.
+            reply = self._agent.send_message(cleaned, on_delta=on_delta)
+            return AgentOutcome(RequestState.CONVERSATIONAL, reply)
 
         if result.kind == "invalid":
             # 3) Saída inválida do LLM/provedor: falha controlada, NADA
@@ -488,6 +516,9 @@ class ToolCallingBridge:
                 )
             if evidence:
                 message += "\n\n" + self._format_execution_evidence(evidence)
+            read_contents = self._read_file_contents(report)
+            if read_contents:
+                message += "\n\n" + "\n\n".join(read_contents)
             self._remember(request, message)
             return AgentOutcome(state, message, plan_id, evidence)
 
@@ -608,6 +639,32 @@ class ToolCallingBridge:
                 exists=exists,
             ))
         return tuple(evidence)
+
+    @staticmethod
+    def _read_file_contents(report) -> list[str]:
+        """Devolve ao chat o conteúdo observado em execuções de ``read_file``."""
+        sections = []
+        for run in report.tasks:
+            if getattr(run, "tool", None) != "read_file":
+                continue
+            status = getattr(getattr(run, "status", None), "value", None)
+            if status != "DONE" or not isinstance(run.result, str):
+                continue
+            try:
+                payload = json.loads(run.result)
+            except (TypeError, ValueError):
+                continue
+            data = payload.get("data") if isinstance(payload, dict) else None
+            if not isinstance(payload, dict) or payload.get("ok") is not True:
+                continue
+            if not isinstance(data, dict) or not isinstance(data.get("content"), str):
+                continue
+            path = data.get("resolved_path") or data.get("requested_path")
+            label = "Conteúdo lido por read_file"
+            if path:
+                label += f" ({path})"
+            sections.append(f"{label}\n{data['content']}")
+        return sections
 
     @staticmethod
     def _summarize_tool_result(result: str | None) -> str:

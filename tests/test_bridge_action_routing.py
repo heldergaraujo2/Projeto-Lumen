@@ -25,8 +25,8 @@ class AgentStub:
         self.plan_requests = []
         self.chat_requests = []
 
-    def request_tool_plan(self, text, catalog):
-        self.plan_requests.append((text, catalog))
+    def request_tool_plan(self, text, catalog, **options):
+        self.plan_requests.append((text, catalog, options))
         kind = self.kinds.pop(0)
         return SimpleNamespace(kind=kind, plan=SimpleNamespace(id="plan-test"))
 
@@ -63,6 +63,7 @@ def test_explicit_action_retries_planner_and_never_falls_back_to_chat():
     assert len(agent.plan_requests) == 2
     assert agent.chat_requests == []
     assert "ROTEAMENTO OBRIGATÓRIO" in agent.plan_requests[1][0]
+    assert agent.plan_requests[1][2]["require_plan"] is True
 
 
 def test_pure_conversation_still_uses_chat_path():

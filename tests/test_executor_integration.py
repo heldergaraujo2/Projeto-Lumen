@@ -15,7 +15,7 @@ import pytest
 from app.ai.mock import MockProvider
 from app.ai.provider import AIProvider
 from app.ai.types import AIResponse, ResponseType
-from app.core.agent import Agent
+from app.core.agent import Agent, AgentError
 from app.executor import (
     ExecutorError,
     PlanExecutor,
@@ -88,12 +88,11 @@ def test_planner_failed_plan_cannot_be_executed():
 
 
 # --------------------------------------------------- Agent → Executor
-def test_agent_execute_plan_returns_completed_report(tmp_path):
+def test_agent_execute_plan_without_tools_does_not_fake_success(tmp_path):
     agent = make_agent(tmp_path, FakePlanProvider(PLAN_JSON))
     plan = agent.request_plan("sistema de níveis")
-    report = agent.execute_plan(plan)
-    assert report.status is PlanStatus.COMPLETED
-    assert len(report.tasks) == 4
+    with pytest.raises(AgentError, match="não designa ferramentas"):
+        agent.execute_plan(plan)
 
 
 def test_agent_execute_plan_with_failure(tmp_path):
@@ -125,7 +124,7 @@ def test_execution_does_not_touch_conversation_nor_memory(tmp_path):
     conversation_before = agent.memory.count
     stats_before = memory_system.stats()
 
-    report = agent.execute_plan(plan)
+    report = agent.execute_plan(plan, handler=SimulatedHandler())
 
     assert report.completed
     assert agent.memory.count == conversation_before   # conversa intocada
@@ -136,7 +135,7 @@ def test_execution_does_not_touch_conversation_nor_memory(tmp_path):
 def test_chat_flow_unchanged_after_execution(tmp_path):
     agent = make_agent(tmp_path, FakePlanProvider(PLAN_JSON))
     plan = agent.request_plan("objetivo")
-    agent.execute_plan(plan)
+    agent.execute_plan(plan, handler=SimulatedHandler())
     reply = agent.send_message("Olá Lumen")
     assert reply.strip()
     assert agent.memory.count == 2  # user + assistant; plan/execução não gravaram

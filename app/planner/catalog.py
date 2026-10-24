@@ -22,6 +22,7 @@ livre de código de execução — garantido por testes estáticos).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath, PureWindowsPath
 
 #: Tipos aceitos nos parâmetros (validação estrita de protocolo).
 _TYPE_NAMES = ("string", "integer", "array")
@@ -57,8 +58,8 @@ def _fs(name: str, description: str) -> ToolSpec:
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Caminho RELATIVO à raiz do workspace autorizado "
-                "(nunca absoluto, nunca com '..').",
+                "Caminho relativo ou absoluto dentro de um workspace autorizado "
+                "(nunca com '..'; o sandbox valida o escopo).",
             ),
         ),
     )
@@ -74,7 +75,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Caminho relativo ao workspace (nunca absoluto, nunca '..').",
+                "Caminho relativo ou absoluto dentro do workspace (nunca '..').",
             ),
             ParameterSpec("content", "string", True, "Conteúdo completo a gravar."),
         ),
@@ -85,7 +86,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Caminho relativo ao workspace (nunca absoluto, nunca '..').",
+                "Caminho relativo ou absoluto dentro do workspace (nunca '..').",
             ),
             ParameterSpec("content", "string", True, "Conteúdo completo do arquivo."),
         ),
@@ -102,8 +103,8 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Diretório relativo ao workspace onde buscar "
-                "(nunca absoluto, nunca '..').",
+                "Diretório relativo ou absoluto dentro do workspace onde buscar "
+                "(nunca '..'; o sandbox valida o escopo).",
             ),
             ParameterSpec(
                 "query", "string", True,
@@ -123,7 +124,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Caminho relativo ao workspace (nunca absoluto, nunca '..').",
+                "Caminho relativo ou absoluto dentro do workspace (nunca '..').",
             ),
             ParameterSpec(
                 "expected_old_text", "string", True,
@@ -316,19 +317,11 @@ def catalog_prompt_section(catalog: dict[str, dict]) -> str:
 
 
 def _path_suspect(value: str) -> bool:
-    """Caminho que tenta escapar do workspace (protocolo 0.6.3).
-
-    Absoluto POSIX (``/…``), raiz de drive (``C:\…``), UNC (``\\…``) ou
-    com componente ``..``. O sandbox da camada de tools continua sendo
-    a defesa de execução — isto rejeita a tentativa já no planejamento
-    (falha controlada, nada executa).
-    """
+    """Detecta traversal lexical, sem substituir a autorização do sandbox."""
     stripped = value.strip()
-    if stripped.startswith(("/", "\\")):
-        return True
-    if ":" in stripped.split("/")[0].split("\\")[0]:
-        return True  # drive/unidade (ex.: C:) antes do 1º separador
-    return ".." in stripped
+    parts = set(PurePosixPath(stripped).parts)
+    parts.update(PureWindowsPath(stripped).parts)
+    return ".." in parts
 
 
 def validate_task_tool(
@@ -399,8 +392,7 @@ def validate_task_tool(
             if pname == "path" and _path_suspect(value):
                 return (
                     f"parâmetro 'path' de '{name}' deve ser um caminho "
-                    "relativo ao workspace, sem '..' e sem caminho "
-                    "absoluto"
+                    "dentro do workspace autorizado, sem componente '..'"
                 )
         elif pspec.type == "integer":
             if isinstance(value, bool) or not isinstance(value, int):

@@ -586,6 +586,76 @@ def test_missing_read_blocks_read_even_without_checkpoint(env, ws):
     assert not controller.has_pending  # permissão ≠ checkpoint
 
 
+def test_chat_reads_absolute_workspace_path_and_returns_observed_content(env, ws):
+    agent, controller, _ = env
+    content = "CONTEÚDO REAL DO TXT\nsegunda linha"
+    target = ws / "leitura.txt"
+    target.write_text(content, encoding="utf-8")
+    controller.add_workspace(str(ws), writable=False)
+    controller.grant_permission("READ")
+    use(agent, ScriptedProvider(plan_json("read_file", {"path": str(target)})))
+
+    outcome = agent.process_message(f"Leia o arquivo {target}")
+
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
+    assert "read_file" in outcome.text
+    assert content in outcome.text
+
+
+@pytest.mark.parametrize("initial", [
+    '{"type":"conversation"}',
+    plan_json("file_exists", {"path": "ignored.txt"}),
+])
+def test_ollama_explicit_absolute_read_retries_as_read_file(env, ws, initial):
+    agent, controller, _ = env
+    content = "QWEN ABSOLUTE READ\nsegunda linha"
+    target = ws / "Teste.txt"
+    target.write_text(content, encoding="utf-8")
+    controller.add_workspace(str(ws), writable=False)
+    controller.grant_permission("READ")
+
+    class OllamaSequenceProvider(ScriptedProvider):
+        name = "ollama"
+
+        def __init__(self):
+            super().__init__("")
+            self.responses = [
+                initial,
+                plan_json("read_file", {"path": str(target)}),
+            ]
+            self.calls = []
+
+        def chat(self, message, context=None, *, system_prompt=None, **kwargs):
+            self.calls.append({
+                "message": message,
+                "system_prompt": system_prompt,
+                "options": kwargs,
+            })
+            return AIResponse(
+                content=self.responses.pop(0), model="qwen2.5-coder:7b",
+                usage=None, finish_reason="stop",
+            )
+
+    provider = OllamaSequenceProvider()
+    use(agent, provider)
+    request = f"Dentro de {ws}, leia o arquivo Teste.txt e mostre o conteúdo completo, exatamente como está escrito."
+
+    outcome = agent.process_message(request)
+
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
+    assert content in outcome.text
+    assert outcome.execution_evidence[0].tool == "read_file"
+    assert len(provider.calls) == 2
+    retry = provider.calls[1]
+    assert "ROTEAMENTO OBRIGATÓRIO" in retry["system_prompt"]
+    schema = retry["options"]["json_schema"]
+    assert schema["properties"]["type"]["const"] == "plan"
+    assert (
+        schema["properties"]["tasks"]["items"]["properties"]["tool"]["const"]
+        == "read_file"
+    )
+
+
 def test_no_permission_is_ever_granted_automatically(env, ws):
     agent, controller, _ = env
     armed(controller, ws)

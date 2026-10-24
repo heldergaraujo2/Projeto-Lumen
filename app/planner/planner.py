@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from copy import deepcopy
 from dataclasses import dataclass
 from collections import deque
 from collections.abc import Sequence
@@ -140,6 +141,9 @@ REGRA PRIORITARIA DE CLASSIFICACAO:
 - Se existir ferramenta adequada na allowlist, escolha "plan" mesmo que
   a tarefa exija varias etapas. Planeje uma sequencia curta, com
   dependencias corretas e criterios de sucesso concretos.
+- Para pedidos explicitos de leitura ou exibicao do conteudo de um arquivo,
+  selecione "read_file" e use exatamente os parametros definidos na allowlist
+  (somente "path"); nao substitua a leitura por "file_exists".
 - NUNCA responda "nao consigo executar", "nao tenho acesso a arquivos"
   ou equivalentes por suposicao. A Lumen possui ferramentas reais; a
   execucao posterior e que confirma se permissao, workspace, terminal,
@@ -163,8 +167,9 @@ Regras:
   ferramentas, alias ou "ferramentas genericas".
 - "parameters": exatamente os nomes e tipos listados para a ferramenta;
   nada de parametros extras.
-- Caminhos sao RELATIVOS a raiz do workspace autorizado; nunca caminhos
-  absolutos, ".." ou locais fora do workspace.
+- Caminhos podem ser relativos ou absolutos, mas precisam apontar para
+  dentro de um workspace autorizado; nunca use "..". O sandbox confirma
+  a autorização do caminho na execução.
 - Uma tarefa = uma ferramenta. Sem comandos de shell, codigo para rodar
   ou acoes fora das ferramentas listadas.
 - NADA sera executado agora: toda execucao passa depois pelas camadas de
@@ -228,6 +233,7 @@ _TOOL_PLANNING_JSON_SCHEMA = {
         },
     ],
 }
+_TOOL_PLANNING_PLAN_JSON_SCHEMA = _TOOL_PLANNING_JSON_SCHEMA["oneOf"][1]
 
 
 @dataclass(frozen=True)
@@ -398,6 +404,9 @@ class Planner:
         self,
         objective: str,
         context: Sequence[ContextMessage] | None = None,
+        *,
+        require_plan: bool = False,
+        required_tool: str | None = None,
     ) -> ToolPlanResult:
         """Planeja com a allowlist de ferramentas (0.6.3 — tool calling).
 
@@ -432,10 +441,22 @@ class Planner:
         except InvalidPlanError as exc:
             return self._tool_invalid(draft, f"Plano inválido: {exc}")
 
-        system_prompt = self._build_tool_system_prompt(cleaned)
+        system_prompt = self._build_tool_system_prompt(
+            cleaned, require_plan=require_plan, required_tool=required_tool,
+        )
         try:
             if self._provider.name == "ollama":
-                chat_options = {"json_schema": _TOOL_PLANNING_JSON_SCHEMA}
+                if require_plan:
+                    plan_schema = deepcopy(_TOOL_PLANNING_PLAN_JSON_SCHEMA)
+                    if required_tool is not None:
+                        plan_schema["properties"]["tasks"]["items"]["properties"][
+                            "tool"
+                        ] = {
+                            "const": required_tool,
+                        }
+                    chat_options = {"json_schema": plan_schema}
+                else:
+                    chat_options = {"json_schema": _TOOL_PLANNING_JSON_SCHEMA}
             elif self._provider.name in {"openai", "groq", "together", "orcarouter"}:
                 chat_options = {"json_format": True}
             else:
@@ -534,6 +555,14 @@ class Planner:
             logger.warning("Plano com ferramentas %s inválido: %s", plan_id, exc)
             return self._tool_invalid(draft, f"A IA devolveu um plano inválido: {exc}")
 
+        if required_tool is not None and any(
+            task.tool != required_tool for task in tasks
+        ):
+            return self._tool_invalid(
+                draft,
+                f"o roteamento obrigatório exige a ferramenta '{required_tool}'",
+            )
+
         # 10B (R1): Stage 2 opcional — refinador CONSERVADOR com fallback
         # obrigatório (qualquer violação/erro ⇒ plano do Stage 1).
         if self._refine_enabled:
@@ -575,7 +604,10 @@ class Planner:
             )
         return prompt
 
-    def _build_tool_system_prompt(self, objective: str) -> str:
+    def _build_tool_system_prompt(
+        self, objective: str, *, require_plan: bool = False,
+        required_tool: str | None = None,
+    ) -> str:
         """Prompt do planejamento com ferramentas (0.6.3).
 
         A allowlist entra no prompt: o provedor só conhece as
@@ -589,6 +621,17 @@ class Planner:
         prompt = _TOOL_PLANNING_PROMPT.replace(
             "{catalog}", catalog_prompt_section(self._catalog)
         )
+        if require_plan:
+            prompt += (
+                "\nROTEAMENTO OBRIGATÓRIO: este pedido exige uma ação coberta "
+                "pela allowlist. Responda com um objeto do tipo plan; não use "
+                "type conversation. O plano ainda será validado antes da execução.\n"
+            )
+        if required_tool is not None:
+            prompt += (
+                f"Ferramenta obrigatória para este pedido: {required_tool}. "
+                "Use apenas os parâmetros dessa ferramenta, sem extras.\n"
+            )
         memory_section = self._memory_context(objective)
         if memory_section:
             prompt = (
