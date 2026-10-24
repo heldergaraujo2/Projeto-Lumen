@@ -102,8 +102,6 @@ class Settings:
     planner_refine_enabled: bool = False
     #: 9B — grava bundles de execução sanitizados (OFF por padrão).
     persist_execution_state: bool = False
-    #: 9B: persistência do Execution State (observabilidade) — OFF por padrão.
-    persist_execution_state: bool = False
     #: 11I: export do relatório de evidências pós-execução
     #: (observabilidade) — OFF por padrão.
     export_execution_reports: bool = False
