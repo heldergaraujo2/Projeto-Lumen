@@ -75,7 +75,8 @@ def test_mem0_search_returns_only_grounded_record_references(tmp_path, monkeypat
     class FakeClient:
         def search(self, query, **kwargs):
             assert query == "como funciona a grade do inventário"
-            assert kwargs["user_id"] == "lumen-local"
+            assert kwargs["filters"] == {"user_id": "lumen-local"}
+            assert kwargs["top_k"] == 10
             return {"results": [
                 {"memory": "inventário usa UMG", "score": 0.91,
                  "metadata": {"lumen_record_id": "KN-0001", "lumen_kind": "KNOWLEDGE"}},
