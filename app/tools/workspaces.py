@@ -11,8 +11,8 @@ para as ferramentas de filesystem, com política própria:
 Garantias preservadas:
 
 - **Nada é autorizado por padrão** — o store começa vazio (arquivo nem
-  existe até a primeira autorização) e **raiz de disco/Windows inteiro é
-  rejeitada** (ex.: ``/`` ou ``C:\\``);
+  existe até a primeira autorização); raízes de disco podem ser autorizadas
+  somente para leitura, nunca para escrita ou exclusão;
 - caminhos são **validados e normalizados** (absoluto, existente,
   diretório, resolvido — symlinks normalizados) antes de armazenados;
 - :class:`MultiWorkspaceSandbox` aplica a política **por raiz**: um
@@ -120,6 +120,13 @@ class WorkspaceStore:
                     f"{self._path.name} inválido: esperada uma lista de workspaces."
                 )
             entries = [WorkspaceEntry.from_dict(item) for item in raw]
+            # Raízes de disco abrangem o sistema inteiro: leitura apenas.
+            # Rejeita configurações persistidas que tentem habilitar escrita.
+            for entry in entries:
+                if _now_anchor(entry.root) and (entry.writable or entry.allow_delete):
+                    raise WorkspaceStoreError(
+                        f"Workspace raiz {entry.root} deve ser somente leitura."
+                    )
             # invariantes de unicidade preservados ao carregar
             seen: set[Path] = set()
             for entry in entries:
@@ -158,10 +165,11 @@ class WorkspaceStore:
         if not candidate.is_dir():
             raise ValueError(f"O caminho não é um diretório: {path}")
         resolved = candidate.resolve()
-        if _now_anchor(resolved):
+        if _now_anchor(resolved) and (writable or allow_delete):
             raise ValueError(
-                "Autorizar a raiz do disco equivale a dar acesso a todo o "
-                "sistema — escolha um diretório específico."
+                "A raiz do disco abrange o sistema inteiro e só pode ser "
+                "autorizada como somente leitura; escolha um diretório "
+                "específico para habilitar escrita ou exclusão."
             )
         if allow_delete and not writable:
             raise ValueError("Permitir exclusão exige permitir escrita (writable).")
@@ -197,6 +205,11 @@ class WorkspaceStore:
         if allow_delete and not writable:
             raise ValueError("Permitir exclusão exige permitir escrita (writable).")
         candidate = Path(path.strip()) if isinstance(path, str) else Path("")
+        if _now_anchor(candidate) and (writable or allow_delete):
+            raise ValueError(
+                "A raiz do disco deve permanecer somente leitura; habilite "
+                "escrita/exclusão apenas em um diretório específico."
+            )
         entries = self.load()
         for index, entry in enumerate(entries):
             if entry.root == candidate.resolve() or entry.root == candidate:
@@ -216,17 +229,20 @@ class MultiWorkspaceSandbox:
 
     - ``resolve`` procura em cada workspace (na ordem autorizada) e
       devolve o primeiro que contém o caminho;
-    - ``check_operation`` aplica a política **do workspace que contém o
-      caminho** (somente leitura num workspace bloqueia escrita mesmo
-      que outro permita);
+    - ``check_operation`` aplica a política do workspace **mais específico**
+      que contém o caminho; assim, uma raiz de disco somente-leitura não
+      sobrepõe uma autorização explícita de diretório mais restrito;
     - conjunto vazio ⇒ **tudo** bloqueado (``PathOutsideWorkspaceError``).
 
     Interface compatível com :class:`~app.tools.filesystem.WorkspaceSandbox`
     (``resolve``/``check_operation``/``assert_operation_allowed``).
     """
 
-    def __init__(self, entries: Iterable[WorkspaceEntry]) -> None:
+    def __init__(
+        self, entries: Iterable[WorkspaceEntry], *, unrestricted: bool = False
+    ) -> None:
         self._entries: tuple[WorkspaceEntry, ...] = tuple(entries)
+        self._unrestricted = bool(unrestricted)
         self._sandboxes: tuple[WorkspaceSandbox, ...] = tuple(
             WorkspaceSandbox(
                 [entry.root], writable=entry.writable, allow_delete=entry.allow_delete
@@ -244,29 +260,45 @@ class MultiWorkspaceSandbox:
 
     @property
     def writable(self) -> bool:
-        """Resumo p/ UI: algum workspace permite escrita."""
-        return any(entry.writable for entry in self._entries)
+        """Resumo p/ UI: escrita disponível em algum escopo ou no modo global."""
+        return self._unrestricted or any(entry.writable for entry in self._entries)
 
     @property
     def allow_delete(self) -> bool:
-        """Resumo p/ UI: algum workspace permite exclusão."""
-        return any(entry.allow_delete for entry in self._entries)
+        """Resumo p/ UI: exclusão disponível em algum escopo ou no modo global."""
+        return self._unrestricted or any(entry.allow_delete for entry in self._entries)
 
     def entry_for(self, resolved: Path) -> WorkspaceEntry | None:
-        """Workspace que contém ``resolved`` (ou ``None``)."""
+        """Workspace mais específico que contém ``resolved`` (ou ``None``)."""
+        matches: list[WorkspaceEntry] = []
         for entry in self._entries:
             try:
                 resolved.relative_to(entry.root)
-                return entry
+                matches.append(entry)
             except ValueError:
                 continue
-        return None
+        # O caminho mais profundo representa a autorização mais específica.
+        # Isso permite uma raiz de disco somente-leitura como fallback, sem
+        # anular permissões explícitas concedidas a subdiretórios.
+        return max(matches, key=lambda entry: len(entry.root.parts), default=None)
 
     def resolve(self, path) -> Path:
+        if self._unrestricted:
+            if not isinstance(path, (str, os.PathLike)) or not str(path).strip():
+                raise PathOutsideWorkspaceError("Informe um caminho válido.")
+            try:
+                candidate = Path(path).expanduser()
+                if not candidate.is_absolute():
+                    candidate = Path.cwd() / candidate
+                return candidate.resolve()
+            except (OSError, RuntimeError, ValueError) as exc:
+                raise PathOutsideWorkspaceError(
+                    f"Não foi possível resolver o caminho {path!r}: {exc}"
+                ) from exc
         if not self._sandboxes:
             raise PathOutsideWorkspaceError(
-                "Nenhum workspace autorizado — autorize um diretório para "
-                "que as ferramentas de arquivo possam trabalhar."
+                "Nenhum workspace autorizado — autorize um diretório ou ative "
+                "o Modo Autônomo para conceder acesso global aos arquivos."
             )
         outside: FilesystemError | None = None
         for sandbox in self._sandboxes:
@@ -280,21 +312,24 @@ class MultiWorkspaceSandbox:
 
     def check_operation(self, operation: str, resolved: Path) -> None:
         """Política do workspace que contém o caminho resolvido."""
-        for entry, sandbox in zip(self._entries, self._sandboxes):
-            try:
-                resolved.relative_to(entry.root)
-            except ValueError:
-                continue
-            sandbox.assert_operation_allowed(operation)
+        if self._unrestricted:
+            if operation not in {"read", "write", "delete"}:
+                raise FilesystemError(f"Operação desconhecida: {operation!r}.")
             return
-        raise PathOutsideWorkspaceError(
-            f"Caminho fora dos workspaces autorizados: {resolved}"
-        )
+        entry = self.entry_for(resolved)
+        if entry is None:
+            raise PathOutsideWorkspaceError(
+                f"Caminho fora dos workspaces autorizados: {resolved}"
+            )
+        sandbox = self._sandboxes[self._entries.index(entry)]
+        sandbox.assert_operation_allowed(operation)
 
     def assert_operation_allowed(self, operation: str) -> None:
         """Resumo independente de caminho (leitura livre; escrita/exclusão
         se **algum** workspace permitir). As ferramentas usam
         ``check_operation`` (por caminho) — este método é para UI/diagnóstico."""
+        if self._unrestricted and operation in {"read", "write", "delete"}:
+            return
         if operation == "read":
             return
         if operation in ("write", "delete"):

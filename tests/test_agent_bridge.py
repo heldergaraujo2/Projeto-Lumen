@@ -12,17 +12,20 @@ import ast
 import dataclasses
 import inspect
 import json
+import queue
 from pathlib import Path
 
 import pytest
 
 from app.ai.mock import MockProvider
+from app.ai.provider import ProviderError
 from app.ai.types import AIResponse, ResponseType
 from app.core.agent import Agent
 from app.core.bridge import RequestState, ToolCallingBridge
+from app.executor.executor import ExecutionReport, TaskRun
 from app.memory.store import MemoryStore
 from app.planner.catalog import build_catalog
-from app.planner.models import PlanStatus
+from app.planner.models import PlanStatus, PlannedTaskStatus
 from app.security.permissions import PermissionLevel, PermissionManager
 from app.tools.control import ToolsController
 from app.unreal.integration import UnrealIntegration
@@ -54,6 +57,61 @@ class ScriptedProvider:
 
     def generate(self, message, context=None):
         return "resposta simulada do provider fake"
+
+
+class ConversationProvider(ScriptedProvider):
+    """Emite primeiro a decisão do planner e depois a resposta normal do chat."""
+
+    def __init__(self, planner_content='{"type":"conversation"}'):
+        super().__init__(planner_content)
+        self.calls = []
+
+    def chat(self, message, context=None, *, system_prompt=None, **kw):
+        self.calls.append({
+            "message": message,
+            "context": [dict(item) for item in context or []],
+            "system_prompt": system_prompt,
+            "options": dict(kw),
+        })
+        content = (
+            self._content
+            if "planejamento com ferramentas" in (system_prompt or "")
+            else "Olá! Estou bem. Como posso ajudar?"
+        )
+        return AIResponse(
+            content=content, model="scripted", usage=None,
+            finish_reason="stop", response_type=ResponseType.FINAL_RESPONSE,
+        )
+
+
+class FileExistsContinuationProvider(ScriptedProvider):
+    """Plano file_exists, conversa de continuação e captura do histórico enviado."""
+
+    def __init__(self):
+        super().__init__("")
+        self.calls = []
+        self.planner_calls = 0
+
+    def chat(self, message, context=None, *, system_prompt=None, **kw):
+        self.calls.append({
+            "message": message,
+            "context": [dict(item) for item in context or []],
+            "system_prompt": system_prompt,
+            "options": dict(kw),
+        })
+        if "planejamento com ferramentas" in (system_prompt or ""):
+            self.planner_calls += 1
+            content = (
+                plan_json("file_exists", {"path": "README.md"})
+                if self.planner_calls == 1 else
+                '{"type":"conversation"}'
+            )
+        else:
+            content = "O resultado anterior está no histórico da conversa."
+        return AIResponse(
+            content=content, model="scripted", usage=None,
+            finish_reason="stop", response_type=ResponseType.FINAL_RESPONSE,
+        )
 
 
 def plan_json(tool: str, parameters: dict) -> str:
@@ -153,9 +211,11 @@ def test_web_research_is_synthesized_back_into_chat(monkeypatch, env):
     use(agent, provider)
     outcome = agent.process_message("Pesquise as novidades do GPT e me explique.")
 
-    assert outcome.state is RequestState.COMPLETED
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
     assert "evidências atuais" in outcome.text
     assert "https://example.com/research" in outcome.text
+    assert outcome.execution_evidence[0].tool == "web_research"
+    assert outcome.execution_evidence[0].verification_status == "not_run"
     assert len(provider.calls) == 2
     assert "Conteúdo Web" in provider.calls[1][1] or "sintetizador" in provider.calls[1][1]
     assert "Fato pesquisado em fonte pública." in provider.calls[1][0]
@@ -184,9 +244,10 @@ def test_web_research_provider_failure_falls_back_to_sources(monkeypatch, env):
     use(agent, provider)
     outcome = agent.process_message("Pesquise evidências e me explique.")
 
-    assert outcome.state is RequestState.COMPLETED
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
     assert "não foi possível gerar a síntese automaticamente" in outcome.text
     assert "https://example.com/research" in outcome.text
+    assert outcome.execution_evidence[0].result_sha256
     assert len(provider.calls) == 2
 
 
@@ -198,6 +259,16 @@ def test_conversational_message_does_not_touch_tools(env):
     calls = {"run": 0}
     original = controller.run_plan
 
+    class RuntimeSpy:
+        calls = 0
+
+        def run(self, _request):
+            self.calls += 1
+            return None
+
+    runtime = RuntimeSpy()
+    agent.set_universal_runtime(runtime)
+
     def spy(plan):
         calls["run"] += 1
         return original(plan)
@@ -207,6 +278,136 @@ def test_conversational_message_does_not_touch_tools(env):
     assert outcome.state is RequestState.CONVERSATIONAL
     assert "Como posso ajudar" in outcome.text
     assert calls["run"] == 0  # nenhuma ferramenta, nenhum plano
+    assert runtime.calls == 0
+
+
+def test_bridge_returns_normal_chat_reply_to_ui_with_prior_history(env):
+    agent, controller, _ = env
+    agent.memory.add_message("user", "mensagem anterior")
+    agent.memory.add_message("assistant", "resposta anterior")
+    provider = ConversationProvider()
+    use(agent, provider)
+    calls = {"run": 0}
+    controller.run_plan = lambda _plan: calls.__setitem__("run", calls["run"] + 1)
+
+    # A UI usa este worker e encaminha o texto do AgentOutcome para a bolha.
+    from app.ui.main_window import LumenWindow
+
+    window = object.__new__(LumenWindow)
+    window._agent = agent
+    window._queue = queue.Queue()
+    window._worker("Olá Lumen", lambda _chunk: None)
+    kind, displayed_text = window._queue.get_nowait()
+
+    assert kind == "reply"
+    assert displayed_text == "Olá! Estou bem. Como posso ajudar?"
+    assert calls["run"] == 0
+    assert len(provider.calls) == 2
+    planner_call, chat_call = provider.calls
+    assert "type\": \"conversation\"" in planner_call["system_prompt"]
+    assert [m["role"] for m in planner_call["context"]] == ["user", "assistant"]
+    assert all(m["role"] != "system" for m in planner_call["context"])
+    assert "Olá Lumen" not in [m["content"] for m in planner_call["context"]]
+    assert planner_call["message"] == "Olá Lumen"
+    assert chat_call["system_prompt"] == agent.system_prompt
+    assert [m["role"] for m in chat_call["context"]] == ["user", "assistant"]
+    assert "Olá Lumen" not in [m["content"] for m in chat_call["context"]]
+
+
+def test_file_exists_path_is_shown_saved_and_available_to_text_continuation(env, ws):
+    agent, controller, _ = env
+    armed(controller, ws)
+    (ws / "README.md").write_text("fixture", encoding="utf-8")
+    provider = FileExistsContinuationProvider()
+    use(agent, provider)
+
+    class RuntimeSpy:
+        calls = 0
+
+        def run(self, _request):
+            self.calls += 1
+            return None
+
+    runtime = RuntimeSpy()
+    agent.set_universal_runtime(runtime)
+    controller_calls = {"count": 0}
+    run_plan = controller.run_plan
+
+    def count_run_plan(plan):
+        controller_calls["count"] += 1
+        return run_plan(plan)
+
+    controller.run_plan = count_run_plan
+    resolved_path = str((ws / "README.md").resolve())
+
+    first = agent.process_message(
+        "Verifique se existe README.md no workspace e informe o resultado."
+    )
+
+    assert first.state is RequestState.EXECUTED_UNVERIFIED
+    assert first.execution_evidence[0].execution_status == "DONE"
+    assert first.execution_evidence[0].verification_status == "not_run"
+    assert first.execution_evidence[0].requested_path == "README.md"
+    assert first.execution_evidence[0].resolved_path == resolved_path
+    assert first.execution_evidence[0].exists is True
+    assert "caminho solicitado=README.md" in first.text
+    assert f"caminho completo consultado={resolved_path}" in first.text
+    assert "exists=true" in first.text
+
+    history_after_tool = agent.memory.all_messages()
+    assert history_after_tool[-1].role == "assistant"
+    assert resolved_path in history_after_tool[-1].content
+
+    followup = agent.process_message(
+        "Informe somente o caminho anterior; não execute outras ferramentas."
+    )
+
+    assert followup.state is RequestState.CONVERSATIONAL
+    assert "histórico" in followup.text
+    assert controller_calls["count"] == 1
+    assert runtime.calls == 0
+    planner_followup, normal_chat = provider.calls[-2:]
+    for call in (planner_followup, normal_chat):
+        assert resolved_path in "\n".join(
+            item["content"] for item in call["context"]
+        )
+
+
+def test_file_exists_without_resolved_path_is_reported_as_unavailable(env):
+    agent, controller, _ = env
+    bridge = ToolCallingBridge(agent, controller)
+    report = ExecutionReport(
+        plan_id="PLN-NO-PATH",
+        objective="check a path",
+        status=PlanStatus.COMPLETED,
+        tasks=(TaskRun(
+            id="T1",
+            description="check README.md",
+            order=1,
+            dependencies=(),
+            tool="file_exists",
+            status=PlannedTaskStatus.DONE,
+            result=json.dumps({
+                "ok": True,
+                "data": {
+                    "operation": "read",
+                    "requested_path": "README.md",
+                    "exists": True,
+                    "is_dir": False,
+                },
+                "error": None,
+            }),
+        ),),
+        events=(),
+    )
+
+    outcome = bridge.outcome_for_report(None, report.plan_id, report)
+
+    assert outcome.execution_evidence[0].requested_path == "README.md"
+    assert outcome.execution_evidence[0].resolved_path is None
+    assert outcome.execution_evidence[0].exists is True
+    assert "caminho completo consultado=indisponível no resultado" in outcome.text
+    assert "exists=true" in outcome.text
 
 
 def test_action_request_generates_plan_and_reaches_controller(env, ws):
@@ -233,6 +434,7 @@ def test_without_controller_behaves_like_classic_chat(tmp_path):
 def test_all_request_states_exist_and_are_documented():
     for name in ("CONVERSATIONAL", "PLANNING", "PLAN_READY", "PLAN_INVALID",
                  "WAITING_APPROVAL", "EXECUTING", "VERIFYING", "COMPLETED",
+                 "EXECUTED_UNVERIFIED",
                  "FAILED", "REJECTED"):
         assert hasattr(RequestState, name)
 
@@ -301,6 +503,66 @@ def test_out_of_protocol_llm_output_is_controlled(env, ws):
     assert "Nada foi executado" in outcome.text
 
 
+def test_arbitrary_json_planner_response_never_runs_tools_or_universal_runtime(env, ws):
+    agent, controller, _ = env
+    armed(controller, ws)
+
+    class RuntimeSpy:
+        calls = 0
+
+        def run(self, _request):
+            self.calls += 1
+            return None
+
+    runtime = RuntimeSpy()
+    agent.set_universal_runtime(runtime)
+    use(agent, ScriptedProvider(
+        '{"status":"Operação realizada com sucesso.",'
+        '"message":"Estou funcionando corretamente."}'
+    ))
+    controller_calls = {"count": 0}
+    controller.run_plan = lambda _plan: controller_calls.__setitem__(
+        "count", controller_calls["count"] + 1,
+    )
+
+    outcome = agent.process_message("Olá, tudo bem?")
+
+    assert outcome.state is RequestState.PLAN_INVALID
+    assert "Nada foi executado" in outcome.text
+    assert controller_calls["count"] == 0
+    assert runtime.calls == 0
+
+
+def test_planner_provider_failure_never_runs_tools_or_universal_runtime(env, ws):
+    agent, controller, _ = env
+    armed(controller, ws)
+
+    class RuntimeSpy:
+        calls = 0
+
+        def run(self, _request):
+            self.calls += 1
+            return None
+
+    class FailingPlannerProvider(ScriptedProvider):
+        def chat(self, *args, **kwargs):
+            raise ProviderError("falha simulada")
+
+    runtime = RuntimeSpy()
+    agent.set_universal_runtime(runtime)
+    use(agent, FailingPlannerProvider(""))
+    controller_calls = {"count": 0}
+    controller.run_plan = lambda _plan: controller_calls.__setitem__(
+        "count", controller_calls["count"] + 1,
+    )
+
+    outcome = agent.process_message("oi")
+
+    assert outcome.state is RequestState.PLAN_INVALID
+    assert controller_calls["count"] == 0
+    assert runtime.calls == 0
+
+
 # ============================================ permissões (FASE 9)
 def test_missing_write_blocks_create(env, ws):
     agent, controller, _ = env
@@ -322,6 +584,76 @@ def test_missing_read_blocks_read_even_without_checkpoint(env, ws):
     assert outcome.state is RequestState.FAILED
     assert "READ" in outcome.text
     assert not controller.has_pending  # permissão ≠ checkpoint
+
+
+def test_chat_reads_absolute_workspace_path_and_returns_observed_content(env, ws):
+    agent, controller, _ = env
+    content = "CONTEÚDO REAL DO TXT\nsegunda linha"
+    target = ws / "leitura.txt"
+    target.write_text(content, encoding="utf-8")
+    controller.add_workspace(str(ws), writable=False)
+    controller.grant_permission("READ")
+    use(agent, ScriptedProvider(plan_json("read_file", {"path": str(target)})))
+
+    outcome = agent.process_message(f"Leia o arquivo {target}")
+
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
+    assert "read_file" in outcome.text
+    assert content in outcome.text
+
+
+@pytest.mark.parametrize("initial", [
+    '{"type":"conversation"}',
+    plan_json("file_exists", {"path": "ignored.txt"}),
+])
+def test_ollama_explicit_absolute_read_retries_as_read_file(env, ws, initial):
+    agent, controller, _ = env
+    content = "QWEN ABSOLUTE READ\nsegunda linha"
+    target = ws / "Teste.txt"
+    target.write_text(content, encoding="utf-8")
+    controller.add_workspace(str(ws), writable=False)
+    controller.grant_permission("READ")
+
+    class OllamaSequenceProvider(ScriptedProvider):
+        name = "ollama"
+
+        def __init__(self):
+            super().__init__("")
+            self.responses = [
+                initial,
+                plan_json("read_file", {"path": str(target)}),
+            ]
+            self.calls = []
+
+        def chat(self, message, context=None, *, system_prompt=None, **kwargs):
+            self.calls.append({
+                "message": message,
+                "system_prompt": system_prompt,
+                "options": kwargs,
+            })
+            return AIResponse(
+                content=self.responses.pop(0), model="qwen2.5-coder:7b",
+                usage=None, finish_reason="stop",
+            )
+
+    provider = OllamaSequenceProvider()
+    use(agent, provider)
+    request = f"Dentro de {ws}, leia o arquivo Teste.txt e mostre o conteúdo completo, exatamente como está escrito."
+
+    outcome = agent.process_message(request)
+
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
+    assert content in outcome.text
+    assert outcome.execution_evidence[0].tool == "read_file"
+    assert len(provider.calls) == 2
+    retry = provider.calls[1]
+    assert "ROTEAMENTO OBRIGATÓRIO" in retry["system_prompt"]
+    schema = retry["options"]["json_schema"]
+    assert schema["properties"]["type"]["const"] == "plan"
+    assert (
+        schema["properties"]["tasks"]["items"]["properties"]["tool"]["const"]
+        == "read_file"
+    )
 
 
 def test_no_permission_is_ever_granted_automatically(env, ws):
@@ -403,20 +735,68 @@ def test_execution_is_audited_in_jsonl(env, ws):
     assert any(r.get("task_id") == "T1" for r in lines)
 
 
-def test_completed_outcome_reports_verification(env, ws):
+def test_execution_without_functional_verifier_is_not_reported_as_verified(env, ws):
     agent, controller, _ = env
     armed(controller, ws)
     agent.process_message(CREATE_MSG)
     report = controller.approve("ok")
     done = [r for r in report.tasks if r.status.value == "DONE"]
     assert done and all(r.verified is not False for r in done)
-    # reprocessar uma nova ação concluída devolve COMPLETED com texto claro
+    # Uma ferramenta que retornou sucesso sem verifier fica explicitamente
+    # executada, mas não é chamada de funcionalmente verificada.
     use(agent, ScriptedProvider(plan_json(
         "file_exists", {"path": "teste_lumen.txt"},
     )))
     outcome = agent.process_message("verifique o arquivo")
-    assert outcome.state is RequestState.COMPLETED
-    assert "concluído" in outcome.text
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
+    assert "O sucesso funcional não foi confirmado" in outcome.text
+    assert outcome.execution_evidence[0].verification_status == "not_run"
+    assert outcome.execution_evidence[0].execution_status == "DONE"
+    assert outcome.execution_evidence[0].requested_path == "teste_lumen.txt"
+    assert outcome.execution_evidence[0].resolved_path == str(
+        (ws / "teste_lumen.txt").resolve()
+    )
+    assert outcome.execution_evidence[0].exists is True
+    assert len(outcome.execution_evidence[0].result_sha256) == 64
+    assert "exists=True" in outcome.execution_evidence[0].result_summary
+    assert "verificação=not_run" in outcome.text
+
+
+@pytest.mark.parametrize(
+    ("authority", "expected_state"),
+    [
+        ("observed", RequestState.COMPLETED),
+        ("simulated", RequestState.EXECUTED_UNVERIFIED),
+        (None, RequestState.EXECUTED_UNVERIFIED),
+    ],
+)
+def test_completion_requires_observed_verification(env, authority, expected_state):
+    agent, controller, _ = env
+    bridge = ToolCallingBridge(agent, controller)
+    report = ExecutionReport(
+        plan_id="PLN-EVIDENCE",
+        objective="check tool output",
+        status=PlanStatus.COMPLETED,
+        tasks=(TaskRun(
+            id="T1",
+            description="check",
+            order=1,
+            dependencies=(),
+            tool="file_exists",
+            status=PlannedTaskStatus.DONE,
+            result='{"ok":true,"data":{"exists":true}}',
+            verified=True,
+            verification_name="postcondition",
+            verification_detail="exists=true",
+            verification_authority=authority,
+        ),),
+        events=(),
+    )
+
+    outcome = bridge.outcome_for_report(None, report.plan_id, report)
+    assert outcome.state is expected_state
+    assert outcome.execution_evidence[0].result_sha256
+    assert "exists=True" in outcome.execution_evidence[0].result_summary
 
 
 def test_execution_failure_stays_controlled(env, ws):
@@ -560,7 +940,7 @@ def test_bridge_works_with_any_compliant_provider(env, ws):
         "file_exists", {"path": "qualquer.txt"},
     )))
     outcome = agent.process_message("existe?")
-    assert outcome.state is RequestState.COMPLETED
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
 
 
 def test_all_real_providers_remain_importable_and_offline():

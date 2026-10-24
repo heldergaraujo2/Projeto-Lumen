@@ -225,7 +225,7 @@ class ConfigService:
             "Teste de conexão: provedor=%s, modelo=%s (requisição mínima).",
             resolved_provider, candidate.model or "-",
         )
-        probe_max_tokens = 1 if resolved_provider == "openai" else None
+        probe_max_tokens = 1 if resolved_provider in ("openai", "orcarouter") else None
         try:
             probe = self._build_provider(candidate)
             response = probe.chat(

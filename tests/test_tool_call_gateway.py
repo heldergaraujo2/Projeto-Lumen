@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import json
+
 from app.core.bridge import RequestState, ToolCallingBridge
+from app.core.agent import Agent
+from app.memory.store import MemoryStore
+from app.planner.models import Plan, PlanStatus, PlannedTask
 from app.security.permissions import PermissionManager
 from app.tools.control import ToolsController
 from app.tools.protocol import ToolCall, ToolProtocolError
@@ -82,5 +87,42 @@ def test_bridge_accepts_structured_tool_call(tmp_path):
         {"tool": "read_file", "parameters": {"path": "hello.txt"}, "call_id": "bridge-1"}
     )
 
-    assert outcome.state is RequestState.COMPLETED
+    assert outcome.state is RequestState.EXECUTED_UNVERIFIED
+    assert outcome.execution_evidence
+    assert outcome.execution_evidence[0].result_sha256
     assert outcome.plan_id
+
+
+def test_agent_executes_tool_plan_through_controller_registry(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    source = workspace / "source.txt"
+    source.write_text("conteúdo real", encoding="utf-8")
+    permissions = PermissionManager()
+    controller = ToolsController(
+        permissions,
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit" / "audit.jsonl",
+    )
+    controller.add_workspace(str(workspace), writable=False)
+    controller.grant_permission("READ")
+    agent = Agent(
+        provider=__import__("app.ai.mock", fromlist=["MockProvider"]).MockProvider(),
+        memory=MemoryStore(tmp_path / "conversation.json"),
+        permissions=permissions,
+    )
+    agent.set_tools_controller(controller)
+    plan = Plan(
+        id="PLN-AGENT-TOOLS", objective="ler arquivo", status=PlanStatus.READY,
+        tasks=(PlannedTask(
+            id="T1", description="ler source.txt", order=1,
+            tool="read_file", parameters={"path": str(source)},
+        ),),
+    )
+
+    report = agent.execute_plan(plan)
+
+    assert report.status is PlanStatus.COMPLETED
+    result = json.loads(report.task_run("T1").result)
+    assert result["ok"] is True
+    assert result["data"]["content"] == "conteúdo real"

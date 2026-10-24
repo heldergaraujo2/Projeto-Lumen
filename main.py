@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import uuid
 
 from app import __version__
 from app.ai.provider import create_provider
@@ -26,6 +27,22 @@ from app.runtime.plugins import PluginManager
 from app.evolution.autonomous_mission import AutonomousMissionSupervisor
 
 LOGGER = logging.getLogger("lumen")
+
+
+def _load_or_create_conversation_id(path) -> str:
+    """Retorna um ID opaco estável para o histórico local desta instalação."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        current = path.read_text(encoding="utf-8").strip()
+        if current:
+            return current
+    except FileNotFoundError:
+        pass
+    conversation_id = str(uuid.uuid4())
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(conversation_id + "\n", encoding="utf-8")
+    temporary.replace(path)
+    return conversation_id
 
 
 def build_app(settings: Settings) -> tuple[Agent, ConfigService]:
@@ -82,6 +99,13 @@ def main() -> int:
         LOGGER.error("Falha ao inicializar os componentes da Lumen: %s", exc)
         LOGGER.exception("Detalhes técnicos:")
         return 1
+    provider_endpoint = getattr(agent.provider, "base_url", None)
+    LOGGER.info(
+        "Provider inicial carregado: nome=%s modelo=%s endpoint=%s.",
+        agent.provider.name,
+        agent.provider.model_name or "-",
+        provider_endpoint or "-",
+    )
 
     plugin_manager = PluginManager()
     plugin_reports = plugin_manager.discover()
@@ -115,11 +139,20 @@ def main() -> int:
             workspaces_file=settings.data_dir / "workspaces.json",
             audit_file=settings.data_dir / "audit" / "audit.jsonl",
             terminal_file=settings.data_dir / "terminal.json",
+            persist_execution_state=settings.persist_execution_state,
+            execution_state_dir=settings.execution_dir,
+            conversation_id=(
+                _load_or_create_conversation_id(
+                    settings.data_dir / "conversation_id.txt"
+                )
+                if settings.persist_execution_state else None
+            ),
             toggles_file=settings.data_dir / "agent_toggles.json",
             export_execution_reports=settings.export_execution_reports,
             reports_dir=settings.data_dir / "reports",
             unreal=unreal,
             computer_control_service=computer_control,
+            mcp_config_file=settings.data_dir / "mcp_servers.json",
         )
         agent.set_tools_controller(tools_controller)
 

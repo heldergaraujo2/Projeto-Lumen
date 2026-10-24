@@ -96,7 +96,10 @@ class Agent:
         bridge = ToolCallingBridge(self, self._tools_controller, universal_runtime=self._universal_runtime)
         return bridge.process(text, on_delta=on_delta)
 
-    def request_tool_plan(self, text: str, catalog: dict | None = None):
+    def request_tool_plan(
+        self, text: str, catalog: dict | None = None, *,
+        require_plan: bool = False, required_tool: str | None = None,
+    ):
         if not isinstance(text, str) or not text.strip():
             raise ValueError("O pedido do plano não pode ser vazio.")
         cleaned = text.strip()
@@ -106,7 +109,10 @@ class Agent:
             provider = self._provider
         planner = Planner(provider, memory=self._memory_system, catalog=catalog)
         history = [m.to_dict() for m in self._memory.recent(self._context_window)]
-        return planner.create_tool_plan(cleaned, history)
+        return planner.create_tool_plan(
+            cleaned, history, require_plan=require_plan,
+            required_tool=required_tool,
+        )
 
     def send_message(self, text: str, on_delta: DeltaCallback | None = None) -> str:
         if not isinstance(text, str) or not text.strip():
@@ -171,10 +177,21 @@ class Agent:
     def execute_plan(self, plan, handler=None, *, verifier=None, retry=None, checkpoints=None):
         if self._permissions is not None:
             self._permissions.require(PermissionLevel.CHAT)
-        from app.executor import PlanExecutor, SimulatedHandler
+        if handler is None:
+            if not plan.tasks or any(not task.tool for task in plan.tasks):
+                raise AgentError(
+                    "O plano não designa ferramentas executáveis; nada foi executado."
+                )
+            if self._tools_controller is None:
+                raise AgentError(
+                    "Execução real indisponível: nenhum ToolsController está conectado."
+                )
+            return self._tools_controller.run_plan(plan)
+
+        from app.executor import PlanExecutor
         executor = PlanExecutor(
             plan,
-            handler or SimulatedHandler(),
+            handler,
             verifier=verifier,
             retry=retry,
             checkpoints=checkpoints,

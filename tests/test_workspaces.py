@@ -46,9 +46,23 @@ def test_add_requires_absolute_existing_directory(store, tmp_path):
         store.add(str(file_path))
 
 
-def test_add_rejects_filesystem_root_anchor(store, tmp_path):
-    with pytest.raises(ValueError, match="raiz do disco"):
-        store.add(str(Path(tmp_path.resolve().anchor)))
+def test_add_allows_filesystem_root_readonly_but_rejects_write(store, tmp_path):
+    root = Path(tmp_path.resolve().anchor)
+    entry = store.add(str(root))
+    assert entry.root == root.resolve()
+    assert entry.writable is False
+    assert entry.allow_delete is False
+
+    candidate = (root / "lumen-workspace-policy-test.txt").resolve()
+    sandbox = MultiWorkspaceSandbox([entry])
+    sandbox.check_operation("read", candidate)
+    with pytest.raises(WriteNotAllowedError):
+        sandbox.check_operation("write", candidate)
+
+    with pytest.raises(ValueError, match="somente leitura"):
+        store.add(str(root), writable=True)
+    with pytest.raises(ValueError, match="somente leitura"):
+        store.set_flags(str(root), writable=True, allow_delete=True)
     with pytest.raises(ValueError):
         store.add("")
 
@@ -94,6 +108,17 @@ def test_load_rejects_corrupt_or_invalid(store, tmp_path):
         encoding="utf-8",
     )
     with pytest.raises(WorkspaceStoreError):  # invariante delete⊃write
+        store.load()
+
+
+def test_load_rejects_writable_filesystem_root(store, tmp_path):
+    root = Path(tmp_path.resolve().anchor)
+    store.path.parent.mkdir(parents=True, exist_ok=True)
+    store.path.write_text(
+        json.dumps([{"root": str(root), "writable": True, "allow_delete": False}]),
+        encoding="utf-8",
+    )
+    with pytest.raises(WorkspaceStoreError, match="somente leitura"):
         store.load()
 
 
@@ -149,6 +174,35 @@ def test_multi_policy_is_per_root_not_weakest_link(tmp_path):
     with pytest.raises(WriteNotAllowedError):
         sandbox.check_operation("write", ro_file)      # ro é ro
     sandbox.check_operation("write", rw_file)          # rw permite
+
+
+@pytest.mark.parametrize("root_first", [True, False])
+def test_readonly_drive_root_does_not_override_nested_workspace(tmp_path, root_first):
+    """A raiz é fallback somente-leitura; o workspace explícito mais específico prevalece."""
+    drive_root = Path(tmp_path.resolve().anchor).resolve()
+    project = tmp_path / "projeto"
+    project.mkdir()
+    entries = [
+        WorkspaceEntry(drive_root),
+        WorkspaceEntry(project, writable=True, allow_delete=True),
+    ]
+    if not root_first:
+        entries.reverse()
+
+    sandbox = MultiWorkspaceSandbox(entries)
+    project_file = (project / "novo.txt").resolve()
+    outside_specific_workspace = (tmp_path / "outro.txt").resolve()
+
+    # A autorização explícita mais restrita permite escrita/exclusão,
+    # independentemente da ordem em que os workspaces foram adicionados.
+    assert sandbox.entry_for(project_file).root == project.resolve()
+    sandbox.check_operation("write", project_file)
+    sandbox.check_operation("delete", project_file)
+
+    # Fora do workspace específico, a política da raiz continua somente leitura.
+    assert sandbox.entry_for(outside_specific_workspace).root == drive_root
+    with pytest.raises(WriteNotAllowedError):
+        sandbox.check_operation("write", outside_specific_workspace)
 
 
 def test_multi_delete_needs_per_root_opt_in(tmp_path):

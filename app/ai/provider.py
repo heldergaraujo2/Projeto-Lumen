@@ -168,6 +168,7 @@ _PROVIDER_REGISTRY: dict[str, str] = {
     "gemini": "app.ai.gemini_provider.GeminiProvider",
     "groq": "app.ai.groq_provider.GroqProvider",
     "together": "app.ai.together_provider.TogetherProvider",
+    "orcarouter": "app.ai.orcarouter_provider.OrcaRouterProvider",
     "ollama": "app.ai.ollama_provider.OllamaProvider",
 }
 

@@ -22,6 +22,7 @@ class RuntimeResult:
     text: str
     runtime: str
     used_tools: tuple[str, ...] = ()
+    # Tool invocation/output is execution evidence, not functional verification.
     verified: bool = False
 
 
@@ -168,7 +169,7 @@ class UniversalAgentRuntime:
                 for item in getattr(result, "new_items", [])
                 if getattr(item, "name", "")
             ),
-            verified=True,
+            verified=False,
         )
 
     def _run_openhands(self, instruction: str) -> str:

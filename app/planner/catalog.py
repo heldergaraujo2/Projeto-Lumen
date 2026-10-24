@@ -47,6 +47,7 @@ class ToolSpec:
     terminal: bool = False
     web: bool = False    # ferramenta Web: exige WEB_ACCESS
     unreal: bool = False  # inspeção Unreal via MCP
+    mcp: bool = False  # ferramenta externa allow-listada
 
 
 def _fs(name: str, description: str) -> ToolSpec:
@@ -56,8 +57,8 @@ def _fs(name: str, description: str) -> ToolSpec:
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Caminho RELATIVO à raiz do workspace autorizado "
-                "(nunca absoluto, nunca com '..').",
+                "Caminho relativo ou absoluto dentro de um workspace autorizado "
+                "(nunca com '..'; o sandbox valida o escopo).",
             ),
         ),
     )
@@ -73,7 +74,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Caminho relativo ao workspace (nunca absoluto, nunca '..').",
+                "Caminho relativo ou absoluto dentro do workspace (nunca '..').",
             ),
             ParameterSpec("content", "string", True, "Conteúdo completo a gravar."),
         ),
@@ -84,7 +85,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Caminho relativo ao workspace (nunca absoluto, nunca '..').",
+                "Caminho relativo ou absoluto dentro do workspace (nunca '..').",
             ),
             ParameterSpec("content", "string", True, "Conteúdo completo do arquivo."),
         ),
@@ -101,8 +102,8 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Diretório relativo ao workspace onde buscar "
-                "(nunca absoluto, nunca '..').",
+                "Diretório relativo ou absoluto dentro do workspace onde buscar "
+                "(nunca '..'; o sandbox valida o escopo).",
             ),
             ParameterSpec(
                 "query", "string", True,
@@ -122,7 +123,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         parameters=(
             ParameterSpec(
                 "path", "string", True,
-                "Caminho relativo ao workspace (nunca absoluto, nunca '..').",
+                "Caminho relativo ou absoluto dentro do workspace (nunca '..').",
             ),
             ParameterSpec(
                 "expected_old_text", "string", True,
@@ -162,6 +163,16 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
             ParameterSpec("include_source_locations", "boolean", False, "Inclui localizações de origem quando disponíveis."),
         ),
         unreal=True,
+    ),
+    ToolSpec(
+        name="mcp_call",
+        description="Invoca uma ferramenta MCP local previamente configurada e explicitamente autorizada.",
+        parameters=(
+            ParameterSpec("server_name", "string", True, "Nome do servidor configurado."),
+            ParameterSpec("tool_name", "string", True, "Nome exato da ferramenta autorizada."),
+            ParameterSpec("arguments_json", "string", True, "Argumentos como objeto JSON serializado."),
+        ),
+        mcp=True,
     ),
     ToolSpec(
         name="web_search",
@@ -254,7 +265,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
 )
 
 
-def build_catalog(*, include_terminal: bool, include_unreal: bool = False) -> dict[str, dict]:
+def build_catalog(*, include_terminal: bool, include_unreal: bool = False, include_mcp: bool = False) -> dict[str, dict]:
     """Allowlist de planejamento como dict serializável (para o prompt).
 
     ``include_terminal=False`` (default quando o terminal não está
@@ -266,6 +277,8 @@ def build_catalog(*, include_terminal: bool, include_unreal: bool = False) -> di
         if spec.terminal and not include_terminal:
             continue
         if spec.unreal and not include_unreal:
+            continue
+        if spec.mcp and not include_mcp:
             continue
         catalog[spec.name] = {
             "description": spec.description,
@@ -303,19 +316,11 @@ def catalog_prompt_section(catalog: dict[str, dict]) -> str:
 
 
 def _path_suspect(value: str) -> bool:
-    """Caminho que tenta escapar do workspace (protocolo 0.6.3).
-
-    Absoluto POSIX (``/…``), raiz de drive (``C:\…``), UNC (``\\…``) ou
-    com componente ``..``. O sandbox da camada de tools continua sendo
-    a defesa de execução — isto rejeita a tentativa já no planejamento
-    (falha controlada, nada executa).
-    """
-    stripped = value.strip()
-    if stripped.startswith(("/", "\\")):
-        return True
-    if ":" in stripped.split("/")[0].split("\\")[0]:
-        return True  # drive/unidade (ex.: C:) antes do 1º separador
-    return ".." in stripped
+    """Detecta traversal lexical sem importar APIs de filesystem no Planner."""
+    # Normalize both separator styles and inspect lexical components only.
+    # The execution sandbox remains the authority for the resolved path.
+    parts = value.strip().replace("\\", "/").split("/")
+    return ".." in parts
 
 
 def validate_task_tool(
@@ -386,8 +391,7 @@ def validate_task_tool(
             if pname == "path" and _path_suspect(value):
                 return (
                     f"parâmetro 'path' de '{name}' deve ser um caminho "
-                    "relativo ao workspace, sem '..' e sem caminho "
-                    "absoluto"
+                    "dentro do workspace autorizado, sem componente '..'"
                 )
         elif pspec.type == "integer":
             if isinstance(value, bool) or not isinstance(value, int):

@@ -7,9 +7,11 @@ controlada (plano FAILED com motivo) — nunca execução parcial.
 from __future__ import annotations
 
 import dataclasses
+import json
 
 import pytest
 
+from app.ai.provider import ProviderError
 from app.ai.types import AIResponse, ResponseType
 from app.planner.catalog import (
     build_catalog,
@@ -43,9 +45,16 @@ class FixedProvider:
     def __init__(self, content: str) -> None:
         self._content = content
         self.calls: list[str] = []
+        self.requests: list[dict] = []
 
     def chat(self, message, context=None, *, system_prompt=None, **kwargs):
         self.calls.append(system_prompt or "")
+        self.requests.append({
+            "message": message,
+            "context": [dict(item) for item in context or []],
+            "system_prompt": system_prompt,
+            "options": dict(kwargs),
+        })
         return AIResponse(
             content=self._content, model="fixed", usage=None,
             finish_reason="stop", response_type=ResponseType.FINAL_RESPONSE,
@@ -142,7 +151,6 @@ def test_validate_task_tool_matrix(tool, parameters, expect_problem):
 
 
 @pytest.mark.parametrize("path", [
-    "/etc/passwd", "C:\\Windows\\system32\\x.txt", "\\\\servidor\\x",
     "../fora.txt", "docs/../../fora.txt", "..\\fora.txt",
 ])
 def test_protocol_rejects_paths_trying_to_escape_workspace(path):
@@ -151,6 +159,16 @@ def test_protocol_rejects_paths_trying_to_escape_workspace(path):
         build_catalog(include_terminal=False),
     )
     assert problem is not None and "workspace" in problem
+
+
+@pytest.mark.parametrize("path", [
+    "/workspace/nota.txt", "D:\\workspace\\nota.txt",
+    "\\\\servidor\\workspace\\nota.txt",
+])
+def test_protocol_accepts_absolute_paths_for_sandbox_validation(path):
+    assert validate_task_tool(
+        "read_file", {"path": path}, build_catalog(include_terminal=False),
+    ) is None
 
 
 def test_protocol_accepts_relative_paths_inside_workspace():
@@ -176,13 +194,109 @@ def test_planner_produces_tool_and_parameters():
 
 
 def test_planner_conversation_type_does_not_create_plan():
-    import json
-
     result = make_planner(
         json.dumps({"type": "conversation"})
     ).create_tool_plan("olá")
     assert result.kind == "conversation"
     assert result.plan.tasks == ()  # nenhum plano, nenhuma tarefa
+
+
+@pytest.mark.parametrize("content", [
+    '{"status":"Operação realizada com sucesso.","message":"Estou funcionando."}',
+    '{"type":"other","status":"ok"}',
+])
+def test_planner_rejects_valid_json_outside_protocol(content):
+    result = make_planner(content).create_tool_plan("oi")
+    assert result.kind == "invalid"
+    assert result.plan.status is PlanStatus.FAILED
+    assert result.plan.tasks == ()
+
+
+def test_planner_rejects_extra_fields_on_conversation_result():
+    result = make_planner(
+        '{"type":"conversation","message":"resposta arbitrária"}'
+    ).create_tool_plan("oi")
+    assert result.kind == "invalid"
+    assert result.plan.tasks == ()
+
+
+def test_ollama_planner_requests_protocol_json_schema():
+    class OllamaFixedProvider(FixedProvider):
+        name = "ollama"
+
+    provider = OllamaFixedProvider('{"type":"conversation"}')
+    result = Planner(
+        provider, catalog=build_catalog(include_terminal=False),
+    ).create_tool_plan("oi")
+
+    assert result.kind == "conversation"
+    options = provider.requests[0]["options"]
+    schema = options["json_schema"]
+    assert "json_format" not in options
+    assert len(schema["oneOf"]) == 2
+    conversation, plan = schema["oneOf"]
+    assert conversation["properties"]["type"]["const"] == "conversation"
+    assert plan["properties"]["type"]["const"] == "plan"
+    assert plan["required"] == ["type", "objective", "analysis", "tasks"]
+
+
+def test_ollama_plan_only_schema_pins_explicit_read_to_catalog_tool():
+    from types import SimpleNamespace
+    from app.ai.ollama_provider import OllamaProvider
+
+    requests = []
+    planned = tool_json("read_file", {"path": r"D:\Nova pasta (2)\Teste.txt"})
+
+    def transport(method, url, body, timeout):
+        requests.append(json.loads(body))
+        event = {
+            "model": "qwen2.5-coder:7b",
+            "message": {"content": planned},
+            "done": True,
+        }
+        return iter([json.dumps(event).encode("utf-8") + b"\n"])
+
+    provider = OllamaProvider(
+        SimpleNamespace(
+            model="qwen2.5-coder:7b", request_timeout=30,
+            ollama_base_url="http://127.0.0.1:11434",
+            ollama_keep_alive="5m", ollama_think=False,
+        ),
+        transport=transport,
+    )
+    result = Planner(
+        provider, catalog=build_catalog(include_terminal=False),
+    ).create_tool_plan(
+        "Leia o arquivo Teste.txt", require_plan=True,
+        required_tool="read_file",
+    )
+
+    assert result.kind == "plan"
+    assert result.plan.tasks[0].tool == "read_file"
+    assert result.plan.tasks[0].parameters == {
+        "path": r"D:\Nova pasta (2)\Teste.txt",
+    }
+    schema = requests[0]["format"]
+    assert "oneOf" not in schema
+    assert schema["properties"]["type"]["const"] == "plan"
+    assert (
+        schema["properties"]["tasks"]["items"]["properties"]["tool"]["const"]
+        == "read_file"
+    )
+
+
+def test_planner_provider_failure_is_invalid_and_has_no_tasks():
+    class FailingProvider(FixedProvider):
+        def chat(self, *args, **kwargs):
+            raise ProviderError("falha simulada")
+
+    result = Planner(
+        FailingProvider(""), catalog=build_catalog(include_terminal=False),
+    ).create_tool_plan("oi")
+    assert result.kind == "invalid"
+    assert result.plan.status is PlanStatus.FAILED
+    assert result.plan.tasks == ()
+    assert "falhou" in (result.reason or "")
 
 
 def test_planner_rejects_invented_tool_with_clear_reason():
@@ -261,3 +375,20 @@ def test_tool_prompt_includes_run_command_only_with_terminal():
     planner.create_tool_plan("leia a.txt")
     assert "- run_command" in planner._provider.calls[0]
     assert "- run_pytest" in planner._provider.calls[0]  # 11D
+
+
+
+def test_tool_planning_prompt_prioritizes_action_requests_and_real_evidence():
+    provider = FixedProvider(tool_json(
+        "create_file", {"path": "probe.txt", "content": "probe"},
+    ))
+    planner = Planner(provider, catalog=build_catalog(include_terminal=True))
+
+    result = planner.create_tool_plan("Crie o arquivo probe.txt")
+
+    assert result.kind == "plan"
+    prompt = provider.calls[0]
+    assert "REGRA PRIORITARIA DE CLASSIFICACAO" in prompt
+    assert "NUNCA responda" in prompt
+    assert "nao declare sucesso sem evidencia" in prompt
+    assert "REA/Ghidra" in prompt
