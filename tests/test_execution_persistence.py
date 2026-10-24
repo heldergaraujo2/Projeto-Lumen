@@ -350,6 +350,7 @@ def test_safe_task_resumption_preserves_completed_tasks(tmp_path, monkeypatch):
             "resolved_path": str(file1),
             "content": "Conteudo 1 Preservado",
         },
+        "error": None,
     })
     interrupted_report = ExecutionReport(
         plan_id="PLN-RESUME-1",
