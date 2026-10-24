@@ -31,10 +31,35 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
 
 logger = logging.getLogger("lumen.bridge")
+
+
+# Concrete action requests must not silently fall through to chat just
+# because a small/local model misclassified the request as conversational.
+_EXPLICIT_ACTION_RE = re.compile(
+    r"\b(?:crie|criar|leia|ler|liste|listar|procure|procurar|busque|buscar|"
+    r"pesquise|pesquisar|edite|editar|altere|alterar|verifique|verificar|"
+    r"execute|executar|rode|rodar|abra|abrir|acesse|acessar|inspecione|"
+    r"inspecionar|analise|analisar|use|utilize|run|read|create|list|search|"
+    r"edit|modify|check|execute|open|inspect|analyze)\b.{0,100}\b"
+    r"(?:arquivo|arquivos|pasta|pastas|diret[oó]rio|internet|web|url|site|"
+    r"teste|testes|pytest|comando|terminal|c[oó]digo|projeto|reposit[oó]rio|"
+    r"mcp|ghidra|file|files|folder|directory|website|tests?|command|terminal|"
+    r"code|project|repository)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _is_explicit_action_request(text: str) -> bool:
+    """True only for concrete tool-oriented requests, not generic autonomy asks."""
+    normalized = " ".join((text or "").split())
+    if not normalized or re.match(r"^(como|how|o que|what)\b", normalized, re.I):
+        return False
+    return bool(_EXPLICIT_ACTION_RE.search(normalized))
 
 
 class RequestState(str, Enum):
