@@ -244,6 +244,7 @@ class PlanExecutor:
         retry: RetryPolicy | None = None,
         checkpoints: CheckpointPolicy | None = None,
         sleeper: Sleeper = time.sleep,
+        state_callback: Callable[[ExecutionReport], None] | None = None,
     ) -> None:
         self._validate_plan(plan)
         self._plan = plan
@@ -255,6 +256,7 @@ class PlanExecutor:
             checkpoints if checkpoints is not None else NeverCheckpoints()
         )
         self._sleep = sleeper
+        self._state_callback = state_callback
         self._runs: dict[str, TaskRun] = {
             task.id: TaskRun(
                 id=task.id,
@@ -602,11 +604,18 @@ class PlanExecutor:
                 task.parameters.update(resolved_params)
 
         if self._maybe_checkpoint(run):
-            return None  # pausado aguardando confirmação
+            self._notify_state()  # checkpoint pendente recuperável; aprovação será renovada
+            return None
 
+        # Persistir IN_PROGRESS antes de invocar a ferramenta. Se o processo
+        # cair durante o efeito externo, a recuperação falha fechada e não
+        # repete automaticamente uma ação de resultado ambíguo.
+        in_progress = replace(run, status=PlannedTaskStatus.IN_PROGRESS)
+        self._runs[run.id] = in_progress
+        self._notify_state()
         self._record("task_started", run.id)
-        self._observer.on_task_started(run)
-        final = self._execute_with_retry(run)
+        self._observer.on_task_started(in_progress)
+        final = self._execute_with_retry(in_progress)
         self._runs[run.id] = final
         self._observer.on_task_finished(final)
 
@@ -754,6 +763,15 @@ class PlanExecutor:
         self._events.append(
             ExecutionEvent(kind=kind, task_id=task_id, detail=detail)
         )
+
+    def _notify_state(self) -> None:
+        """Notifica snapshots imutáveis; callback best-effort e sem I/O próprio."""
+        if self._state_callback is None:
+            return
+        try:
+            self._state_callback(self.report())
+        except Exception:
+            logger.exception("Callback de persistência do executor falhou; execução continua.")
 
     def report(self) -> ExecutionReport:
         """Snapshot imutável do estado atual (parcial, pausado ou final)."""
