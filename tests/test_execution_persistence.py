@@ -403,7 +403,12 @@ def test_safe_task_resumption_preserves_completed_tasks(tmp_path, monkeypatch):
 
     res_t1 = resumed_report.task_run("T1")
     assert res_t1.status is PlannedTaskStatus.DONE
-    assert res_t1.result == t1_result_saved
+    parsed_t1 = json.loads(res_t1.result)
+    assert parsed_t1["ok"] is True
+    assert parsed_t1["data"]["resolved_path"] == str(file1)
+    # O armazenamento remove conteúdo integral de arquivos por política
+    # de sanitização; o resultado persistido continua íntegro para retomada.
+    assert "content" not in parsed_t1["data"]
 
     res_t2 = resumed_report.task_run("T2")
     assert res_t2.status is PlannedTaskStatus.DONE
