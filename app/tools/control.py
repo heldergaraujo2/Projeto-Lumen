@@ -322,7 +322,7 @@ class _CombinedCheckpoints(ToolCheckpoints):
         return any(policy.requires_checkpoint(task) for policy in self._policies)
 
 
-def _maybe_persist_execution_state(config, plan, report, *, correction=None) -> None:
+def _maybe_persist_execution_state(config, plan, report, *, correction=None, conversation_id=None) -> None:
     """9B: persiste o bundle de execução, se ``config`` habilitar (best-effort).
 
     ``config`` é qualquer objeto Settings-like com
@@ -344,6 +344,7 @@ def _maybe_persist_execution_state(config, plan, report, *, correction=None) -> 
         ExecutionBundleStore(base_dir).save_bundle(
             plan=plan, report=report,
             correction=correction, lumen_version=__version__,
+            conversation_id=conversation_id,
         )
     except Exception:  # sink nunca derruba o fluxo
         logger.exception(
@@ -364,6 +365,7 @@ class ToolsController:
         terminal_file: Path | None = None,
         persist_execution_state: bool = False,
         execution_state_dir: Path | str | None = None,
+        conversation_id: str | None = None,
         toggles_file: Path | None = None,
         export_execution_reports: bool = False,
         reports_dir: Path | None = None,
@@ -434,6 +436,12 @@ class ToolsController:
         self._persist_execution_state = bool(persist_execution_state)
         self._execution_state_dir = (
             Path(execution_state_dir) if execution_state_dir is not None else None
+        )
+        # Identidade opaca do histórico de conversa; nunca inferida do texto.
+        self._conversation_id = (
+            conversation_id.strip()
+            if isinstance(conversation_id, str) and conversation_id.strip()
+            else None
         )
         # 11K: snapshot "before" de operações destrutivas (opt-in,
         # default OFF — bit-a-bit; best-effort; somente metadados no
@@ -1476,6 +1484,7 @@ class ToolsController:
         _maybe_persist_execution_state(
             config, self._plan, report,
             correction=self.correction_history() or None,
+            conversation_id=self._conversation_id,
         )
         return report
 
