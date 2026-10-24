@@ -210,6 +210,115 @@ def _auto_pytest_limit_report(plan: Plan) -> ExecutionReport:
     )
 
 
+def _contains_sanitization_marker(value: Any) -> bool:
+    """Detecta dados do plano alterados pelo redator/truncador do bundle."""
+    if isinstance(value, str):
+        return "…[truncado]" in value or "***" in value
+    if isinstance(value, dict):
+        return any(
+            _contains_sanitization_marker(key) or _contains_sanitization_marker(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_sanitization_marker(item) for item in value)
+    return False
+
+
+def _plan_from_bundle(data: dict[str, Any]) -> Plan:
+    """Reconstrói um Plan com validação estrita a partir do JSON persistido."""
+    if not isinstance(data, dict):
+        raise ToolsControlError("Plano persistido inválido.")
+    required = ("id", "objective", "status", "tasks")
+    if any(key not in data for key in required):
+        raise ToolsControlError("Plano persistido incompleto.")
+    if not isinstance(data["tasks"], list) or not data["tasks"]:
+        raise ToolsControlError("Plano persistido sem tarefas.")
+    tasks = []
+    for item in data["tasks"]:
+        if not isinstance(item, dict):
+            raise ToolsControlError("Tarefa persistida inválida.")
+        dependencies = item.get("dependencies", [])
+        criteria = item.get("success_criteria", [])
+        parameters = item.get("parameters")
+        if not isinstance(dependencies, list) or not all(isinstance(x, str) for x in dependencies):
+            raise ToolsControlError("Dependências persistidas inválidas.")
+        if not isinstance(criteria, list) or not all(isinstance(x, str) for x in criteria):
+            raise ToolsControlError("Critérios persistidos inválidos.")
+        if parameters is not None and not isinstance(parameters, dict):
+            raise ToolsControlError("Parâmetros persistidos inválidos.")
+        tasks.append(PlannedTask(
+            id=str(item["id"]),
+            description=str(item["description"]),
+            order=int(item["order"]),
+            dependencies=tuple(dependencies),
+            status=PlannedTaskStatus(item.get("status", "PENDING")),
+            result=item.get("result"),
+            error=item.get("error"),
+            tool=item.get("tool"),
+            parameters=parameters,
+            success_criteria=tuple(criteria),
+        ))
+    return Plan(
+        id=str(data["id"]),
+        objective=str(data["objective"]),
+        status=PlanStatus(data["status"]),
+        analysis=tuple(data.get("analysis") or ()),
+        tasks=tuple(tasks),
+        error=data.get("error"),
+        created_at=str(data.get("created_at") or ""),
+        updated_at=str(data.get("updated_at") or ""),
+    )
+
+
+def _report_from_bundle(data: dict[str, Any]) -> ExecutionReport:
+    """Reconstrói somente os campos de estado necessários para validar resume."""
+    if not isinstance(data, dict) or not isinstance(data.get("tasks"), list):
+        raise ToolsControlError("Relatório persistido inválido.")
+    runs = []
+    for item in data["tasks"]:
+        if not isinstance(item, dict):
+            raise ToolsControlError("Estado de tarefa persistido inválido.")
+        dependencies = item.get("dependencies", [])
+        if not isinstance(dependencies, list) or not all(isinstance(x, str) for x in dependencies):
+            raise ToolsControlError("Dependências do relatório inválidas.")
+        runs.append(TaskRun(
+            id=str(item["id"]),
+            description=str(item["description"]),
+            order=int(item["order"]),
+            dependencies=tuple(dependencies),
+            tool=item.get("tool"),
+            status=PlannedTaskStatus(item["status"]),
+            result=item.get("result"),
+            error=item.get("error"),
+            attempts=int(item.get("attempts", 0)),
+            verified=item.get("verified"),
+            verification_name=item.get("verification_name"),
+            verification_detail=item.get("verification_detail"),
+            verification_authority=item.get("verification_authority"),
+        ))
+    events_data = data.get("events") or []
+    if not isinstance(events_data, list):
+        raise ToolsControlError("Eventos persistidos inválidos.")
+    events = tuple(
+        ExecutionEvent(
+            kind=str(item["kind"]),
+            task_id=item.get("task_id"),
+            detail=str(item.get("detail", "")),
+        )
+        for item in events_data if isinstance(item, dict) and "kind" in item
+    )
+    return ExecutionReport(
+        plan_id=str(data["plan_id"]),
+        objective=str(data["objective"]),
+        status=PlanStatus(data["status"]),
+        tasks=tuple(runs),
+        events=events,
+        error=data.get("error"),
+        started_at=str(data.get("started_at") or ""),
+        finished_at=str(data.get("finished_at") or ""),
+    )
+
+
 class ToolsControlError(RuntimeError):
     """Uso incorreto da camada de controle (mensagem amigável)."""
 
