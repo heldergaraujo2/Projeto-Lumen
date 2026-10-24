@@ -731,8 +731,22 @@ class ToolsController:
             raise ToolsControlError(
                 f"O plano {plan_id} possui formato inválido e não pode ser retomado."
             )
+        if plan_dict.get("conversation_id") != bundle_conversation_id:
+            raise ToolsControlError(
+                f"O plano {plan_id} possui identidade de conversa inconsistente; "
+                "retomada bloqueada."
+            )
 
         report_dict = bundle.get("execution_report")
+        if (
+            isinstance(report_dict, dict)
+            and report_dict.get("conversation_id") is not None
+            and report_dict.get("conversation_id") != bundle_conversation_id
+        ):
+            raise ToolsControlError(
+                f"O relatório do plano {plan_id} pertence a outra conversa; "
+                "retomada bloqueada."
+            )
         records_list = bundle.get("execution_records")
         if not report_dict and not records_list:
             raise ToolsControlError(
