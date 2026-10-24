@@ -23,7 +23,7 @@ Fornece também:
 - proteção de segredos em TODOS os domínios estruturados (redação antes
   de persistir — :mod:`app.memory.sanitization`).
 
-A memória é LOCAL; nada é enviado a provedor algum por esta camada.
+A memória estruturada e a conversa permanecem em arquivos locais. Por padrão, Mem0 fica desligado. Quando explicitamente habilitado, o índice semântico usa apenas Ollama e Qdrant locais; nenhum dado é enviado ao Mem0 Platform.
 """
 from __future__ import annotations
 
@@ -224,8 +224,8 @@ class MemorySystem:
 
         Ordem de preenchimento da cota: registros estruturados por
         relevância; mensagens recentes da conversa que casam com os
-        termos completam a cota restante. Este é o gancho que o Agent
-        usará a partir da 0.4 — nada é enviado a provedores aqui.
+        termos completam a cota restante. A busca semântica é opcional e,
+        quando habilitada, usa somente o Ollama local.
         """
         budget = max_records or self._max_context_records
         entries: list[ContextEntry] = []
