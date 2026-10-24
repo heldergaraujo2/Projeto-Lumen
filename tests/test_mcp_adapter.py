@@ -8,6 +8,7 @@ import pytest
 
 from app.mcp_runtime.adapter import MCPRuntimeConfig
 from app.tools.mcp import MCPCallTool
+from app.tools.control import ToolsController
 from app.mcp_runtime.stdio import MCPServerConfig
 from app.security.permissions import PermissionDeniedError, PermissionLevel, PermissionManager
 from app.tools.base import ToolRegistry
@@ -69,3 +70,23 @@ def test_mcp_tool_rejects_non_allowlisted_name() -> None:
     result = json.loads(registry.execute("mcp_call", server_name="fake", tool_name="unknown", arguments_json="{}"))
     assert result["ok"] is False
     assert "not allow-listed" in result["error"]
+
+
+def test_planning_catalog_exposes_configured_mcp_tool_names(tmp_path: Path) -> None:
+    mcp_path = tmp_path / "mcp.json"
+    mcp_path.write_text(json.dumps({"schema_version": 1, "servers": [
+        {"name": "rea", "transport": "stdio", "command": sys.executable,
+         "args": [], "enabled": True,
+         "allowed_tools": ["open_binary", "function", "strings"]}
+    ]}), encoding="utf-8")
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit.jsonl",
+        mcp_config_file=mcp_path,
+    )
+
+    description = controller.planning_catalog()["mcp_call"]["description"]
+
+    assert "rea: function, open_binary, strings" in description
+    assert "advertised by the live server" in description
