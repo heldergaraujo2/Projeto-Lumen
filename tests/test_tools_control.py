@@ -923,3 +923,30 @@ def test_autonomous_mode_persists_global_file_access_and_all_permission_grants(t
     assert restarted._permissions.is_granted(PermissionLevel.CHAT) is True
     assert restarted._permissions.is_granted(PermissionLevel.WEB_ACCESS) is True
     assert restarted._permissions.is_granted(PermissionLevel.READ) is False
+
+
+
+# ------------------------------------------------ recuperação segura (9C)
+def test_resume_requires_persistence_enabled(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit.jsonl",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="desativada"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-a")
+
+
+def test_resume_rejects_cross_conversation_before_loading_bundle(tmp_path):
+    controller = ToolsController(
+        PermissionManager(),
+        workspaces_file=tmp_path / "workspaces.json",
+        audit_file=tmp_path / "audit.jsonl",
+        persist_execution_state=True,
+        execution_state_dir=tmp_path / "executions",
+        conversation_id="conv-a",
+    )
+    with pytest.raises(ToolsControlError, match="Identidade de conversa inválida"):
+        controller.resume_execution("PLN-4242", conversation_id="conv-b")
+    assert not (tmp_path / "executions").exists()
