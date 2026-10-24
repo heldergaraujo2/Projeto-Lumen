@@ -40,7 +40,7 @@ def _load_or_create_conversation_id(path) -> str:
         pass
     conversation_id = str(uuid.uuid4())
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(conversation_id + "\\n", encoding="utf-8")
+    temporary.write_text(conversation_id + "\n", encoding="utf-8")
     temporary.replace(path)
     return conversation_id
 
