@@ -1292,11 +1292,31 @@ class ToolsController:
         """
         from app.planner.catalog import build_catalog
 
-        return build_catalog(
+        catalog = build_catalog(
             include_terminal=self._terminal_policy is not None,
             include_unreal=self._unreal is not None,
             include_mcp=self._mcp_config.has_allowlisted_tools,
         )
+        # The generic mcp_call schema is not enough for a small local model:
+        # expose the operator-configured server/tool names in its description
+        # so the planner can select an exact allow-listed tool instead of
+        # guessing. The execution adapter still checks the live tools/list
+        # response before dispatch; this description is not an authorization.
+        mcp_spec = catalog.get("mcp_call")
+        if mcp_spec is not None:
+            configured = [
+                f"{server.name}: {', '.join(sorted(server.allowed_tools))}"
+                for server in self._mcp_config.servers
+                if server.allowed_tools
+            ]
+            if configured:
+                mcp_spec["description"] += (
+                    " Configured server and exact allow-listed tool names "
+                    "(each tool must also be advertised by the live server): "
+                    + "; ".join(configured)
+                    + "."
+                )
+        return catalog
 
     def build_registry(self) -> ToolRegistry:
         """Registry com as ferramentas habilitadas sobre os workspaces atuais.
